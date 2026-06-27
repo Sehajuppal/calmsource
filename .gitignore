@@ -84,3 +84,9 @@ site/
 !/gradle.properties
 !/gradlew
 !/gradlew.bat
+
+# Junk files
+$null
+*.bak
+local_db.db
+dummy.m3u

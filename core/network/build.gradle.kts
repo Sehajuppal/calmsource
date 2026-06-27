@@ -12,7 +12,8 @@ android {
     defaultConfig {
         minSdk = 23
         buildConfigField("String", "WS_AUTH_URL", "\"ws://167.233.92.78:3000/tv-auth\"")
-        buildConfigField("String", "BACKEND_BASE_URL", "\"http://localhost:3000\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"http://167.233.92.78\"")
+        buildConfigField("String", "RELAY_API_URL", "\"http://167.233.92.78/api/relay\"")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

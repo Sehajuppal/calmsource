@@ -2128,10 +2128,12 @@ fun MobileXtreamProviderItem(
 
 suspend fun postSyncPayload(pin: String, payload: String): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
     runCatching {
-        val url = java.net.URL("http://167.233.92.78:3000/api/relay")
+        val url = java.net.URL(com.example.calmsource.core.network.BuildConfig.RELAY_API_URL)
         val conn = url.openConnection() as java.net.HttpURLConnection
         conn.requestMethod = "POST"
         conn.doOutput = true
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
         conn.setRequestProperty("Content-Type", "application/json; utf-8")
         conn.setRequestProperty("Accept", "application/json")
         
