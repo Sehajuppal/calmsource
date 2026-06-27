@@ -49,6 +49,10 @@ import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.RowSection
 import com.example.calmsource.core.ui.components.PosterCard
 import com.example.calmsource.core.ui.components.PosterOrientation
+import com.example.calmsource.core.ui.components.LumenSkeleton
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 
 @Composable
 fun TvSearchScreen(
@@ -147,13 +151,22 @@ fun TvSearchScreen(
 
         when {
             isSearching && searchResults.isEmpty() -> {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    CircularProgressIndicator(color = t.colors.brand)
+                    repeat(3) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                        }
+                    }
                 }
             }
             searchResults.isEmpty() && query.isNotEmpty() -> {
@@ -163,10 +176,10 @@ fun TvSearchScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No matches found in your catalogs or connected sources.",
-                        color = t.colors.mutedForeground,
-                        fontSize = 16.sp
+                    LumenEmptyState(
+                        title = "Nothing matched '$query'",
+                        body = "Try checking the spelling or look for different keywords.",
+                        icon = androidx.compose.material.icons.Icons.Default.Search
                     )
                 }
             }
@@ -176,6 +189,12 @@ fun TvSearchScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
+                    LumenEmptyState(
+                        title = "Search films, series, channels",
+                        body = "Find movies, series, or live TV channels from all sources.",
+                        icon = androidx.compose.material.icons.Icons.Default.Search,
+                        modifier = Modifier.weight(1f)
+                    )
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
                         text = "Suggested Genres",

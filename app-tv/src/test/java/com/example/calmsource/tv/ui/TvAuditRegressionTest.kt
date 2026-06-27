@@ -133,7 +133,7 @@ class TvAuditRegressionTest {
 
     @Test
     fun `TV-019 EPG airing now label is at least 12sp`() {
-        val source = readSourceFile("TvLiveGuideScreen.kt")
+        val source = readSourceFile("TvLiveTvScreen.kt") + readSourceFile("TvGuideScreen.kt")
         val airingNowIdx = source.indexOf("AIRING NOW")
         val nearbySection = source.substring(airingNowIdx, airingNowIdx + 100)
         assertFalse(
@@ -168,7 +168,7 @@ class TvAuditRegressionTest {
     fun `all AsyncImage instances have contentDescription`() {
         val files = listOf(
             "TvHomeScreen.kt", "TvSearchScreen.kt", "TvDetailsScreen.kt",
-            "TvPlayerScreen.kt", "TvLiveGuideScreen.kt"
+            "TvPlayerScreen.kt", "TvLiveTvScreen.kt", "TvGuideScreen.kt"
         )
         files.forEach { fileName ->
             val source = readSourceFile(fileName)
@@ -227,10 +227,11 @@ class TvAuditRegressionTest {
 
     @Test
     fun `TvLiveGuideScreen lazy column has stable keys`() {
-        val source = readSourceFile("TvLiveGuideScreen.kt")
+        val source = readSourceFile("TvLiveTvScreen.kt") + readSourceFile("TvGuideScreen.kt")
         assertTrue(
-            "TvLiveGuideScreen: Channel items should have stable keys",
-            source.contains("itemsIndexed(safeChannels, key = { _, channel -> channel.id })")
+            "TvLiveTvScreen+TvGuideScreen: Channel items should have stable keys",
+            source.contains("itemsIndexed(safeChannels, key = { _, channel -> channel.id })") ||
+                source.contains("items(filteredChannels, key = { it.id })")
         )
     }
 
@@ -321,7 +322,7 @@ class TvAuditRegressionTest {
             "TvSearchViewModel.kt",
             "TvDetailsScreen.kt",
             "TvLibraryScreen.kt",
-            "TvLiveGuideScreen.kt"
+            "TvLiveTvScreen.kt"
         )
         for (path in files) {
             val source = if (path == "TvSearchViewModel.kt") {

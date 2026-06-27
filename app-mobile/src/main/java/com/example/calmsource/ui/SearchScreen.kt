@@ -65,6 +65,8 @@ import androidx.compose.ui.focus.focusRequester
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.ChipRow
+import com.example.calmsource.core.ui.components.LumenSkeleton
+import com.example.calmsource.core.ui.components.LumenEmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,13 +197,22 @@ fun SearchScreen(
 
         when {
             isSearching && searchResults.isEmpty() -> {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    CircularProgressIndicator(color = t.colors.brand)
+                    repeat(3) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                        }
+                    }
                 }
             }
             searchResults.isEmpty() && query.isNotEmpty() -> {
@@ -211,24 +222,11 @@ fun SearchScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    ) {
-                        Text(
-                            text = "No matches",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = t.colors.foreground
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "No matches found in your catalogs or connected sources.",
-                            fontSize = 14.sp,
-                            color = t.colors.mutedForeground
-                        )
-                    }
+                    LumenEmptyState(
+                        title = "Nothing matched '$query'",
+                        body = "Try checking the spelling or look for different keywords.",
+                        icon = Icons.Default.Search
+                    )
                 }
             }
             query.isEmpty() -> {
@@ -237,13 +235,19 @@ fun SearchScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
+                    LumenEmptyState(
+                        title = "Search films, series, channels",
+                        body = "Find movies, series, or live TV channels from all sources.",
+                        icon = Icons.Default.Search,
+                        modifier = Modifier.weight(1f)
+                    )
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
                         text = "Suggested Genres",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                     ChipRow(
                         items = suggestedTags,
@@ -252,21 +256,8 @@ fun SearchScreen(
                             viewModel.search(tag)
                             viewModel.submitSearch(tag)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                     )
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Search movies, shows, and channels across your catalogs.",
-                            color = t.colors.mutedForeground,
-                            fontSize = 14.sp
-                        )
-                    }
                 }
             }
             else -> {

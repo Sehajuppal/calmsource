@@ -2,6 +2,8 @@ package com.example.calmsource.ui
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
 
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -49,6 +51,7 @@ import kotlinx.coroutines.withContext
 fun HomeScreen(
     onMediaClick: (MediaItem) -> Unit,
     onChannelClick: (String) -> Unit,
+    onSettingsClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val homeRows by viewModel.homeRows.collectAsState()
@@ -85,10 +88,11 @@ fun HomeScreen(
                 "Live" -> row.items.filter { it.type == "channel" }
                 else -> row.items
             }.let { items ->
-                if (selectedMood != null && row.rowType != "continue_watching") {
+                val mood = selectedMood
+                if (mood != null && row.rowType != "continue_watching") {
                     items.filter {
-                        it.reason.contains(selectedMood!!, ignoreCase = true) ||
-                        it.subtitle?.contains(selectedMood!!, ignoreCase = true) == true
+                        it.reason.contains(mood, ignoreCase = true) ||
+                        it.subtitle?.contains(mood, ignoreCase = true) == true
                     }
                 } else items
             }
@@ -125,11 +129,12 @@ fun HomeScreen(
 
     // Auto-rotate Hero Banner every 7000ms if not pressed and motion is not reduced
     if (featuredItems.isNotEmpty()) {
-        LaunchedEffect(isPressed, isReducedMotion, featuredItems.size) {
+        val currentIsPressed by rememberUpdatedState(isPressed)
+        LaunchedEffect(Unit) {
             if (!isReducedMotion) {
-                while (true) {
+                while (isActive) {
                     delay(7000L)
-                    if (!isPressed) {
+                    if (!currentIsPressed) {
                         heroIndex = (heroIndex + 1) % featuredItems.size
                     }
                 }
@@ -173,10 +178,10 @@ fun HomeScreen(
             .background(t.colors.background)
     ) {
         if (isLoading && homeRows.isEmpty()) {
-            // Shimmer skeletons for loading state (uses repeat loops to keep keys clean)
+            // Shimmer skeletons for loading state
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item(key = "skeleton_top") {
-                    Skeleton(
+                    LumenSkeleton(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(450.dp)
@@ -190,13 +195,13 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 24.dp, vertical = 12.dp)
                         ) {
-                            Skeleton(modifier = Modifier.width(140.dp).height(24.dp))
+                            LumenSkeleton(modifier = Modifier.width(140.dp).height(24.dp))
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 repeat(5) {
-                                    Skeleton(
+                                    LumenSkeleton(
                                         modifier = Modifier
                                             .width(120.dp)
                                             .height(180.dp)
@@ -208,26 +213,28 @@ fun HomeScreen(
                 }
             }
         } else if (loadError != null && homeRows.isEmpty()) {
-            // Full screen error state with retry
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Text(
-                        text = loadError ?: "Failed to load feed",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = t.colors.mutedForeground
-                    )
-                    PrimaryButton(
-                        text = "Retry",
-                        onClick = { viewModel.retry() }
-                    )
-                }
+                LumenErrorState(
+                    title = "Failed to load feed",
+                    body = loadError ?: "Unknown error",
+                    onRetry = { viewModel.retry() }
+                )
+            }
+        } else if (homeRows.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                LumenEmptyState(
+                    title = "Nothing to browse yet",
+                    body = "Connect a catalog provider in settings to begin.",
+                    icon = androidx.compose.material.icons.Icons.Default.Home,
+                    ctaText = "Go to Settings",
+                    onCtaClick = onSettingsClick
+                )
             }
         } else {
             LazyColumn(
@@ -286,7 +293,9 @@ fun HomeScreen(
                                             val r = android.graphics.Color.red(dominantColor) / 255f
                                             val g = android.graphics.Color.green(dominantColor) / 255f
                                             val b = android.graphics.Color.blue(dominantColor) / 255f
-                                            backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                                            Handler(Looper.getMainLooper()).post {
+                                                backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                                            }
                                         }
                                     }
                                 }

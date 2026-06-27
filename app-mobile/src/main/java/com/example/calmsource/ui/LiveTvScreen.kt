@@ -43,6 +43,9 @@ import com.example.calmsource.core.ui.components.ChipRow
 import com.example.calmsource.core.ui.components.GlassTabBar
 import com.example.calmsource.core.ui.components.TabItem
 import com.example.calmsource.core.ui.components.AdaptiveButton
+import com.example.calmsource.core.ui.components.LumenSkeleton
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.LumenErrorState
 import com.example.calmsource.core.ui.components.RowSection
 import kotlinx.coroutines.launch
 
@@ -81,20 +84,44 @@ fun LiveTvScreen(
     }
 
     if (uiState.isLoading || (uiState.isSyncing && uiState.allChannels.isEmpty())) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(t.colors.background)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            LumenSkeleton(modifier = Modifier.width(180.dp).height(32.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                repeat(4) {
+                    LumenSkeleton(modifier = Modifier.width(80.dp).height(36.dp))
+                }
+            }
+            repeat(3) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                    LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                }
+            }
+        }
+        return
+    }
+
+    if (uiState.syncWarnings.isNotEmpty() && uiState.allChannels.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(t.colors.background),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = t.colors.brand)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Syncing Live TV...",
-                    color = t.colors.mutedForeground
-                )
-            }
+            LumenErrorState(
+                title = "Failed to sync Live TV",
+                body = uiState.syncWarnings.joinToString("\n"),
+                onRetry = { viewModel.bumpReloadToken() }
+            )
         }
         return
     }
@@ -102,25 +129,18 @@ fun LiveTvScreen(
     val mappedChannels = uiState.allChannels
 
     if (mappedChannels.isEmpty()) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(t.colors.background)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .background(t.colors.background),
+            contentAlignment = Alignment.Center
         ) {
-            Text("No channels yet", color = t.colors.foreground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Connect an M3U or Xtream provider to build your Live TV guide.",
-                color = t.colors.mutedForeground,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            AdaptiveButton(
-                text = "Add provider",
-                onClick = onOpenSetup,
-                backdropLuminance = 0f
+            LumenEmptyState(
+                title = "No live channels",
+                body = "Connect an M3U or Xtream provider to build your Live TV guide.",
+                icon = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                ctaText = "Add provider",
+                onCtaClick = onOpenSetup
             )
         }
         return
@@ -129,7 +149,7 @@ fun LiveTvScreen(
     var currentTimeMs by remember { mutableStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(Unit) {
-        while (true) {
+        while (isActive) {
             kotlinx.coroutines.delay(30000L)
             currentTimeMs = System.currentTimeMillis()
         }

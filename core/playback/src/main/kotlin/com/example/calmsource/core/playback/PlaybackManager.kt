@@ -466,6 +466,7 @@ class PlaybackManager(
             if (playbackState == Player.STATE_READY) {
                 watchdogController.scheduleFreezeWatchdogIfNeeded()
                 watchdogController.cancelBufferingWatchdog()
+                consecutiveBufferingCount = 0
                 // Intentionally NOT resetting consecutiveFallbackCount here.
                 // The counter is a guard against "ready-but-no-frame" failures
                 // caught by the 4s first-frame watchdog. Resetting on STATE_READY
@@ -529,9 +530,10 @@ class PlaybackManager(
                 }
                 (currentBackend as? ExoPlayerBackend)?.updateState(PlayerState.BUFFERING)
                 player?.apply {
+                    val wasPlaying = this.playWhenReady
                     seekToDefaultPosition()
                     prepare()
-                    playWhenReady = activeRequest?.playWhenReady != false
+                    playWhenReady = wasPlaying
                 }
                 watchdogController.startBufferingWatchdog()
                 return
@@ -879,6 +881,7 @@ class PlaybackManager(
         val mediaItem = try {
             buildMediaItem(source).also { activeMediaItem = it }
         } catch (e: PlaybackException) {
+            activeMediaItem = null
             if (wasPlayerCreated) {
                 player?.removeListener(playerListener)
                 onPlayerAboutToBeReleased?.invoke()
@@ -889,6 +892,7 @@ class PlaybackManager(
             handleFailure(mapError(e), e.errorCodeName)
             return
         } catch (e: SecurityException) {
+            activeMediaItem = null
             if (wasPlayerCreated) {
                 player?.removeListener(playerListener)
                 onPlayerAboutToBeReleased?.invoke()
@@ -899,6 +903,7 @@ class PlaybackManager(
             handleFailure(PlaybackError.PermissionRequired(cause = e, message = e.message ?: "Unsafe scheme rejected"), "SECURITY_VIOLATION")
             return
         } catch (e: Exception) {
+            activeMediaItem = null
             if (wasPlayerCreated) {
                 player?.removeListener(playerListener)
                 onPlayerAboutToBeReleased?.invoke()

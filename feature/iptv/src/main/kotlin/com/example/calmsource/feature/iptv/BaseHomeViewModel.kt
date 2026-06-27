@@ -192,9 +192,10 @@ open class BaseHomeViewModel(
                     }
                 }
             } catch (_: CancellationException) {
-                // ignored
-            } catch (_: Exception) {
-                // ignored
+                // cancellation on scope exit — expected, not logged
+            } catch (e: Exception) {
+                android.util.Log.w("BaseHomeViewModel", "Extension catalog refresh failed, using cached rows", e)
+                cachedExtensionRows = ExtensionRepository.getCachedDiscoveryCatalogHomeRows()
             }
         }
     }

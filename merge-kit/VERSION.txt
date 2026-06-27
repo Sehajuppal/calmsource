@@ -1,0 +1,4 @@
+Lumen Merge Kit — Phase A
+Generated: 2026-06-27
+Source: Lumen reference repo (this workspace)
+Status: Phase A complete. Phase B/C executed on Windows checkout.

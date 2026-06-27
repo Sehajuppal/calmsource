@@ -34,9 +34,13 @@ class Mission27LiveParityTest {
         val mobile = readProjectFile(
             "app-mobile/src/main/java/com/example/calmsource/ui/LiveTvScreen.kt"
         )
-        val tv = readProjectFile(
-            "app-tv/src/main/java/com/example/calmsource/tv/ui/TvLiveGuideScreen.kt"
+        val tvChannels = readProjectFile(
+            "app-tv/src/main/java/com/example/calmsource/tv/ui/TvLiveTvScreen.kt"
         )
+        val tvGuide = readProjectFile(
+            "app-tv/src/main/java/com/example/calmsource/tv/ui/TvGuideScreen.kt"
+        )
+        val tv = tvChannels + tvGuide
         val sharedFilters = readProjectFile(
             "feature/iptv/src/main/kotlin/com/example/calmsource/feature/iptv/IptvLiveGuideFilters.kt"
         )

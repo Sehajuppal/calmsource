@@ -66,7 +66,7 @@ class XtreamServerUrlNormalizerTest {
             "http://portal.example.com:8080/panel",
             XtreamServerUrlNormalizer.resolveStoredPortalUrl(
                 normalizedUserUrl = "http://portal.example.com:25461/panel",
-                serverUrl = "wexart.xyz",
+                serverUrl = "iptv.example.com",
                 port = 8080,
                 httpsPort = 8443,
                 serverProtocol = "http"

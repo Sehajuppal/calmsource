@@ -1,7 +1,7 @@
 package com.example.calmsource.tv.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -13,10 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calmsource.core.model.Channel
 import com.example.calmsource.core.model.Program
@@ -29,6 +29,12 @@ import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.AdaptiveButton
 
+/**
+ * Thin tab-container shell that owns shared Live TV state (ViewModel, EPG now-next map,
+ * favourites, clock) and delegates rendering to [TvLiveTvScreen] and [TvGuideScreen].
+ *
+ * No duplicated state, no playback logic — state lives in exactly one place per concern.
+ */
 @Composable
 fun TvLiveGuideScreen(
     onChannelSelect: (Channel, Program?) -> Unit,
@@ -64,31 +70,21 @@ fun TvLiveGuideScreen(
 
     if (uiState.isLoading || (uiState.isSyncing && uiState.allChannels.isEmpty())) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(t.colors.background),
+            modifier = Modifier.fillMaxSize().background(t.colors.background),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(color = t.colors.brand)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Syncing Live TV...",
-                    color = t.colors.mutedForeground,
-                    fontSize = 16.sp
-                )
+                Text("Syncing Live TV...", color = t.colors.mutedForeground, fontSize = 16.sp)
             }
         }
         return
     }
 
-    val mappedChannels = uiState.allChannels
-
-    if (mappedChannels.isEmpty()) {
+    if (uiState.allChannels.isEmpty()) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(t.colors.background),
+            modifier = Modifier.fillMaxSize().background(t.colors.background),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -118,26 +114,21 @@ fun TvLiveGuideScreen(
     }
 
     var currentTimeMs by remember { mutableStateOf(System.currentTimeMillis()) }
-
     LaunchedEffect(Unit) {
-        while (true) {
+        while (isActive) {
             kotlinx.coroutines.delay(30000L)
             currentTimeMs = System.currentTimeMillis()
         }
     }
 
-    val categories = uiState.categories
-    LaunchedEffect(categories) {
-        if (uiState.selectedCategory !in categories) {
+    LaunchedEffect(uiState.categories) {
+        if (uiState.selectedCategory !in uiState.categories) {
             viewModel.setSelectedCategory("All")
         }
     }
-    val filteredChannels = uiState.filteredChannels
-    val reloadToken = uiState.reloadToken
 
-    val visibleEpgChannelIds = remember(filteredChannels) {
-        filteredChannels.take(40).map { it.id }
-    }
+    val filteredChannels = uiState.filteredChannels
+    val visibleEpgChannelIds = remember(filteredChannels) { filteredChannels.take(40).map { it.id } }
     var nowNextMap by remember { mutableStateOf(emptyMap<String, com.example.calmsource.feature.iptv.EpgNowNext>()) }
     val filteredChannelIds = remember(filteredChannels) { filteredChannels.map { it.id } }
 
@@ -146,7 +137,7 @@ fun TvLiveGuideScreen(
         nowNextMap = nowNextMap.filterKeys { it in validIds }
     }
 
-    LaunchedEffect(visibleEpgChannelIds, reloadToken, currentTimeMs) {
+    LaunchedEffect(visibleEpgChannelIds, uiState.reloadToken, currentTimeMs) {
         if (visibleEpgChannelIds.isEmpty()) return@LaunchedEffect
         val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             IPTVRepository.getNowNextForChannels(visibleEpgChannelIds, currentTimeMs)
@@ -157,16 +148,10 @@ fun TvLiveGuideScreen(
     var activeSection by rememberSaveable { mutableStateOf("channels") }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(t.colors.background)
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize().background(t.colors.background).padding(16.dp)
     ) {
-        // Top Navigation Tabs
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -178,13 +163,11 @@ fun TvLiveGuideScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            when {
-                                activeSection == "channels" -> t.colors.brand
-                                isChannelsFocused -> t.colors.muted
-                                else -> Color.Transparent
-                            }
-                        )
+                        .background(when {
+                            activeSection == "channels" -> t.colors.brand
+                            isChannelsFocused -> t.colors.muted
+                            else -> Color.Transparent
+                        })
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
@@ -204,13 +187,11 @@ fun TvLiveGuideScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            when {
-                                activeSection == "guide" -> t.colors.brand
-                                isGuideFocused -> t.colors.muted
-                                else -> Color.Transparent
-                            }
-                        )
+                        .background(when {
+                            activeSection == "guide" -> t.colors.brand
+                            isGuideFocused -> t.colors.muted
+                            else -> Color.Transparent
+                        })
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
@@ -235,20 +216,12 @@ fun TvLiveGuideScreen(
                         .background(if (isSetupFocused) t.colors.muted else Color.Transparent)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Setup ⚙",
-                        color = t.colors.foreground,
-                        fontSize = 14.sp
-                    )
+                    Text("Setup ⚙", color = t.colors.foreground, fontSize = 14.sp)
                 }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (activeSection == "channels") {
                 TvLiveTvScreen(
                     uiState = uiState,
@@ -266,15 +239,3 @@ fun TvLiveGuideScreen(
         }
     }
 }
-
-// Stubs for static regression tests
-// AIRING NOW
-// itemsIndexed(safeChannels, key = { _, channel -> channel.id })
-// "Popular"
-// "Clear filters"
-// uiState.syncWarnings
-// IptvLiveGuideFilters
-// sectionById
-
-
-
