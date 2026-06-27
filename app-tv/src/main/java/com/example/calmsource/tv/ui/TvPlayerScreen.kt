@@ -2,6 +2,8 @@ package com.example.calmsource.tv.ui
 
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import com.example.calmsource.core.playback.ui.PlayerOverlayMotion
 import com.example.calmsource.core.playback.ui.TrackLanguageFormatter
 import androidx.compose.foundation.background
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
@@ -38,6 +41,7 @@ import com.example.calmsource.core.model.PlayerState
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.core.model.TrackType
 import com.example.calmsource.core.model.IPTVChannel
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
@@ -55,6 +59,8 @@ import com.example.calmsource.core.model.ResourcePlaybackState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import kotlinx.coroutines.delay
+import com.example.calmsource.core.ui.components.*
+import com.example.calmsource.core.ui.theme.*
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -66,10 +72,16 @@ fun TvPlayerScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val t = LocalLumenTokens.current
     val initialRequest = remember { request }
     
-    // MediaSession for HDMI-CEC, Bluetooth media keys, lock screen controls,
-    // and Android TV Assistant voice commands.
+    // Low ram check
+    val isLowRam = remember(context) {
+        val activityManager = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        activityManager?.isLowRamDevice == true
+    }
+
+    // MediaSession
     var mediaSession by remember { mutableStateOf<androidx.media3.session.MediaSession?>(null) }
 
     val playbackManager = remember(initialRequest.source.id) {
@@ -132,16 +144,12 @@ fun TvPlayerScreen(
         if (uiState.error != null) {
             showTrackSelector = false
         }
-        // Respect the user's auto-fallback policy: only auto-advance to the next live channel
-        // when fallback is enabled. OFF / ASK_BEFORE_FALLBACK leave the user in control.
         val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(
             com.example.calmsource.core.playback.FallbackPreferences.policy
         )
         val isLive = activeRequest.source.metadata?.isLive == true
         if (uiState.error != null && isLive && channels.isNotEmpty() && channelSwitchFails < maxLiveSwitches) {
             delay(1500)
-            // Only switch channels once the stream-level fallback chain for THIS source has settled;
-            // otherwise we hijack an in-progress m3u8/extension fallback (bug #2).
             val latest = uiStateLatest.value
             if (latest.isTransitioningSource || latest.error == null) return@LaunchedEffect
             if (activeRequestState.value.source.id != activeRequest.source.id) return@LaunchedEffect
@@ -174,8 +182,6 @@ fun TvPlayerScreen(
     }
 
     LaunchedEffect(uiState.playerState, activeRequest.source.id) {
-        // Require sustained PLAYING before recording success — READY can precede the first frame
-        // (bug #6), matching PlaybackManager's own 5s success debounce.
         if (activeRequest.source.type == PlaybackSourceType.IPTV &&
             uiState.playerState == PlayerState.PLAYING && !successRecorded
         ) {
@@ -189,7 +195,6 @@ fun TvPlayerScreen(
 
     LaunchedEffect(uiState.error, uiState.isTransitioningSource, activeRequest.source.id) {
         val error = uiState.error
-        // Defer failure recording until the fallback chain settles (bug #6).
         if (activeRequest.source.type == PlaybackSourceType.IPTV && error != null &&
             !uiState.isTransitioningSource && !failureRecorded
         ) {
@@ -212,11 +217,22 @@ fun TvPlayerScreen(
     }
  
     var userInteractionTrigger by remember { mutableStateOf(0) }
-    val playPauseFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val channelSwitcherFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val trackSelectorFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val progressBarFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val screenFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    
+    // Focus Requesters for all key overlay controls
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val channelsButtonFocusRequester = remember { FocusRequester() }
+    val audioButtonFocusRequester = remember { FocusRequester() }
+    val subtitleButtonFocusRequester = remember { FocusRequester() }
+    val seekMinusFocusRequester = remember { FocusRequester() }
+    val seekPlusFocusRequester = remember { FocusRequester() }
+    
+    val channelSwitcherFocusRequester = remember { FocusRequester() }
+    val trackSelectorFocusRequester = remember { FocusRequester() }
+    val progressBarFocusRequester = remember { FocusRequester() }
+    val screenFocusRequester = remember { FocusRequester() }
+
+    // Focus Memory
+    var lastFocusedControl by rememberSaveable { mutableStateOf("play_pause") }
 
     LaunchedEffect(showChannelSwitcher) {
         if (showChannelSwitcher) {
@@ -253,19 +269,28 @@ fun TvPlayerScreen(
     // Auto-hide controls (only while playing)
     LaunchedEffect(showControls, userInteractionTrigger, uiState.playerState) {
         if (showControls && uiState.playerState == PlayerState.PLAYING) {
-            delay(5_000)
+            delay(5000)
             if (!showChannelSwitcher && !showTrackSelector) showControls = false
         }
     }
 
+    // Focus Restoration when controls re-appear
     LaunchedEffect(showControls, showChannelSwitcher, showTrackSelector) {
         if (showControls) {
             if (!showChannelSwitcher && !showTrackSelector) {
                 delay(100)
                 try {
-                    playPauseFocusRequester.requestFocus()
+                    when (lastFocusedControl) {
+                        "play_pause" -> playPauseFocusRequester.requestFocus()
+                        "channels" -> if (isLive) channelsButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
+                        "audio" -> if (showMultipleAudio) audioButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
+                        "subs" -> if (showSubtitlePicker) subtitleButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
+                        "seek_minus" -> if (!isLive) seekMinusFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
+                        "seek_plus" -> if (!isLive) seekPlusFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
+                        else -> playPauseFocusRequester.requestFocus()
+                    }
                 } catch (e: Exception) {
-                    Log.w("TvPlayerScreen", "Failed to request play/pause focus", e)
+                    playPauseFocusRequester.requestFocus()
                 }
             }
         } else {
@@ -283,8 +308,6 @@ fun TvPlayerScreen(
     DisposableEffect(lifecycleOwner, playbackManager) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                // Pause (not release) on background so returning resumes instantly; full release is
-                // reserved for onDispose (navigation away) (bug #24).
                 playbackManager.pause()
             }
         }
@@ -298,13 +321,9 @@ fun TvPlayerScreen(
     LaunchedEffect(activeRequest, lifecycleOwner) {
         com.example.calmsource.feature.iptv.IPTVRepository.cancelBackgroundWork()
         playbackManager.clearError()
-        // Drop any resolution error left over from a previously-failed channel so it can't bleed
-        // into this request's UI (see playbackResolutionError being a shared StateFlow).
         com.example.calmsource.feature.iptv.IPTVRepository.clearPlaybackResolutionError()
         lifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             try {
-                // Resume in place if the player is already initialised for this exact request
-                // (returning from background where we only paused) instead of re-preparing (bug #24).
                 val active = uiStateLatest.value
                 val resumableStates = setOf(
                     PlayerState.PLAYING, PlayerState.PAUSED, PlayerState.READY, PlayerState.BUFFERING
@@ -319,7 +338,6 @@ fun TvPlayerScreen(
                 suspend fun resolveXtream(source: PlaybackSource): String? =
                     com.example.calmsource.feature.iptv.IptvXtreamPlaybackResolver.resolveSourceUrl(source)
 
-                // Alt/fallback sources must not overwrite the primary source's resolution error.
                 suspend fun resolveXtreamFallback(source: PlaybackSource): String? =
                     com.example.calmsource.feature.iptv.IptvXtreamPlaybackResolver.resolveSourceUrl(source, surfaceError = false)
 
@@ -426,8 +444,6 @@ fun TvPlayerScreen(
     }
  
     val player by playbackManager.playerFlow.collectAsStateWithLifecycle()
-
-
 
     LaunchedEffect(player) {
         mediaSession?.release()
@@ -562,7 +578,7 @@ fun TvPlayerScreen(
         val fallbackMsg = uiState.fallbackMessage
         val isTransitioning = uiState.isTransitioningSource || !fallbackMsg.isNullOrBlank()
 
-        // Loading Indicator
+        // Buffering loader
         if (!isTransitioning && (uiState.playerState == PlayerState.BUFFERING || uiState.playerState == PlayerState.PREPARING)) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -572,16 +588,16 @@ fun TvPlayerScreen(
                     .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
                     .padding(horizontal = 34.dp, vertical = 26.dp)
             ) {
-                androidx.compose.material3.CircularProgressIndicator(color = TvColors.BorderFocused)
+                androidx.compose.material3.CircularProgressIndicator(color = t.colors.brand)
                 Text(
                     text = if (uiState.playerState == PlayerState.PREPARING) "Loading stream..." else "Buffering...",
-                    color = Color.White,
+                    color = t.colors.foreground,
                     fontSize = 18.sp
                 )
             }
         }
  
-        // Fallback Transition Overlay
+        // Fallback progress state overlay
         if (isTransitioning) {
             val displayMsg = if (!fallbackMsg.isNullOrBlank()) fallbackMsg else "Trying alternative track..."
             Box(
@@ -594,17 +610,17 @@ fun TvPlayerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    androidx.compose.material3.CircularProgressIndicator(color = TvColors.BorderFocused)
+                    androidx.compose.material3.CircularProgressIndicator(color = t.colors.brand)
                     Text(
                         text = displayMsg,
-                        color = Color.White,
+                        color = t.colors.foreground,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
                     uiState.sessionDiagnostics.activeBackend?.let { backend ->
                         Text(
                             text = "Backend: $backend",
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = t.colors.mutedForeground,
                             fontSize = 14.sp
                         )
                     }
@@ -612,7 +628,7 @@ fun TvPlayerScreen(
             }
         }
 
-        // Error State
+        // Error display
         val currentError = uiState.error
         if (currentError != null && (uiState.isTerminal || !isTransitioning)) {
             TvErrorOverlay(
@@ -643,203 +659,227 @@ fun TvPlayerScreen(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.72f),
+                                Color.Black.copy(alpha = 0.8f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.92f)
+                                Color.Black.copy(alpha = 0.9f)
                             )
                         )
                     )
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                // Top Status Bar (Glass pane)
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(horizontal = 48.dp, vertical = 36.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = if (activeRequest.source.metadata?.isLive == true) "LIVE TV"
-                                else activeRequest.source.type.name.replace('_', ' '),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = "Press Back to hide controls",
-                        color = Color.White.copy(alpha = 0.62f),
-                        fontSize = 14.sp
-                    )
-                }
-
-                // Bottom Info & Progress
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .padding(horizontal = 48.dp, vertical = 40.dp)
+                        .align(Alignment.TopStart)
+                        .then(t.glassSurface(dropBlur = isLowRam))
+                        .padding(horizontal = 48.dp, vertical = 20.dp)
                 ) {
-                    Text(
-                        text = uiState.source?.title ?: activeRequest.source.title,
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Playback control buttons
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val isLive = uiState.source?.metadata?.isLive == true || activeRequest.source.metadata?.isLive == true
-
-                        if (isLive) {
-                            TvFocusCard(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    showChannelSwitcher = true
-                                }
-                            ) { isFocused ->
-                                Text(
-                                    text = "Channels",
-                                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                        
-                        if (!isLive) {
-                            TvFocusCard(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    val currentPos = progressState.currentPositionMs
-                                    val newPos = (currentPos - 10000L).coerceAtLeast(0L)
-                                    playbackManager.seekTo(newPos)
-                                }
-                            ) { isFocused ->
-                                Text(
-                                    text = "-10s",
-                                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        val isPlaying = uiState.playerState == PlayerState.PLAYING
-                        TvFocusCard(
-                            onClick = {
-                                userInteractionTrigger++
-                                if (isPlaying) {
-                                    playbackManager.pause()
-                                } else {
-                                    playbackManager.play()
-                                }
-                            },
-                            modifier = Modifier.focusRequester(playPauseFocusRequester)
-                        ) { isFocused ->
+                        Box(
+                            modifier = Modifier
+                                .background(t.colors.brand.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
                             Text(
-                                text = if (isPlaying) "Pause" else "Play",
-                                color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                text = if (activeRequest.source.metadata?.isLive == true) "LIVE TV"
+                                    else activeRequest.source.type.name.replace('_', ' '),
+                                color = t.colors.brandGlow,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-
-                        // Audio Track button
-                        if (showMultipleAudio) {
-                            TvFocusCard(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    trackSelectorType = TrackType.AUDIO
-                                    showTrackSelector = true
-                                }
-                            ) { isFocused ->
-                                Text(
-                                    text = "Audio",
-                                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        // Subtitle button
-                        if (showSubtitlePicker) {
-                            TvFocusCard(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    trackSelectorType = TrackType.SUBTITLE
-                                    showTrackSelector = true
-                                }
-                            ) { isFocused ->
-                                Text(
-                                    text = "Subs",
-                                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        if (!isLive) {
-                            TvFocusCard(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    val currentPos = progressState.currentPositionMs
-                                    val duration = progressState.durationMs
-                                    val newPos = (currentPos + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
-                                    playbackManager.seekTo(newPos)
-                                }
-                            ) { isFocused ->
-                                Text(
-                                    text = "+10s",
-                                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    if (uiState.source?.metadata?.isLive == true || activeRequest.source.metadata?.isLive == true) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color.Red))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "LIVE", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        TvProgressBar(
-                            progressState = progressState,
-                            playbackManager = playbackManager,
-                            focusRequester = progressBarFocusRequester,
-                            onUserInteraction = { userInteractionTrigger++ }
+                        Text(
+                            text = "Press Back to hide controls",
+                            color = t.colors.mutedForeground,
+                            fontSize = 14.sp
                         )
+                    }
+                }
+
+                // Bottom Info & Controls Panel (Glass pane)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomStart)
+                        .then(t.glassSurface(dropBlur = isLowRam))
+                        .padding(horizontal = 48.dp, vertical = 24.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = uiState.source?.title ?: activeRequest.source.title,
+                            color = t.colors.foreground,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Controls Row
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val isLive = uiState.source?.metadata?.isLive == true || activeRequest.source.metadata?.isLive == true
+
+                            if (isLive) {
+                                TvFocusable(
+                                    onClick = {
+                                        userInteractionTrigger++
+                                        showChannelSwitcher = true
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(channelsButtonFocusRequester)
+                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "channels" }
+                                ) {
+                                    Text(
+                                        text = "Channels",
+                                        color = t.colors.foreground,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                            
+                            if (!isLive) {
+                                TvFocusable(
+                                    onClick = {
+                                        userInteractionTrigger++
+                                        val currentPos = progressState.currentPositionMs
+                                        val newPos = (currentPos - 10000L).coerceAtLeast(0L)
+                                        playbackManager.seekTo(newPos)
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(seekMinusFocusRequester)
+                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "seek_minus" }
+                                ) {
+                                    Text(
+                                        text = "-10s",
+                                        color = t.colors.foreground,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            val isPlaying = uiState.playerState == PlayerState.PLAYING
+                            TvFocusable(
+                                onClick = {
+                                    userInteractionTrigger++
+                                    if (isPlaying) {
+                                        playbackManager.pause()
+                                    } else {
+                                        playbackManager.play()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .focusRequester(playPauseFocusRequester)
+                                    .onFocusChanged { if (it.isFocused) lastFocusedControl = "play_pause" }
+                            ) {
+                                Text(
+                                    text = if (isPlaying) "Pause" else "Play",
+                                    color = t.colors.foreground,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+
+                            if (showMultipleAudio) {
+                                TvFocusable(
+                                    onClick = {
+                                        userInteractionTrigger++
+                                        trackSelectorType = TrackType.AUDIO
+                                        showTrackSelector = true
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(audioButtonFocusRequester)
+                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "audio" }
+                                ) {
+                                    Text(
+                                        text = "Audio",
+                                        color = t.colors.foreground,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            if (showSubtitlePicker) {
+                                TvFocusable(
+                                    onClick = {
+                                        userInteractionTrigger++
+                                        trackSelectorType = TrackType.SUBTITLE
+                                        showTrackSelector = true
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(subtitleButtonFocusRequester)
+                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "subs" }
+                                ) {
+                                    Text(
+                                        text = "Subs",
+                                        color = t.colors.foreground,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            if (!isLive) {
+                                TvFocusable(
+                                    onClick = {
+                                        userInteractionTrigger++
+                                        val currentPos = progressState.currentPositionMs
+                                        val duration = progressState.durationMs
+                                        val newPos = (currentPos + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
+                                        playbackManager.seekTo(newPos)
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(seekPlusFocusRequester)
+                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "seek_plus" }
+                                ) {
+                                    Text(
+                                        text = "+10s",
+                                        color = t.colors.foreground,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        if (isLive) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(t.colors.destructive))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "LIVE", color = t.colors.foreground, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            TvProgressBar(
+                                progressState = progressState,
+                                playbackManager = playbackManager,
+                                focusRequester = progressBarFocusRequester,
+                                onUserInteraction = { userInteractionTrigger++ }
+                            )
+                        }
                     }
                 }
             }
         }
  
-        // Channel Switcher Overlay
+        // Channel Switcher Sidebar
         AnimatedVisibility(
             visible = showChannelSwitcher && uiState.error == null,
             enter = PlayerOverlayMotion.fadeIn,
@@ -850,18 +890,19 @@ fun TvPlayerScreen(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(380.dp)
-                    .background(Color(0xED090B12))
+                    .background(t.colors.card.copy(alpha = 0.95f))
+                    .border(1.dp, t.colors.border)
                     .padding(24.dp)
             ) {
                 Text(
                     text = "Live Channels",
-                    color = Color.White,
+                    color = t.colors.foreground,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${channels.size} available",
-                    color = TvColors.TextSub,
+                    color = t.colors.mutedForeground,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(18.dp))
@@ -873,55 +914,55 @@ fun TvPlayerScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "No live channels available",
-                                color = TvColors.TextSub,
+                                color = t.colors.mutedForeground,
                                 fontSize = 16.sp
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            TvFocusCard(
+                            TvFocusable(
                                 modifier = Modifier.focusRequester(channelSwitcherFocusRequester),
                                 onClick = { showChannelSwitcher = false }
-                            ) { isFocused ->
+                            ) {
                                 Text(
                                     text = "Close",
-                                    color = if (isFocused) TvColors.TextMain else Color.White,
+                                    color = t.colors.foreground,
                                     modifier = Modifier.padding(12.dp)
                                 )
                             }
                         }
                     }
                 } else {
-                androidx.compose.foundation.lazy.LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    itemsIndexed(channels, key = { _, channel -> channel.id }) { index, channel ->
-                        TvFocusCard(
-                            onClick = {
-                                activeRequest = com.example.calmsource.feature.iptv.IPTVRepository.buildLivePlaybackRequest(channel)
-                                showChannelSwitcher = false
-                            },
-                            modifier = if (index == 0) {
-                                Modifier.focusRequester(channelSwitcherFocusRequester).fillMaxWidth()
-                            } else {
-                                Modifier.fillMaxWidth()
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        itemsIndexed(channels, key = { _, channel -> channel.id }) { index, channel ->
+                            TvFocusable(
+                                onClick = {
+                                    activeRequest = com.example.calmsource.feature.iptv.IPTVRepository.buildLivePlaybackRequest(channel)
+                                    showChannelSwitcher = false
+                                },
+                                modifier = if (index == 0) {
+                                    Modifier.focusRequester(channelSwitcherFocusRequester).fillMaxWidth()
+                                } else {
+                                    Modifier.fillMaxWidth()
+                                }
+                            ) {
+                                Text(
+                                    text = if (channel.id == activeRequest.source.id) "Playing  ${channel.name}" else channel.name,
+                                    color = if (channel.id == activeRequest.source.id) t.colors.brandGlow else t.colors.foreground,
+                                    fontWeight = if (channel.id == activeRequest.source.id) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(12.dp),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
                             }
-                        ) { isFocused ->
-                            Text(
-                                text = if (channel.id == activeRequest.source.id) "Playing  ${channel.name}" else channel.name,
-                                color = if (channel.id == activeRequest.source.id) Color.Cyan else if (isFocused) Color.White else Color.Gray,
-                                fontWeight = if (channel.id == activeRequest.source.id) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.padding(12.dp),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
                         }
                     }
-                }
                 }
             }
         }
 
-        // Track Selector Overlay
+        // Track Selector Sidebar
         AnimatedVisibility(
             visible = showTrackSelector && uiState.error == null,
             enter = PlayerOverlayMotion.fadeIn,
@@ -932,7 +973,8 @@ fun TvPlayerScreen(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(380.dp)
-                    .background(Color(0xED090B12))
+                    .background(t.colors.card.copy(alpha = 0.95f))
+                    .border(1.dp, t.colors.border)
                     .padding(24.dp)
                     .onKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.Back) {
@@ -943,7 +985,7 @@ fun TvPlayerScreen(
             ) {
                 Text(
                     text = if (trackSelectorType == TrackType.AUDIO) "Audio Track" else "Subtitles",
-                    color = Color.White,
+                    color = t.colors.foreground,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1013,10 +1055,11 @@ private fun TvTrackRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TvFocusCard(
+    val t = LocalLumenTokens.current
+    TvFocusable(
         onClick = onClick,
         modifier = modifier
-    ) { isFocused ->
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1025,15 +1068,15 @@ private fun TvTrackRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     label,
-                    color = if (isFocused || selected) Color.White else Color.Gray,
+                    color = t.colors.foreground,
                     fontWeight = FontWeight.Bold
                 )
                 subtitle?.let {
-                    Text(it, color = TvColors.TextSub, fontSize = 12.sp)
+                    Text(it, color = t.colors.mutedForeground, fontSize = 12.sp)
                 }
             }
             if (selected) {
-                Text("✓", color = TvColors.BorderFocused, fontSize = 18.sp)
+                Text("✓", color = t.colors.brand, fontSize = 18.sp)
             }
         }
     }
@@ -1048,7 +1091,8 @@ fun TvErrorOverlay(
     onChooseAnother: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val t = LocalLumenTokens.current
+    val focusRequester = remember { FocusRequester() }
     
     LaunchedEffect(error, onTryNext != null) {
         delay(100)
@@ -1073,7 +1117,7 @@ fun TvErrorOverlay(
             androidx.compose.material3.Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = "Error",
-                tint = Color(0xFFEF4444),
+                tint = t.colors.destructive,
                 modifier = Modifier.size(72.dp)
             )
             
@@ -1081,7 +1125,7 @@ fun TvErrorOverlay(
             
             Text(
                 text = if (isTerminal) "All Sources Failed" else "Playback Failed",
-                color = TvColors.TextMain,
+                color = t.colors.foreground,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1105,7 +1149,7 @@ fun TvErrorOverlay(
             
             Text(
                 text = explanation,
-                color = TvColors.TextSub,
+                color = t.colors.mutedForeground,
                 fontSize = 16.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp)
@@ -1129,13 +1173,13 @@ fun TvErrorOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onTryNext != null) {
-                    TvFocusCard(
+                    TvFocusable(
                         onClick = onTryNext,
                         modifier = Modifier.focusRequester(focusRequester)
-                    ) { isFocused ->
+                    ) {
                         Text(
                             text = "Try next best source",
-                            color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
+                            color = t.colors.foreground,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -1143,13 +1187,13 @@ fun TvErrorOverlay(
                     }
                 }
                 
-                TvFocusCard(
+                TvFocusable(
                     onClick = onChooseAnother,
                     modifier = if (onTryNext == null) Modifier.focusRequester(focusRequester) else Modifier
-                ) { isFocused ->
+                ) {
                     Text(
                         text = "Choose another source",
-                        color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
+                        color = t.colors.foreground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -1164,10 +1208,11 @@ fun TvErrorOverlay(
 fun TvProgressBar(
     progressState: com.example.calmsource.core.model.PlaybackProgressState,
     playbackManager: PlaybackManager,
-    focusRequester: androidx.compose.ui.focus.FocusRequester,
+    focusRequester: FocusRequester,
     onUserInteraction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalLumenTokens.current
     var isProgressBarFocused by remember { mutableStateOf(false) }
     val buffered = if (progressState.durationMs > 0) {
         progressState.bufferedPositionMs.toFloat() / progressState.durationMs.toFloat()
@@ -1182,7 +1227,7 @@ fun TvProgressBar(
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color.Gray.copy(alpha = 0.5f))
+                .background(t.colors.muted.copy(alpha = 0.5f))
                 .focusRequester(focusRequester)
                 .onFocusChanged { isProgressBarFocused = it.isFocused || it.hasFocus }
                 .focusable()
@@ -1207,14 +1252,13 @@ fun TvProgressBar(
                     } else false
                 }
         ) {
-            // Focus border indicator
             if (isProgressBarFocused) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .border(
                             width = 2.dp,
-                            color = TvColors.BorderFocused,
+                            color = t.colors.brand,
                             shape = RoundedCornerShape(4.dp)
                         )
                 )
@@ -1223,19 +1267,19 @@ fun TvProgressBar(
                 modifier = Modifier
                     .fillMaxWidth(buffered.coerceIn(0f, 1f))
                     .fillMaxHeight()
-                    .background(Color.White.copy(alpha = 0.35f))
+                    .background(t.colors.foreground.copy(alpha = 0.35f))
             )
             Box(
                 modifier = Modifier
                     .fillMaxWidth(playedFraction.coerceIn(0f, 1f))
                     .fillMaxHeight()
-                    .background(TvColors.BorderFocused)
+                    .background(t.colors.brand)
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "${formatTime(progressState.currentPositionMs)} / ${formatTime(progressState.durationMs)}",
-            color = Color.White,
+            color = t.colors.foreground,
             fontSize = 14.sp
         )
     }
