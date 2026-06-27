@@ -155,4 +155,5 @@ dependencies {
   implementation(libs.media3.session)
   implementation(libs.media3.datasource.okhttp)
   implementation(libs.zxing.core)
+  implementation("androidx.palette:palette-ktx:1.0.0")
 }

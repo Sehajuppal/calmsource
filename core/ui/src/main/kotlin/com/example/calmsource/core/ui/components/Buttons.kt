@@ -28,6 +28,11 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
+fun LumenPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    PrimaryButton(text, onClick, modifier, enabled)
+}
+
+@Composable
 fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val t = LocalLumenTokens.current
     OutlinedButton(
@@ -38,6 +43,11 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = t.colors.foreground),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     ) { Text(text, fontSize = 15.sp) }
+}
+
+@Composable
+fun LumenGhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    GhostButton(text, onClick, modifier)
 }
 
 /**

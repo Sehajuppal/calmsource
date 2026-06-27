@@ -1,8 +1,11 @@
 package com.example.calmsource.core.ui.theme
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -67,6 +70,34 @@ data class LumenTokens(
     val spacing: LumenSpacing = LumenSpacing(),
     val motion: LumenMotion = LumenMotion(),
 )
+
+fun LumenTokens.scrimGradient(): Brush {
+    return Brush.verticalGradient(
+        0f to Color.Transparent,
+        0.55f to Color.Transparent,
+        1f to this.colors.background
+    )
+}
+
+fun LumenTokens.glassSurface(
+    modifier: Modifier = Modifier,
+    dropBlur: Boolean = false
+): Modifier {
+    // Basic blur is handled on Android 12+ dynamically, on older/low-end we fall back to translucent fill
+    val baseModifier = if (dropBlur) modifier else {
+        // On Android 12+, we could apply Modifier.blur(12.dp), but since we support older Android versions
+        // and low-end ram devices, we fallback safely to translucent fill.
+        modifier
+    }
+    return baseModifier.background(
+        Brush.verticalGradient(
+            listOf(
+                Color(0x99151520),
+                Color(0xCC0F0F18)
+            )
+        )
+    )
+}
 
 val LocalLumenTokens = compositionLocalOf<LumenTokens> { error("LumenTheme not installed") }
 

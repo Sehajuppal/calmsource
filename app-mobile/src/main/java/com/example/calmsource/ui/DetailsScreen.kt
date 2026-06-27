@@ -1,40 +1,18 @@
-/**
- * Media details and stream picker screen for the CalmSource mobile app.
- *
- * Shows media metadata (poster/backdrop, title, rating, overview) and a
- * prioritized list of watch options resolved from all available sources.
- * Watch options are sorted by [SearchEngine.calculateScore] based on user
- * preferences.
- *
- * Layout (top to bottom):
- * 1. **Back button header** — navigates to the previous screen
- * 2. **Backdrop / Poster area** — full-width media artwork
- * 3. **Title & Meta** — title, release year, star rating, overview text
- * 4. **Play Best Match** — one-tap playback of the highest-scored source
- * 5. **Alternative Watch Options** — filtered shortcuts (Debrid, IPTV,
- *    Dual Audio, Hindi, English)
- * 6. **Advanced Manual Sources** — collapsible list of all available sources
- *    with score, size, codec, and seed count details
- *
- * Navigation: Reached from [HomeScreen] or [SearchScreen].
- * Navigates to [PlayerScreen] when a watch option is selected.
- *
- * @see WatchOptionButton for alternative option buttons
- * @see ManualSourceItem for advanced source list items
- */
 package com.example.calmsource.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -47,13 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.models.MediaItem as DiscoveryMediaItem
@@ -73,21 +53,9 @@ import kotlinx.coroutines.sync.withPermit
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
+import com.example.calmsource.core.ui.components.*
+import com.example.calmsource.core.ui.theme.*
 
-/**
- * Media details screen composable displaying metadata and prioritized watch options.
- *
- * Resolves all available [StreamSource] entries for the given [mediaItem], maps
- * them to [WatchOption] instances, and sorts them by [SearchEngine.calculateScore].
- * The top-scored option is presented as
- * a "Play Best Match" primary action, with alternative shortcuts and an
- * expandable advanced source list below.
- *
- * @param mediaItem The [MediaItem] to display details for (title, poster, overview, rating).
- * @param onBack Callback invoked when the user taps the back button.
- * @param onPlayOption Callback invoked when the user selects any watch option;
- *   receives the chosen [WatchOption] and typically navigates to [PlayerScreen].
- */
 @Composable
 fun DetailsScreen(
     mediaItem: MediaItem,
@@ -96,7 +64,7 @@ fun DetailsScreen(
     onPlayOption: (PlaybackRequest, List<PlaybackSource>, Boolean) -> Unit,
     onOpenMedia: (MediaItem) -> Unit = {}
 ) {
-    val scrollState = rememberScrollState()
+    val t = LocalLumenTokens.current
     var isAdvancedExpanded by remember { mutableStateOf(false) }
     var showRawDetails by remember { mutableStateOf(false) }
 
@@ -182,8 +150,7 @@ fun DetailsScreen(
     val isLoadingSources = streamSearchUiState.isLoading
     val extensionErrors = streamSearchUiState.errors
     val context = LocalContext.current.applicationContext
-    // Gate Room access on databaseReady so we never build the database on the main thread before
-    // the deferred warmup completes; use the in-memory fallback until the DB has been built on IO.
+    
     val dbReady by DatabaseProvider.databaseReady.collectAsState()
     val memoryRepository = remember(context, dbReady) {
         if (!dbReady) {
@@ -206,8 +173,12 @@ fun DetailsScreen(
         .collectAsState(initial = false)
     val memoryScope = rememberCoroutineScope()
 
+    val continueWatchingItems by memoryRepository.observeContinueWatching().collectAsState(initial = emptyList())
+    val progressMap = remember(continueWatchingItems) {
+        continueWatchingItems.associate { it.reference.itemKey to (it.progressMs.toFloat() / it.durationMs.coerceAtLeast(1L)) }
+    }
+
     var sortingPreference by remember { mutableStateOf(SortingPreference.BEST_MATCH) }
-    // Sort watch options by search score
     val preferences by UserPreferencesRepository.preferences.collectAsState(initial = UserPreferences())
     var sortedOptionsWithScores by remember { mutableStateOf<List<Pair<WatchOption, Int>>>(emptyList()) }
     var sortedOptions by remember { mutableStateOf<List<WatchOption>>(emptyList()) }
@@ -222,7 +193,6 @@ fun DetailsScreen(
         sortedOptionsWithScores = calculated
         sortedOptions = calculated.map { it.first }
     }
-
 
     LaunchedEffect(watchOptions.toList()) {
         watchOptions.forEach { option ->
@@ -306,9 +276,6 @@ fun DetailsScreen(
                     }
                 )
                 
-                // Build fallback candidate sources sorted by score, excluding the selected one.
-                // Cap to the top 5 before navigating so we don't ship a huge fallback chain (and a
-                // long resolve loop) into the player.
                 val fallbackCandidates = sortedOptions.filter { it.id != option.id }.take(5).map { opt ->
                     PlaybackSource(
                         id = opt.id,
@@ -439,7 +406,6 @@ fun DetailsScreen(
         streamSearchUiState = streamSearchUiState.copy(isLoading = false)
     }
 
-
     val bestMatch = sortedOptions.firstOrNull()
 
     if (showUnavailableDialog) {
@@ -464,285 +430,315 @@ fun DetailsScreen(
         )
     }
 
-    // Specific options required for "Spider-Man: Homecoming" test cases
     val iptvOption = sortedOptions.firstOrNull { it.type == SourceType.IPTV }
     val debridEnhancedOption = sortedOptions.firstOrNull { it.type == SourceType.DEBRID }
     val hindiOption = sortedOptions.firstOrNull { it.source.language.equals("Hindi", ignoreCase = true) && !it.source.isDualAudio }
     val englishOption = sortedOptions.firstOrNull { it.source.language.equals("English", ignoreCase = true) }
     val dualAudioOption = sortedOptions.firstOrNull { it.source.isDualAudio }
 
-    Column(
+    // Scroll state for Parallax effect
+    val lazyListState = rememberLazyListState()
+    val parallaxOffset = remember {
+        derivedStateOf {
+            if (lazyListState.firstVisibleItemIndex == 0) {
+                lazyListState.firstVisibleItemScrollOffset / 2f
+            } else {
+                0f
+            }
+        }
+    }
+
+    // Color extraction for the Adaptive Play Button
+    var backdropLuminance by remember(currentMediaItem.id) { mutableStateOf(0.5f) }
+
+    // Cached states for each season to keep scroll position
+    val seasonScrollStates = remember { mutableMapOf<Int, LazyListState>() }
+    val currentSeasonScrollState = seasonScrollStates.getOrPut(selectedSeason) { LazyListState() }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(t.colors.background)
     ) {
-        // Back Button Header
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppColors.TextMain)
+        if (isLoadingMeta && stremioMeta == null) {
+            // Loading Skeletons
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Skeleton(modifier = Modifier.fillMaxWidth().height(260.dp))
+                Skeleton(modifier = Modifier.width(220.dp).height(32.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Skeleton(modifier = Modifier.width(70.dp).height(24.dp))
+                    Skeleton(modifier = Modifier.width(70.dp).height(24.dp))
+                }
+                Skeleton(modifier = Modifier.fillMaxWidth().height(120.dp))
             }
-            Text(
-                text = "Back",
-                color = AppColors.TextMain,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 16.dp)
-        ) {
-            item {
-                // Backdrop / Poster area
+        } else {
+            // Full-bleed Backdrop Hero with bottom-up gradient scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp)
+            ) {
+                AsyncImage(
+                    model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = parallaxOffset.value
+                        },
+                    onSuccess = { state ->
+                        val drawable = state.result.drawable
+                        if (drawable is android.graphics.drawable.BitmapDrawable) {
+                            val bitmap = drawable.bitmap
+                            Palette.from(bitmap).generate { palette ->
+                                val dominantColor = palette?.getDominantColor(0xFF000000.toInt()) ?: 0xFF000000.toInt()
+                                val r = android.graphics.Color.red(dominantColor) / 255f
+                                val g = android.graphics.Color.green(dominantColor) / 255f
+                                val b = android.graphics.Color.blue(dominantColor) / 255f
+                                backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                            }
+                        }
+                    }
+                )
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0x1AFFFFFF))
-                ) {
-                    AsyncImage(
-                        model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
-                        contentDescription = "Backdrop for ${currentMediaItem.title}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                // Title & Meta Info
-                if (!stremioMeta?.logo.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = stremioMeta?.logo,
-                        contentDescription = currentMediaItem.title,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .height(60.dp)
-                    )
-                } else {
-                    Text(
-                        text = currentMediaItem.title,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextMain,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) {
-                    Text(
-                        text = currentMediaItem.releaseDate?.substringBefore("-") ?: "",
-                        color = AppColors.TextSub,
-                        fontSize = 14.sp
-                    )
-                    currentMediaItem.rating?.let {
-                        Text(
-                            text = "IMDb: ★ $it",
-                            color = Color(0xFFFBBF24),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    stremioMeta?.rtRating?.let {
-                        Text(
-                            text = "RT: 🍅 $it",
-                            color = Color(0xFFEF4444),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    stremioMeta?.metascore?.let {
-                        Text(
-                            text = "Metascore: Ⓜ️ $it",
-                            color = Color(0xFF10B981),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    if (stremioMeta?.type == "anime") {
-                        stremioMeta?.simklRating?.let {
-                            Text(
-                                text = "SIMKL: ★ $it",
-                                color = Color(0xFF3B82F6),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        stremioMeta?.malRating?.let {
-                            Text(
-                                text = "MAL: ★ $it",
-                                color = Color(0xFF8B5CF6),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-                stremioMeta?.studios?.let { studios ->
-                    if (studios.isNotEmpty()) {
-                        Text(
-                            text = "Studios: ${studios.joinToString(", ")}",
-                            fontSize = 14.sp,
-                            color = AppColors.TextSub,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-                }
-
-                Text(
-                    text = currentMediaItem.overview ?: "No description available.",
-                    fontSize = 14.sp,
-                    color = AppColors.TextSub,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                        .fillMaxSize()
+                        .background(t.scrimGradient())
                 )
+            }
 
-                TextButton(
-                    onClick = {
-                        val wasFavorite = isFavorite
-                        memoryScope.launch {
-                            runCatching {
-                                memoryRepository.toggleFavorite(
-                                    com.example.calmsource.feature.iptv.IPTVRepository
-                                        .findChannel(currentMediaItem.id)
-                                        ?.toUserMemoryReference()
-                                        ?: currentMediaItem.toUserMemoryReference()
+            // Scrollable Content
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 240.dp, bottom = 32.dp)
+            ) {
+                item(key = "title_block") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        // Title / Logo
+                        if (!stremioMeta?.logo.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = stremioMeta?.logo,
+                                contentDescription = currentMediaItem.title,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .padding(vertical = 12.dp)
+                                    .height(64.dp)
+                            )
+                        } else {
+                            Text(
+                                text = currentMediaItem.title,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = t.colors.foreground,
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            )
+                        }
+
+                        // Meta Chips (Year · Runtime · Rating)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            val year = currentMediaItem.releaseDate?.substringBefore("-") ?: stremioMeta?.releaseInfo ?: ""
+                            val rating = currentMediaItem.rating?.toString() ?: stremioMeta?.imdbRating
+                            val duration = stremioMeta?.runtime
+
+                            if (year.isNotBlank()) {
+                                MetaChip(text = year)
+                            }
+                            if (!duration.isNullOrBlank()) {
+                                MetaChip(text = duration)
+                            }
+                            if (!rating.isNullOrBlank()) {
+                                MetaChip(text = "★ $rating", color = Color(0xFFFBBF24))
+                            }
+                        }
+
+                        // Editorial Tagline (1-2 lines)
+                        val tagline = stremioMeta?.description?.substringBefore(".") ?: ""
+                        if (tagline.isNotBlank() && tagline.length > 5) {
+                            Text(
+                                text = tagline,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = t.colors.mutedForeground,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                        }
+
+                        // Genres ChipRow
+                        stremioMeta?.genres?.let { genres ->
+                            if (genres.isNotEmpty()) {
+                                ChipRow(
+                                    items = genres,
+                                    selected = null,
+                                    onSelect = {},
+                                    modifier = Modifier.padding(bottom = 16.dp).offset(x = (-24).dp)
                                 )
                             }
-                            // Record taste signals only when adding (not removing) a favorite.
-                            if (!wasFavorite) {
-                                recordTasteSignals(memoryRepository, currentMediaItem, stremioMeta)
+                        }
+
+                        // Action Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Back Button
+                            IconButton(
+                                onClick = onBack,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(t.colors.muted)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = t.colors.foreground
+                                )
+                            }
+
+                            // Play Button
+                            if (bestMatch != null) {
+                                AdaptiveButton(
+                                    text = "Play Best Match",
+                                    onClick = { handlePlayOption(bestMatch, true) },
+                                    backdropLuminance = backdropLuminance,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            // Watchlist Toggle
+                            LumenGhostButton(
+                                text = if (isFavorite) "✓ Watchlist" else "+ Watchlist",
+                                onClick = {
+                                    val wasFavorite = isFavorite
+                                    memoryScope.launch {
+                                        runCatching {
+                                            memoryRepository.toggleFavorite(memoryReference)
+                                        }
+                                        if (!wasFavorite) {
+                                            recordTasteSignals(memoryRepository, currentMediaItem, stremioMeta)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        // Synopsis (Expandable)
+                        var isExpanded by remember { mutableStateOf(false) }
+                        val overviewText = currentMediaItem.overview ?: stremioMeta?.description ?: "No description available."
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            Text(
+                                text = overviewText,
+                                fontSize = 14.sp,
+                                color = t.colors.mutedForeground,
+                                lineHeight = 20.sp,
+                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (overviewText.length > 120) {
+                                Text(
+                                    text = if (isExpanded) "Show Less" else "Read More",
+                                    color = t.colors.brand,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable { isExpanded = !isExpanded }
+                                        .padding(top = 6.dp)
+                                )
                             }
                         }
                     }
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = AppColors.Primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
-                        color = AppColors.Primary
-                    )
                 }
 
-                if (similarItems.isNotEmpty()) {
-                    Text(
-                        text = "More Like This",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextMain,
-                        modifier = Modifier.padding(top = 20.dp, bottom = 12.dp)
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        items(similarItems, key = { "similar-${it.id}" }) { item ->
-                            val similarMedia = MediaItem(
-                                id = item.id,
-                                title = item.title,
-                                type = if (item.type == "series") MediaType.SHOW else MediaType.MOVIE,
-                                overview = item.reason,
-                                posterUrl = item.posterUrl,
-                                externalIds = item.externalIds
-                            )
-                            VODItemCard(
-                                item = similarMedia,
-                                onClick = { onOpenMedia(similarMedia) }
-                            )
-                        }
-                    }
-                }
-
+                // Seasons & Episodes
                 if (mediaItem.type == MediaType.SHOW) {
-                    if (isLoadingMeta) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = AppColors.Primary)
-                        }
-                    } else {
+                    item(key = "seasons_section") {
                         if (seasons.isNotEmpty()) {
-                            Text(
-                                text = "Seasons",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = AppColors.TextMain,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                            )
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp)
                             ) {
-                                items(seasons) { season ->
-                                    FilterChip(
-                                        selected = selectedSeason == season,
-                                        onClick = { selectedSeason = season },
-                                        label = { Text(seasonDisplayLabel(season)) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = AppColors.Primary.copy(alpha = 0.24f),
-                                            selectedLabelColor = AppColors.Primary
+                                Text(
+                                    text = "Seasons",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = t.colors.foreground,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(seasons) { season ->
+                                        FilterChip(
+                                            selected = selectedSeason == season,
+                                            onClick = { selectedSeason = season },
+                                            label = { Text(seasonDisplayLabel(season)) },
+                                            shape = RoundedCornerShape(999.dp),
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                containerColor = t.colors.muted,
+                                                selectedContainerColor = t.colors.brand,
+                                                labelColor = t.colors.foreground,
+                                                selectedLabelColor = t.colors.brandForeground
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }
+                    }
 
+                    item(key = "episodes_section") {
                         if (episodesForSelectedSeason.isNotEmpty()) {
-                            Text(
-                                text = "Episodes",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = AppColors.TextMain,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp)
                             ) {
-                                items(episodesForSelectedSeason) { video ->
-                                    val isSelected = selectedEpisode?.episode == video.episode
-                                    Card(
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isSelected) AppColors.Primary.copy(alpha = 0.24f) else AppColors.Surface
-                                        ),
-                                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, AppColors.Primary) else null,
-                                        modifier = Modifier
-                                            .width(180.dp)
-                                            .clickable { selectedEpisode = video }
-                                    ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                text = "Episode ${video.episode}",
-                                                fontWeight = FontWeight.Bold,
-                                                color = AppColors.TextMain,
-                                                fontSize = 14.sp
-                                            )
-                                            Text(
-                                                text = video.title ?: "Episode ${video.episode}",
-                                                color = AppColors.TextSub,
-                                                fontSize = 12.sp,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(top = 4.dp)
-                                            )
-                                        }
+                                Text(
+                                    text = "Episodes",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = t.colors.foreground,
+                                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
+                                )
+                                LazyRow(
+                                    state = currentSeasonScrollState,
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(episodesForSelectedSeason, key = { it.id ?: "${it.season}:${it.episode}" }) { video ->
+                                        val isSelected = selectedEpisode?.episode == video.episode
+                                        val epId = video.id ?: "${mediaItem.id}:${video.season ?: 1}:${video.episode ?: 1}"
+                                        val progress = progressMap[epId]
+
+                                        EpisodeRow(
+                                            video = video,
+                                            backdropUrl = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
+                                            isSelected = isSelected,
+                                            progress = progress,
+                                            onClick = { selectedEpisode = video }
+                                        )
                                     }
                                 }
                             }
@@ -750,297 +746,287 @@ fun DetailsScreen(
                     }
                 }
 
+                // Subtitle Availability badge
                 if (subtitlesList.isNotEmpty()) {
-                    val langs = subtitlesList.map { it.lang }.distinct().joinToString(", ")
-                    Text(
-                        text = "Subtitles Available: $langs",
-                        fontSize = 13.sp,
-                        color = Color(0xFF34D399),
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    item(key = "subtitles") {
+                        val langs = subtitlesList.map { it.lang }.distinct().joinToString(", ")
+                        Text(
+                            text = "Subtitles: $langs",
+                            fontSize = 13.sp,
+                            color = Color(0xFF10B981),
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        )
+                    }
                 }
 
-                if (extensionErrors.isNotEmpty() || streamSearchUiState.failedExtensions.isNotEmpty()) {
-                    Card(
+                // More Like This
+                if (similarItems.isNotEmpty()) {
+                    item(key = "similar_items") {
+                        RowSection(
+                            title = "More Like This",
+                            modifier = Modifier.padding(top = 16.dp)
+                        ) {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(similarItems, key = { "similar-${it.id}" }) { item ->
+                                    val similarMedia = MediaItem(
+                                        id = item.id,
+                                        title = item.title,
+                                        type = if (item.type == "series") MediaType.SHOW else MediaType.MOVIE,
+                                        overview = item.reason,
+                                        posterUrl = item.posterUrl,
+                                        externalIds = item.externalIds
+                                    )
+                                    PosterCard(
+                                        imageUrl = similarMedia.posterUrl,
+                                        onClick = { onOpenMedia(similarMedia) },
+                                        modifier = Modifier.width(120.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Alternative options
+                item(key = "alternative_options_header") {
+                    Text(
+                        text = "Alternative Watch Options",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = t.colors.foreground,
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 12.dp)
+                    )
+                }
+
+                item(key = "alternative_options") {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
+                    ) {
+                        val iptvRes = remember(iptvOption) { iptvOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
+                        if (iptvOption != null && iptvRes != null) {
+                            LumenGhostButton(
+                                text = "IPTV Option (${iptvRes.displayLabel.primaryLabel})",
+                                onClick = { handlePlayOption(iptvOption, false) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        val extOption = remember(sortedOptions) { sortedOptions.firstOrNull { it.type == SourceType.EXTENSION } }
+                        val extRes = remember(extOption) { extOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
+                        if (extOption != null && extRes != null) {
+                            LumenGhostButton(
+                                text = "Extension Option (${extRes.displayLabel.primaryLabel})",
+                                onClick = { handlePlayOption(extOption, false) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        val primaryLangRes = remember(hindiOption) { hindiOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
+                        if (hindiOption != null && primaryLangRes != null) {
+                            LumenGhostButton(
+                                text = "Primary Language (${primaryLangRes.displayLabel.primaryLabel})",
+                                onClick = { handlePlayOption(hindiOption, false) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        val dualRes = remember(dualAudioOption) { dualAudioOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
+                        if (dualAudioOption != null && dualRes != null) {
+                            LumenGhostButton(
+                                text = "Dual-Audio (${dualRes.displayLabel.primaryLabel})",
+                                onClick = { handlePlayOption(dualAudioOption, false) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        val lowDataOption = remember(sortedOptions) {
+                            sortedOptions.firstOrNull { 
+                                val r = com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput())
+                                r.rankingFeatures.isLowDataSuitable
+                            }
+                        }
+                        val lowDataRes = remember(lowDataOption) { lowDataOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
+                        if (lowDataOption != null && lowDataRes != null) {
+                            LumenGhostButton(
+                                text = "Low-Data Option (${lowDataRes.displayLabel.primaryLabel})",
+                                onClick = { handlePlayOption(lowDataOption, false) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                // Collapsible Advanced Panel
+                item(key = "advanced_header") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0x1AEF4444)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                            .clickable { isAdvancedExpanded = !isAdvancedExpanded }
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Advanced - Manual Sources (${sortedOptions.size})",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = t.colors.foreground,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = if (isAdvancedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (isAdvancedExpanded) "Collapse sources" else "Expand sources",
+                            tint = t.colors.foreground
+                        )
+                    }
+                }
+
+                if (isAdvancedExpanded) {
+                    item(key = "show_raw_toggle") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+                        ) {
                             Text(
-                                text = "Extension Warning",
-                                color = Color(0xFFEF4444),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                text = "Show Raw Details",
+                                color = t.colors.foreground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            extensionErrors.forEach { error ->
-                                Text(text = error, color = AppColors.TextMain, fontSize = 12.sp)
-                            }
-                            if (streamSearchUiState.failedExtensions.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                            Switch(
+                                checked = showRawDetails,
+                                onCheckedChange = { showRawDetails = it }
+                            )
+                        }
+                    }
+
+                    item(key = "sort_strategies") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = "Sort Strategy:",
+                                color = t.colors.mutedForeground,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (sortingPreference == SortingPreference.BEST_MATCH) t.colors.brand else t.colors.muted)
+                                    .clickable { sortingPreference = SortingPreference.BEST_MATCH }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
                                 Text(
-                                    text = "Failed extensions: ${streamSearchUiState.failedExtensions.joinToString(", ")}",
-                                    color = Color(0xFFEF4444),
-                                    fontSize = 12.sp
+                                    text = "Best Match",
+                                    color = if (sortingPreference == SortingPreference.BEST_MATCH) t.colors.brandForeground else t.colors.mutedForeground,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (sortingPreference == SortingPreference.HIGHEST_QUALITY) t.colors.brand else t.colors.muted)
+                                    .clickable { sortingPreference = SortingPreference.HIGHEST_QUALITY }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "Highest Quality",
+                                    color = if (sortingPreference == SortingPreference.HIGHEST_QUALITY) t.colors.brandForeground else t.colors.mutedForeground,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
-                }
 
-                // 1. Main Action: Play Best Match vs Highest Quality
-                if (!isLoadingSources && sortedOptions.isNotEmpty()) {
-                    val scoresMap = remember(sortedOptionsWithScores) {
-                        sortedOptionsWithScores.associate { it.first.id to it.second }
-                    }
-                    val bestMatchOption = selectBestMatch(sortedOptions, scoresMap) ?: sortedOptions.first()
-                    val highestQualityOption = selectHighestQuality(sortedOptions, scoresMap) ?: sortedOptions.first()
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PremiumButton(
-                            text = "Play Best Match (${bestMatchOption.source.resolution})",
-                            onClick = { handlePlayOption(bestMatchOption, true) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (highestQualityOption.id != bestMatchOption.id) {
-                            PremiumButton(
-                                text = "Highest Quality (${highestQualityOption.source.resolution})",
-                                onClick = { handlePlayOption(highestQualityOption, true) },
-                                modifier = Modifier.weight(1f)
+                    items(sortedOptionsWithScores, key = { it.first.id }) { (option, score) ->
+                        Box(modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 10.dp)) {
+                            ManualSourceItem(
+                                option = option,
+                                score = score,
+                                health = sourceHealths[option.id],
+                                showRawDetails = showRawDetails,
+                                onClick = { handlePlayOption(option, false) }
                             )
                         }
                     }
-                } else if (!isLoadingSources) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "No playable sources found.", color = AppColors.TextSub)
-                    }
-                } else {
-                    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = AppColors.Primary)
-                    }
-                }
 
-                // 2. Watch Option Shortcuts (Dynamic language filters)
-                Text(
-                    text = "Alternative Watch Options",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AppColors.TextMain,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) {
-                    val iptvRes = remember(iptvOption) { iptvOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
-                    if (iptvOption != null && iptvRes != null) {
-                        WatchOptionButton(
-                            label = "IPTV Option (${iptvRes.displayLabel.primaryLabel})",
-                            onClick = { handlePlayOption(iptvOption, false) }
-                        )
+                    item(key = "advanced_bottom_spacer") {
+                        Spacer(modifier = Modifier.height(30.dp))
                     }
-
-                    val extOption = remember(sortedOptions) { sortedOptions.firstOrNull { it.type == SourceType.EXTENSION } }
-                    val extRes = remember(extOption) { extOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
-                    if (extOption != null && extRes != null) {
-                        WatchOptionButton(
-                            label = "Extension Option (${extRes.displayLabel.primaryLabel})",
-                            onClick = { handlePlayOption(extOption, false) }
-                        )
-                    }
-
-                    val primaryLangRes = remember(hindiOption) { hindiOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
-                    if (hindiOption != null && primaryLangRes != null) {
-                        WatchOptionButton(
-                            label = "Primary Language (${primaryLangRes.displayLabel.primaryLabel})",
-                            onClick = { handlePlayOption(hindiOption, false) }
-                        )
-                    }
-
-                    val dualRes = remember(dualAudioOption) { dualAudioOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
-                    if (dualAudioOption != null && dualRes != null) {
-                        WatchOptionButton(
-                            label = "Dual-Audio (${dualRes.displayLabel.primaryLabel})",
-                            onClick = { handlePlayOption(dualAudioOption, false) }
-                        )
-                    }
-
-                    val lowDataOption = remember(sortedOptions) {
-                        sortedOptions.firstOrNull { 
-                            val r = com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput())
-                            r.rankingFeatures.isLowDataSuitable
-                        }
-                    }
-                    val lowDataRes = remember(lowDataOption) { lowDataOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
-                    if (lowDataOption != null && lowDataRes != null) {
-                        WatchOptionButton(
-                            label = "Low-Data Option (${lowDataRes.displayLabel.primaryLabel})",
-                            onClick = { handlePlayOption(lowDataOption, false) }
-                        )
-                    }
-                }
-
-                // 3. Collapsible Advanced/Manual sources
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isAdvancedExpanded = !isAdvancedExpanded }
-                        .padding(vertical = 12.dp)
-                ) {
-                    Text(
-                        text = "Advanced - Manual Sources (${sortedOptions.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextMain,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = if (isAdvancedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isAdvancedExpanded) "Collapse sources" else "Expand sources",
-                        tint = AppColors.TextMain
-                    )
-                }
-            }
-
-            if (isAdvancedExpanded) {
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Text(
-                            text = "Show Raw Details",
-                            color = AppColors.TextMain,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Switch(
-                            checked = showRawDetails,
-                            onCheckedChange = { showRawDetails = it }
-                        )
-                    }
-                }
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                    ) {
-                        Text(
-                            text = "Sort Strategy:",
-                            color = AppColors.TextSub,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (sortingPreference == SortingPreference.BEST_MATCH) AppColors.Primary else Color(0x1AFFFFFF))
-                                .clickable { sortingPreference = SortingPreference.BEST_MATCH }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = "Best Match",
-                                color = if (sortingPreference == SortingPreference.BEST_MATCH) Color.White else AppColors.TextSub,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (sortingPreference == SortingPreference.HIGHEST_QUALITY) AppColors.Primary else Color(0x1AFFFFFF))
-                                .clickable { sortingPreference = SortingPreference.HIGHEST_QUALITY }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = "Highest Quality",
-                                color = if (sortingPreference == SortingPreference.HIGHEST_QUALITY) Color.White else AppColors.TextSub,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-                items(sortedOptionsWithScores, key = { it.first.id }) { (option, score) ->
-                    Box(modifier = Modifier.padding(bottom = 10.dp)) {
-                        ManualSourceItem(
-                            option = option,
-                            score = score,
-                            health = sourceHealths[option.id],
-                            showRawDetails = showRawDetails,
-                            onClick = { handlePlayOption(option, false) }
-                        )
-                    }
-                }
-                item {
-                    Spacer(modifier = Modifier.height(30.dp))
                 }
             }
         }
     }
 }
 
-/**
- * Full-width button for an alternative watch option shortcut.
- *
- * Displayed in the "Alternative Watch Options" section of [DetailsScreen],
- * styled with [AppColors.Surface] background and rounded corners.
- *
- * @param label Descriptive text for this option (e.g., "Play via Debrid (4K)").
- * @param onClick Callback invoked when the button is tapped.
- */
 @Composable
-fun WatchOptionButton(
-    label: String,
-    onClick: () -> Unit
+private fun MetaChip(
+    text: String,
+    color: Color = LocalLumenTokens.current.colors.mutedForeground
 ) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Surface),
-        shape = RoundedCornerShape(8.dp),
+    val t = LocalLumenTokens.current
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(t.colors.muted)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
-            text = label,
-            color = AppColors.TextMain,
-            fontSize = 14.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
         )
     }
 }
 
-/**
- * Detailed manual source card in the "Advanced - Manual Sources" section.
- *
- * Shows the source name, resolution badge, source type badge, file size,
- * optional seed count, video codec, language, and the computed
- * [SearchEngine.calculateScore] for the source. Wrapped in a [GlassCard].
- *
- * @param option The [WatchOption] to render details for.
- * @param onClick Callback invoked when the card is tapped to start playback.
- */
+@Composable
+private fun EpisodeRow(
+    video: StremioVideo,
+    backdropUrl: String?,
+    isSelected: Boolean,
+    progress: Float?,
+    onClick: () -> Unit
+) {
+    val t = LocalLumenTokens.current
+    Column(
+        modifier = Modifier
+            .width(200.dp)
+            .clickable(onClick = onClick)
+    ) {
+        PosterCard(
+            imageUrl = backdropUrl,
+            orientation = PosterOrientation.Landscape,
+            progress = progress,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "E${video.episode}: ${video.title ?: "Episode ${video.episode}"}",
+            color = if (isSelected) t.colors.brand else t.colors.foreground,
+            fontSize = 13.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+}
+
 @Composable
 fun ManualSourceItem(
     option: WatchOption,
@@ -1049,19 +1035,23 @@ fun ManualSourceItem(
     showRawDetails: Boolean,
     onClick: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val result = remember(option) { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(option.toRawSourceInput()) }
 
-    GlassCard(
+    LumenCard(
         modifier = Modifier
-            .fillMaxWidth(),
-        onClick = onClick
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(12.dp)
+        ) {
             Text(
                 text = if (showRawDetails) com.example.calmsource.core.network.UrlRedactor.redactFilename(option.source.name) else result.displayLabel.primaryLabel,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = AppColors.TextMain,
+                color = t.colors.foreground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1069,7 +1059,7 @@ fun ManualSourceItem(
                 Text(
                     text = com.example.calmsource.core.network.UrlRedactor.redactUrl(option.source.url),
                     fontSize = 11.sp,
-                    color = AppColors.TextSub,
+                    color = t.colors.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1077,7 +1067,7 @@ fun ManualSourceItem(
                 Text(
                     text = result.displayLabel.secondaryLabel,
                     fontSize = 12.sp,
-                    color = AppColors.TextSub,
+                    color = t.colors.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1097,12 +1087,12 @@ fun ManualSourceItem(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x3D8B5CF6))
+                            .background(t.colors.brand.copy(alpha = 0.2f))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = extensionName,
-                            color = Color(0xFFA78BFA),
+                            color = t.colors.brandGlow,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1114,18 +1104,17 @@ fun ManualSourceItem(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0x1AFFFFFF))
+                        .background(t.colors.muted)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "[$quality] [$sizeStr]",
-                        color = Color.White,
+                        color = t.colors.foreground,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                // HDR format badge
                 val hdrBadge = parsedInfo.hdrFormat
                 if (hdrBadge != null) {
                     Box(
@@ -1143,7 +1132,6 @@ fun ManualSourceItem(
                     }
                 }
 
-                // Video codec badge
                 val codecBadge = parsedInfo.videoCodec ?: option.source.videoCodec
                 if (!codecBadge.isNullOrBlank()) {
                     Box(
@@ -1161,7 +1149,6 @@ fun ManualSourceItem(
                     }
                 }
 
-                // Audio codec badge
                 val audioBadge = parsedInfo.audioCodec ?: option.source.audioCodec
                 if (!audioBadge.isNullOrBlank()) {
                     Box(
@@ -1179,7 +1166,6 @@ fun ManualSourceItem(
                     }
                 }
                 
-                // Quiet health label next to stream options
                 val tier = health?.reliabilityTier ?: SourceReliabilityTier.EXCELLENT
                 val (labelText, labelColor) = when (tier) {
                     SourceReliabilityTier.EXCELLENT, SourceReliabilityTier.GOOD -> "Reliable" to Color(0xFF10B981)
@@ -1210,22 +1196,44 @@ fun ManualSourceItem(
                 Text(
                     text = "Score: $score",
                     fontSize = 11.sp,
-                    color = AppColors.Secondary,
+                    color = t.colors.brand,
                     fontWeight = FontWeight.Bold
                 )
             }
-            // Show detailed health metrics in the advanced panel
             if (health != null) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                 ) {
-                    Text(text = "Failures: ${health.failureCount}", fontSize = 10.sp, color = AppColors.TextSub)
-                    Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 10.sp, color = AppColors.TextSub)
-                    Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = 10.sp, color = AppColors.TextSub)
+                    Text(text = "Failures: ${health.failureCount}", fontSize = 10.sp, color = t.colors.mutedForeground)
+                    Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 10.sp, color = t.colors.mutedForeground)
+                    Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = 10.sp, color = t.colors.mutedForeground)
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SourceBadge(type: SourceType, modifier: Modifier = Modifier) {
+    val t = LocalLumenTokens.current
+    val (label, bg, fg) = when (type) {
+        SourceType.IPTV -> Triple("IPTV", t.colors.brand.copy(alpha = 0.2f), t.colors.brandGlow)
+        SourceType.EXTENSION -> Triple("ADDON", t.colors.muted, t.colors.foreground)
+        SourceType.DEBRID -> Triple("DEBRID", Color(0x3D10B981), Color(0xFF34D399))
+    }
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black
+        )
     }
 }
 
@@ -1246,11 +1254,6 @@ private fun MediaItem.toDiscoveryMediaItem(): DiscoveryMediaItem {
     )
 }
 
-/**
- * Persists lightweight taste signals (genre + content type) when a user favorites an item, so the
- * previously-orphaned [UserPreferenceSignalType.GENRE]/[UserPreferenceSignalType.CONTENT_TYPE]
- * signals reflect real engagement and can inform future personalization. Best-effort.
- */
 private suspend fun recordTasteSignals(
     memoryRepository: com.example.calmsource.core.database.repository.UserMemoryRepository,
     mediaItem: MediaItem,
@@ -1273,16 +1276,6 @@ private suspend fun recordTasteSignals(
     }
 }
 
-/**
- * Selects the best-balanced stream for reliable playback on typical TV hardware.
- *
- * Strategy: filter out unreasonably large files (>20GB) that would choke
- * TV hardware, then score remaining candidates by a balance of:
- * - Resolution: 1080p preferred (+50), 4K at reasonable size (+30)
- * - Codec efficiency: HEVC/AV1 deliver better quality-per-byte (+20)
- * - Seed count: >50 seeds means faster connections (+20)
- * - Size optimality: 2-8GB is sweet spot (+30), 8-15GB acceptable (+15)
- */
 fun selectBestMatch(options: List<WatchOption>, scores: Map<String, Int>): WatchOption? {
     val sizeCap = 20L * 1024 * 1024 * 1024L  // 20GB cap
     val cappedOptions = options.filter { option ->
@@ -1293,72 +1286,42 @@ fun selectBestMatch(options: List<WatchOption>, scores: Map<String, Int>): Watch
 
     return candidates.maxByOrNull { option ->
         var score = scores[option.id] ?: 0
-
-        // Resolution bonus: prefer 1080p for compatibility, but reward
-        // reasonable-size 4K over oversized 1080p
         when (option.source.resolution) {
             "1080p" -> score += 50
             "4K" -> score += 30
             "720p" -> score += 10
         }
-
-        // Codec efficiency: HEVC at 8GB > H264 at 15GB
         when (option.source.videoCodec?.uppercase()) {
             "AV1", "HEVC" -> score += 20
             "H264", "AVC" -> score += 5
         }
-
-        // Seeders = connection reliability
         val seeds = option.source.seeds ?: 0
         if (seeds > 50) score += 20
         else if (seeds > 10) score += 10
 
-        // Size sweet spot: too small = low quality, too large = buffering risk
         val sizeBytes = option.source.sizeBytes ?: 0L
         when {
-            sizeBytes in 2_000_000_000L..8_000_000_000L -> score += 30  // 2-8GB sweet spot
-            sizeBytes in 8_000_000_001L..15_000_000_000L -> score += 15 // 8-15GB acceptable
-            sizeBytes in 1L..1_999_999_999L -> score -= 10               // <2GB likely low quality
+            sizeBytes in 2_000_000_000L..8_000_000_000L -> score += 30
+            sizeBytes in 8_000_000_001L..15_000_000_000L -> score += 15
+            sizeBytes in 1L..1_999_999_999L -> score -= 10
         }
-
         score
     }
 }
 
-/**
- * Selects the absolute highest quality stream for premium home theater setups.
- *
- * No size cap. Scores by:
- * - 4K resolution (+100), 1080p (+50)
- * - Dolby Vision (+50), HDR10+ (+30)
- * - Studio audio: Atmos/TrueHD (+30), DTS-HD/DTS:X (+20)
- * - Large file size indicating high bitrate (>40GB = +100)
- * - Codec: AV1 (+30), HEVC (+20)
- */
 fun selectHighestQuality(options: List<WatchOption>, scores: Map<String, Int>): WatchOption? {
     return options.maxByOrNull { option ->
         var score = scores[option.id] ?: 0
-
-        // Resolution: 4K is mandatory for "highest quality"
         when (option.source.resolution) {
             "4K" -> score += 100
             "1080p" -> score += 50
         }
-
-        // File size = bitrate indicator
         val sizeBytes = option.source.sizeBytes ?: 0L
         when {
-            sizeBytes >= 40_000_000_000L -> score += 100  // 40GB+ remux
-            sizeBytes >= 20_000_000_000L -> score += 50   // 20-40GB encode
-            sizeBytes >= 10_000_000_000L -> score += 20   // 10-20GB encode
+            sizeBytes >= 40_000_000_000L -> score += 100
+            sizeBytes >= 20_000_000_000L -> score += 50
+            sizeBytes >= 10_000_000_000L -> score += 20
         }
-
-        // HDR format
-        when (option.source.videoCodec?.uppercase()) {
-            // Detect HDR from the stream name — check source metadata
-            else -> {}
-        }
-        // Use the source name for HDR detection since we don't have a dedicated field
         val nameLower = option.source.name.lowercase()
         val sourceTitleLower = option.title.lowercase()
         val combined = "$nameLower $sourceTitleLower"
@@ -1367,20 +1330,15 @@ fun selectHighestQuality(options: List<WatchOption>, scores: Map<String, Int>): 
             combined.contains("hdr10+") || combined.contains("hdr10plus") -> score += 30
             combined.contains("hdr10") || combined.contains("hdr") -> score += 10
         }
-
-        // Audio quality
         when {
             combined.contains("atmos") || combined.contains("truehd") -> score += 30
             combined.contains("dts-hd") || combined.contains("dts:x") || combined.contains("dtsx") -> score += 20
             combined.contains("e-ac3") || combined.contains("dd+") || combined.contains("dolby digital plus") -> score += 10
         }
-
-        // Codec quality
         when (option.source.videoCodec?.uppercase()) {
             "AV1" -> score += 30
             "HEVC" -> score += 20
         }
-
         score
     }
 }
