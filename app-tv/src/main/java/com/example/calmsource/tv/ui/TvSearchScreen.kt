@@ -1,18 +1,12 @@
 package com.example.calmsource.tv.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,15 +32,23 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.feature.search.SearchDisplayResult
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
-
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.components.RowSection
+import com.example.calmsource.core.ui.components.PosterCard
+import com.example.calmsource.core.ui.components.PosterOrientation
 
 @Composable
 fun TvSearchScreen(
@@ -56,18 +58,26 @@ fun TvSearchScreen(
     onChannelClick: (String) -> Unit = {},
     viewModel: TvSearchViewModel = hiltViewModel()
 ) {
+    val t = LocalLumenTokens.current
     val query by viewModel.query.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
-    val filters by viewModel.filters.collectAsState()
     val scrollPosition by viewModel.scrollPosition.collectAsState()
-    val sections = remember(searchResults) { searchResults.toTvDiscoverySections() }
+
+    val titlesGroup = remember(searchResults) { searchResults.filter { it.type != "channel" } }
+    val channelsGroup = remember(searchResults) { searchResults.filter { it.type == "channel" } }
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = scrollPosition.first,
         initialFirstVisibleItemScrollOffset = scrollPosition.second
     )
+
+    // Focus Memory
+    val focusedItemKeys = rememberSaveable { mutableStateMapOf<String, String>() }
+    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val searchFieldFocusRequester = remember { FocusRequester() }
 
     fun submitQuery() {
         val submittedQuery = query.trim()
@@ -86,6 +96,17 @@ fun TvSearchScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        val lastFocusedRow = focusedItemKeys["active_row"]
+        val lastFocusedId = lastFocusedRow?.let { focusedItemKeys[it] }
+        if (lastFocusedRow != null && lastFocusedId != null) {
+            val key = "$lastFocusedRow:$lastFocusedId"
+            focusRequesters[key]?.requestFocus()
+        } else {
+            searchFieldFocusRequester.requestFocus()
+        }
+    }
+
     LaunchedEffect(listState) {
         snapshotFlow {
             listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
@@ -99,21 +120,21 @@ fun TvSearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(24.dp)
     ) {
         Text(
             text = "Search",
             fontSize = 38.sp,
             fontWeight = FontWeight.Bold,
-            color = TvColors.TextMain,
+            color = t.colors.foreground,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         TvTextField(
             value = query,
             onValueChange = viewModel::search,
-            placeholder = { Text("Search movies, series, and live channels...", color = TvColors.TextSub) },
+            placeholder = { Text("Search movies, series, and live channels...", color = t.colors.mutedForeground) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
             onSearchAction = { submitQuery() },
@@ -121,12 +142,7 @@ fun TvSearchScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
-        )
-
-        TvSearchFilterBar(
-            filters = filters,
-            onSelectType = { viewModel.setFilter("type", it) },
-            onSelectGenre = { viewModel.setFilter("genre", it) }
+                .focusRequester(searchFieldFocusRequester)
         )
 
         when {
@@ -137,10 +153,10 @@ fun TvSearchScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = TvColors.BorderFocused)
+                    CircularProgressIndicator(color = t.colors.brand)
                 }
             }
-            searchResults.isEmpty() && query.isNotBlank() -> {
+            searchResults.isEmpty() && query.isNotEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -149,63 +165,149 @@ fun TvSearchScreen(
                 ) {
                     Text(
                         text = "No matches found in your catalogs or connected sources.",
-                        color = TvColors.TextSub,
+                        color = t.colors.mutedForeground,
                         fontSize = 16.sp
                     )
                 }
             }
-            query.isBlank() -> {
-                Box(
+            query.isEmpty() -> {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
                 ) {
+                    val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
-                        text = "Enter a search term to find movies, shows, and channels.",
-                        color = TvColors.TextSub,
-                        fontSize = 16.sp
+                        text = "Suggested Genres",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = t.colors.mutedForeground,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(bottom = 16.dp)
+                    ) {
+                        suggestedTags.forEach { label ->
+                            val requester = focusRequesters.getOrPut("suggested_chips:$label") { FocusRequester() }
+                            TvFocusable(
+                                onClick = {
+                                    viewModel.search(label)
+                                    viewModel.submitSearch(label)
+                                },
+                                cornerRadius = 8.dp,
+                                modifier = Modifier
+                                    .focusRequester(requester)
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            focusedItemKeys["active_row"] = "suggested_chips"
+                                            focusedItemKeys["suggested_chips"] = label
+                                        }
+                                    }
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = t.colors.foreground,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier
+                                        .background(t.colors.card)
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Enter a search term to find movies, shows, and channels.",
+                            color = t.colors.mutedForeground,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
             }
             else -> {
                 LazyColumn(
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    sections.forEach { section ->
-                        item(key = section.key) {
-                            Text(
-                                text = section.title,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TvColors.BorderFocused,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                            )
-                        }
-                        itemsIndexed(
-                            section.results,
-                            key = { index, result -> tvSearchResultLazyKey(section.key, index, result) }
-                        ) { _, result ->
-                            TvDiscoverySearchResultItem(
-                                result = result,
-                                onClick = {
-                                    if (result.type == "channel") {
-                                        onChannelClick(result.id)
-                                    } else {
-                                        val selectedQuery = query.trim()
-                                        if (selectedQuery.isNotEmpty()) {
-                                            scope.launch {
-                                                viewModel.recordSearchInterest(selectedQuery, result)
-                                            }
-                                        }
-                                        onMediaClick(result.toTvMediaItem())
+                    if (titlesGroup.isNotEmpty()) {
+                        item(key = "titles-section") {
+                            RowSection(title = "Titles") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    itemsIndexed(titlesGroup, key = { index, result -> tvSearchResultLazyKey("titles", index, result) }) { index, result ->
+                                        val itemKey = "titles:${result.id}"
+                                        val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
+                                        PosterCard(
+                                            imageUrl = result.posterUrl,
+                                            orientation = PosterOrientation.Portrait,
+                                            onClick = {
+                                                val selectedQuery = query.trim()
+                                                if (selectedQuery.isNotEmpty()) {
+                                                    scope.launch {
+                                                        viewModel.recordSearchInterest(selectedQuery, result)
+                                                    }
+                                                }
+                                                onMediaClick(result.toTvMediaItem())
+                                            },
+                                            modifier = Modifier
+                                                .focusRequester(requester)
+                                                .onFocusChanged { focusState ->
+                                                    if (focusState.isFocused) {
+                                                        focusedItemKeys["active_row"] = "titles"
+                                                        focusedItemKeys["titles"] = result.id
+                                                    }
+                                                }
+                                        )
                                     }
                                 }
-                            )
+                            }
+                        }
+                    }
+                    if (channelsGroup.isNotEmpty()) {
+                        item(key = "channels-section") {
+                            RowSection(title = "Live Channels") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    itemsIndexed(channelsGroup, key = { index, result -> tvSearchResultLazyKey("channels", index, result) }) { index, result ->
+                                        val itemKey = "channels:${result.id}"
+                                        val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
+                                        TvLiveChannelCard(
+                                            channelName = result.title,
+                                            logoUrl = result.posterUrl,
+                                            category = result.sourceLabel,
+                                            onClick = { onChannelClick(result.id) },
+                                            modifier = Modifier
+                                                .focusRequester(requester)
+                                                .onFocusChanged { focusState ->
+                                                    if (focusState.isFocused) {
+                                                        focusedItemKeys["active_row"] = "channels"
+                                                        focusedItemKeys["channels"] = result.id
+                                                    }
+                                                }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -213,105 +315,6 @@ fun TvSearchScreen(
         }
     }
 }
-
-private val TV_SEARCH_TYPE_FILTERS = listOf(
-    "All" to null,
-    "Movies" to "movie",
-    "Shows" to "series",
-    "Channels" to "channel"
-)
-
-private val TV_SEARCH_GENRE_FILTERS = listOf(
-    "Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Thriller", "Romance", "Animation", "Documentary"
-)
-
-@Composable
-private fun TvSearchFilterBar(
-    filters: Map<String, String>,
-    onSelectType: (String?) -> Unit,
-    onSelectGenre: (String?) -> Unit
-) {
-    val activeType = filters["type"]
-    val activeGenre = filters["genre"]
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(bottom = 16.dp)
-    ) {
-        TV_SEARCH_TYPE_FILTERS.forEach { (label, value) ->
-            val selected = activeType == value || (value == null && activeType == null)
-            TvFilterChip(label = label, selected = selected) { onSelectType(value) }
-        }
-        TV_SEARCH_GENRE_FILTERS.forEach { genre ->
-            val selected = activeGenre.equals(genre, ignoreCase = true)
-            TvFilterChip(label = genre, selected = selected) {
-                onSelectGenre(if (selected) null else genre)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TvFilterChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    TvFocusCard(onClick = onClick) { isFocused ->
-        Text(
-            text = label,
-            color = when {
-                selected -> TvColors.BorderFocused
-                isFocused -> TvColors.TextMain
-                else -> TvColors.TextSub
-            },
-            fontSize = 14.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-        )
-    }
-}
-
-private data class TvDiscoverySearchSection(
-    val key: String,
-    val title: String,
-    val results: List<SearchDisplayResult>
-)
-
-private fun List<SearchDisplayResult>.toTvDiscoverySections(): List<TvDiscoverySearchSection> {
-    val orderedTypes = listOf("movie", "series", "episode", "channel")
-    val grouped = groupBy { it.type.lowercase() }
-    return buildList {
-        orderedTypes.forEach { type ->
-            grouped[type]?.takeIf { it.isNotEmpty() }?.let { results ->
-                add(TvDiscoverySearchSection(type, type.toTvSearchSectionTitle(), results))
-            }
-        }
-        grouped
-            .filterKeys { it !in orderedTypes }
-            .toSortedMap()
-            .forEach { (type, results) ->
-                add(TvDiscoverySearchSection(type, type.toTvSearchSectionTitle(), results))
-            }
-    }
-}
-
-private fun String.toTvSearchSectionTitle(): String = when (this) {
-    "movie" -> "Movies"
-    "series" -> "Series"
-    "episode" -> "Episodes"
-    "channel" -> "Live Channels"
-    else -> replaceFirstChar { it.uppercase() }
-}
-
-private fun tvSearchResultLazyKey(
-    sectionKey: String,
-    index: Int,
-    result: SearchDisplayResult
-): String = "$sectionKey-$index-${result.type}-${result.id}"
 
 private fun String.toTvItemTypeLabel(): String = when (this) {
     "movie" -> "Movie"
@@ -332,91 +335,9 @@ private fun SearchDisplayResult.toTvMediaItem(): MediaItem {
     )
 }
 
-@Composable
-fun TvDiscoverySearchResultItem(
-    result: SearchDisplayResult,
-    onClick: () -> Unit
-) {
-    TvFocusCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) { isFocused ->
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            AsyncImage(
-                model = result.posterUrl,
-                contentDescription = "Artwork for ${result.title}",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(50.dp, 75.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0x1AFFFFFF))
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = result.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TvColors.TextMain,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = result.subtitle ?: result.type.toTvItemTypeLabel(),
-                    fontSize = 13.sp,
-                    color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+private fun tvSearchResultLazyKey(
+    sectionKey: String,
+    index: Int,
+    result: SearchDisplayResult
+): String = "$sectionKey-$index-${result.type}-${result.id}"
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 6.dp)
-                ) {
-                    TvSearchSourceChip(result.sourceLabel)
-                    if (result.hasPlayableSource) {
-                        TvSearchSourceChip("Streams ready")
-                    }
-                }
-
-                AnimatedVisibility(visible = isFocused) {
-                    Text(
-                        text = if (result.type == "channel") {
-                            "Press OK to watch this channel"
-                        } else if (result.hasPlayableSource) {
-                            "Playable source available"
-                        } else {
-                            "Press OK to open details"
-                        },
-                        fontSize = 12.sp,
-                        color = TvColors.BorderFocused,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 4.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TvSearchSourceChip(label: String) {
-    Text(
-        text = label.ifBlank { "local" },
-        color = TvColors.BorderFocused,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Bold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color(0x1AFFFFFF))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    )
-}

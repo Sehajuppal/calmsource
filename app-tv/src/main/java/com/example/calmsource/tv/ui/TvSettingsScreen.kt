@@ -1,347 +1,1031 @@
 package com.example.calmsource.tv.ui
 
-
+import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Text
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import com.example.calmsource.core.playback.FallbackPreferences
+import coil.compose.AsyncImage
+import com.example.calmsource.core.data.ProfileSessionManager
+import com.example.calmsource.core.database.repository.UserPreferencesRepository
+import com.example.calmsource.core.model.*
+import com.example.calmsource.feature.extensions.ExtensionRepository
+import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.feature.iptv.XtreamRepository
+import com.example.calmsource.core.playback.FallbackPreferences
 import com.example.calmsource.core.playback.FrameRateMatchingMode
 import com.example.calmsource.core.playback.FrameRateMatchingPreferences
 import com.example.calmsource.core.playback.StreamRacePreferences
 import com.example.calmsource.core.playback.TunnelingMode
 import com.example.calmsource.core.playback.TunnelingPreferences
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.components.LumenCard
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.saveable.rememberSaveable
 
-sealed interface TvSettingsSubScreen {
-    data object Root : TvSettingsSubScreen
-    data object Iptv : TvSettingsSubScreen
-    data object Extensions : TvSettingsSubScreen
-    data object Debrid : TvSettingsSubScreen
-    data object Priorities : TvSettingsSubScreen
-    data object DiscoveryProviders : TvSettingsSubScreen
-    data object Playback : TvSettingsSubScreen
-    data object Debug : TvSettingsSubScreen
+enum class TvSettingsSection { Profile, Playback, IPTV, AddOns, About }
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface TvSettingsEntryPoint {
+    fun profileSessionManager(): ProfileSessionManager
 }
-
-val TvSettingsSubScreenSaver = Saver<TvSettingsSubScreen, String>(
-    save = { it::class.simpleName ?: "Root" },
-    restore = { name ->
-        when (name) {
-            "Root" -> TvSettingsSubScreen.Root
-            "Iptv" -> TvSettingsSubScreen.Iptv
-            "Extensions" -> TvSettingsSubScreen.Extensions
-            "Debrid" -> TvSettingsSubScreen.Debrid
-            "Priorities" -> TvSettingsSubScreen.Priorities
-            "DiscoveryProviders" -> TvSettingsSubScreen.DiscoveryProviders
-            "Playback" -> TvSettingsSubScreen.Playback
-            "Debug" -> TvSettingsSubScreen.Debug
-            else -> TvSettingsSubScreen.Root
-        }
-    }
-)
 
 @Composable
 fun TvSettingsScreens(
     onPairingClick: () -> Unit,
     onSwitchProfileClick: () -> Unit
 ) {
-    var currentScreen by rememberSaveable(stateSaver = TvSettingsSubScreenSaver) {
-        mutableStateOf<TvSettingsSubScreen>(TvSettingsSubScreen.Root)
-    }
-
-    val navigateTo: (TvSettingsSubScreen) -> Unit = remember {
-        { target: TvSettingsSubScreen -> currentScreen = target }
-    }
-
-    androidx.activity.compose.BackHandler(enabled = currentScreen != TvSettingsSubScreen.Root) {
-        currentScreen = TvSettingsSubScreen.Root
-    }
-
-    val focusRequesters = remember {
-        mapOf(
-            TvSettingsSubScreen.Iptv to FocusRequester(),
-            TvSettingsSubScreen.Extensions to FocusRequester(),
-            TvSettingsSubScreen.Debrid to FocusRequester(),
-            TvSettingsSubScreen.Priorities to FocusRequester(),
-            TvSettingsSubScreen.DiscoveryProviders to FocusRequester(),
-            TvSettingsSubScreen.Playback to FocusRequester(),
-            TvSettingsSubScreen.Debug to FocusRequester()
-        )
-    }
-
-    var lastScreen by remember { mutableStateOf<TvSettingsSubScreen?>(null) }
-    var initialRootFocusDone by remember { mutableStateOf(false) }
-
-    LaunchedEffect(currentScreen) {
-        if (currentScreen == TvSettingsSubScreen.Root) {
-            kotlinx.coroutines.delay(150)
-            val focusTarget = if (lastScreen != null) {
-                val target = lastScreen!!
-                lastScreen = null
-                target
-            } else if (!initialRootFocusDone) {
-                initialRootFocusDone = true
-                TvSettingsSubScreen.Iptv
-            } else {
-                null
-            }
-            if (focusTarget != null) {
-                try {
-                    focusRequesters[focusTarget]?.requestFocus()
-                } catch (_: Exception) {
-                    // Focus may fail before the list is attached.
-                }
-            }
-        } else {
-            lastScreen = currentScreen
-        }
-    }
-
-    when (currentScreen) {
-        TvSettingsSubScreen.Root -> TvSettingsRoot(
-            onNavigate = navigateTo,
-            focusRequesters = focusRequesters,
-            onPairingClick = onPairingClick,
-            onSwitchProfileClick = onSwitchProfileClick
-        )
-        TvSettingsSubScreen.Iptv -> TvIptvScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.Extensions -> TvExtensionsScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.Debrid -> TvDebridScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.Priorities -> TvPrioritiesScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.DiscoveryProviders -> TvDiscoveryProvidersScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.Playback -> TvPlaybackSettingsScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-        TvSettingsSubScreen.Debug -> TvAdvancedDebugScreen(onBack = { navigateTo(TvSettingsSubScreen.Root) })
-    }
-}
-
-@Composable
-fun TvSettingsRoot(
-    onNavigate: (TvSettingsSubScreen) -> Unit,
-    focusRequesters: Map<TvSettingsSubScreen, FocusRequester>,
-    onPairingClick: () -> Unit,
-    onSwitchProfileClick: () -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(TvColors.Background)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Text(text = "Settings", fontSize = 38.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
-            Text(text = "System preferences and providers configuration", fontSize = 14.sp, color = TvColors.TextSub, modifier = Modifier.padding(bottom = 24.dp))
-        }
-
-        if (!XtreamRepository.isEncryptedStorageAvailable()) {
-            item {
-                androidx.compose.material3.Surface(
-                    color = androidx.compose.ui.graphics.Color(0xFFE57373),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Warning: Secure Storage Unavailable",
-                            fontWeight = FontWeight.Bold,
-                            color = androidx.compose.ui.graphics.Color.Black,
-                            fontSize = 16.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Encrypted storage is unavailable. Your credentials will only be saved in-memory and will be lost on app exit.",
-                            color = androidx.compose.ui.graphics.Color.Black,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            TvSettingsRow(
-                title = "IPTV Services & Playlists",
-                description = "Edit custom playlist and EPG channels",
-                onClick = { onNavigate(TvSettingsSubScreen.Iptv) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Iptv] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Stremio Extensions",
-                description = "Add Torrentio, AIOStreams, or any manifest URL",
-                onClick = { onNavigate(TvSettingsSubScreen.Extensions) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Extensions] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Debrid Accounts APIs",
-                description = "Configure Real-Debrid and AllDebrid tokens",
-                onClick = { onNavigate(TvSettingsSubScreen.Debrid) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Debrid] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Device Pairing",
-                description = "Pair with phone to transfer credentials",
-                onClick = onPairingClick
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Switch Profile",
-                description = "Change the active user profile",
-                onClick = onSwitchProfileClick
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Source Priorities & Language Preferences",
-                description = "Select audio priorities and resolution filters",
-                onClick = { onNavigate(TvSettingsSubScreen.Priorities) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Priorities] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Discovery Providers",
-                description = "Manage enrichment, cache, privacy, and provider order",
-                onClick = { onNavigate(TvSettingsSubScreen.DiscoveryProviders) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.DiscoveryProviders] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Playback",
-                description = "Configure display and playback compatibility",
-                onClick = { onNavigate(TvSettingsSubScreen.Playback) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Playback] ?: remember { FocusRequester() })
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Advanced Debug",
-                description = "Inspect sanitized runtime diagnostics",
-                onClick = { onNavigate(TvSettingsSubScreen.Debug) },
-                modifier = Modifier.focusRequester(focusRequesters[TvSettingsSubScreen.Debug] ?: remember { FocusRequester() })
-            )
-        }
-    }
-}
-
-@Composable
-fun TvPlaybackSettingsScreen(onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val entryPoint = remember(context) {
+        EntryPointAccessors.fromApplication(context.applicationContext, TvSettingsEntryPoint::class.java)
+    }
+    val sessionManager = entryPoint.profileSessionManager()
+    val activeProfile by sessionManager.activeProfile.collectAsState()
+
+    // Preferences & Lists
+    val providers by IPTVRepository.providers.collectAsState()
+    val syncStates by IPTVRepository.syncStates.collectAsState()
+    val xtreamProgress by XtreamRepository.syncProgress.collectAsState()
+    val extensions by ExtensionRepository.extensions.collectAsState()
+    val prefs by UserPreferencesRepository.preferences.collectAsState()
+
+    val sharedPrefs = remember(context) { context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE) }
+    var autoplay by remember { mutableStateOf(sharedPrefs.getBoolean("autoplay_next_episode", true)) }
+    var dataSaver by remember { mutableStateOf(sharedPrefs.getBoolean("data_saver", false)) }
+    var subtitlesDefault by remember { mutableStateOf(sharedPrefs.getBoolean("subtitles_default", true)) }
+
+    // TV-specific playback preferences
     var frameRateMode by remember { mutableStateOf(FrameRateMatchingPreferences.mode) }
     var safeDecoderRetry by remember { mutableStateOf(FallbackPreferences.enableFallbackSafeProfileOnDecoderError) }
     var streamRacing by remember { mutableStateOf(StreamRacePreferences.enableStreamRacing) }
     var tunnelingMode by remember { mutableStateOf(TunnelingPreferences.mode) }
 
-    LazyColumn(
+    // Section Selection state
+    var activeSection by rememberSaveable { mutableStateOf(TvSettingsSection.Profile) }
+
+    // Dialog & overlay states
+    var providerToDelete by remember { mutableStateOf<IPTVProvider?>(null) }
+    var addonToRemove by remember { mutableStateOf<ExtensionProvider?>(null) }
+
+    var showM3uDialog by remember { mutableStateOf(false) }
+    var m3uEditProvider by remember { mutableStateOf<IPTVProvider?>(null) }
+    var m3uName by remember { mutableStateOf("") }
+    var m3uUrl by remember { mutableStateOf("") }
+    var m3uError by remember { mutableStateOf<String?>(null) }
+
+    var showXtreamDialog by remember { mutableStateOf(false) }
+    var xtreamEditProvider by remember { mutableStateOf<IPTVProvider?>(null) }
+    var xtreamName by remember { mutableStateOf("") }
+    var xtreamServer by remember { mutableStateOf("") }
+    var xtreamUsername by remember { mutableStateOf("") }
+    var xtreamPassword by remember { mutableStateOf("") }
+    var xtreamError by remember { mutableStateOf<String?>(null) }
+
+    var showAddonDialog by remember { mutableStateOf(false) }
+    var addonUrl by remember { mutableStateOf("") }
+    var isPreviewingAddon by remember { mutableStateOf(false) }
+    var previewManifest by remember { mutableStateOf<ExtensionManifest?>(null) }
+    var addonValidationError by remember { mutableStateOf<String?>(null) }
+    var isInstallingAddon by remember { mutableStateOf(false) }
+
+    var showProviderTypeSelect by remember { mutableStateOf(false) }
+
+    Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        item {
+        // Left Nav Pane (width = 240dp)
+        Column(
+            modifier = Modifier
+                .width(240.dp)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
-                text = "Playback",
-                fontSize = 38.sp,
+                text = "Settings",
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                color = TvColors.TextMain
+                color = t.colors.foreground,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            Text(
-                text = "Display and playback compatibility",
-                fontSize = 14.sp,
-                color = TvColors.TextSub,
-                modifier = Modifier.padding(bottom = 24.dp)
+
+            TvLeftNavItem(
+                title = "Profile",
+                isSelected = activeSection == TvSettingsSection.Profile,
+                onClick = { activeSection = TvSettingsSection.Profile },
+                onFocus = { activeSection = TvSettingsSection.Profile }
+            )
+            TvLeftNavItem(
+                title = "Playback",
+                isSelected = activeSection == TvSettingsSection.Playback,
+                onClick = { activeSection = TvSettingsSection.Playback },
+                onFocus = { activeSection = TvSettingsSection.Playback }
+            )
+            TvLeftNavItem(
+                title = "IPTV Providers",
+                isSelected = activeSection == TvSettingsSection.IPTV,
+                onClick = { activeSection = TvSettingsSection.IPTV },
+                onFocus = { activeSection = TvSettingsSection.IPTV }
+            )
+            TvLeftNavItem(
+                title = "Add-ons",
+                isSelected = activeSection == TvSettingsSection.AddOns,
+                onClick = { activeSection = TvSettingsSection.AddOns },
+                onFocus = { activeSection = TvSettingsSection.AddOns }
+            )
+            TvLeftNavItem(
+                title = "About",
+                isSelected = activeSection == TvSettingsSection.About,
+                onClick = { activeSection = TvSettingsSection.About },
+                onFocus = { activeSection = TvSettingsSection.About }
             )
         }
-        item {
-            TvSettingsRow(
-                title = "Match content frame rate",
-                description = if (frameRateMode == FrameRateMatchingMode.SEAMLESS_ONLY) {
-                    "On: seamless refresh-rate changes"
-                } else {
-                    "Off"
-                },
-                onClick = {
-                    frameRateMode = if (frameRateMode == FrameRateMatchingMode.OFF) {
-                        FrameRateMatchingMode.SEAMLESS_ONLY
+
+        // Right Content Pane
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            when (activeSection) {
+                TvSettingsSection.Profile -> {
+                    Text("Profile Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    LumenCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                val avatar = activeProfile?.avatarUrl
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(t.colors.muted)
+                                ) {
+                                    if (avatar != null) {
+                                        AsyncImage(
+                                            model = avatar,
+                                            contentDescription = "Avatar",
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = activeProfile?.name ?: "Default Profile",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = t.colors.foreground
+                                    )
+                                    Text(
+                                        text = "Active User Profile",
+                                        fontSize = 13.sp,
+                                        color = t.colors.mutedForeground
+                                    )
+                                }
+                            }
+                            TvFocusable(onClick = onSwitchProfileClick, cornerRadius = 8.dp) {
+                                Text(
+                                    text = "Switch Profile",
+                                    color = t.colors.foreground,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .background(t.colors.muted)
+                                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                TvSettingsSection.Playback -> {
+                    Text("Playback preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TvSettingsInteractiveRow(
+                            title = "Autoplay next episode",
+                            description = if (autoplay) "On: automatically play next episode" else "Off",
+                            onClick = {
+                                autoplay = !autoplay
+                                sharedPrefs.edit().putBoolean("autoplay_next_episode", autoplay).apply()
+                            }
+                        ) {
+                            Switch(
+                                checked = autoplay,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        TvSettingsInteractiveRow(
+                            title = "Data-saver",
+                            description = if (dataSaver) "On: prefer lower data usage VOD streams" else "Off",
+                            onClick = {
+                                dataSaver = !dataSaver
+                                sharedPrefs.edit().putBoolean("data_saver", dataSaver).apply()
+                                UserPreferencesRepository.updatePreferences { it.copy(preferLowerDataUsage = dataSaver) }
+                            }
+                        ) {
+                            Switch(
+                                checked = dataSaver,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        TvSettingsInteractiveRow(
+                            title = "Subtitles default",
+                            description = if (subtitlesDefault) "On: automatically load English subtitles" else "Off",
+                            onClick = {
+                                subtitlesDefault = !subtitlesDefault
+                                sharedPrefs.edit().putBoolean("subtitles_default", subtitlesDefault).apply()
+                                UserPreferencesRepository.updatePreferences { it.copy(subtitleLanguage = if (subtitlesDefault) "English" else "None") }
+                            }
+                        ) {
+                            Switch(
+                                checked = subtitlesDefault,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        // TV Specific playback preferences
+                        TvSettingsInteractiveRow(
+                            title = "Match content frame rate",
+                            description = if (frameRateMode == FrameRateMatchingMode.SEAMLESS_ONLY) "On: seamless refresh-rate changes" else "Off",
+                            onClick = {
+                                frameRateMode = if (frameRateMode == FrameRateMatchingMode.OFF) FrameRateMatchingMode.SEAMLESS_ONLY else FrameRateMatchingMode.OFF
+                                FrameRateMatchingPreferences.setModeBestEffort(context, frameRateMode)
+                            }
+                        ) {
+                            Switch(
+                                checked = frameRateMode == FrameRateMatchingMode.SEAMLESS_ONLY,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        TvSettingsInteractiveRow(
+                            title = "Safe decoder retry",
+                            description = if (safeDecoderRetry) "Enabled: fallback on codec errors" else "Disabled",
+                            onClick = {
+                                safeDecoderRetry = !safeDecoderRetry
+                                FallbackPreferences.setDecoderFallbackAndPersist(context, safeDecoderRetry)
+                            }
+                        ) {
+                            Switch(
+                                checked = safeDecoderRetry,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        TvSettingsInteractiveRow(
+                            title = "Race streams on Play Best",
+                            description = if (streamRacing) "On: parallel probe candidates" else "Off",
+                            onClick = {
+                                streamRacing = !streamRacing
+                                StreamRacePreferences.setEnabledBestEffort(context, streamRacing)
+                            }
+                        ) {
+                            Switch(
+                                checked = streamRacing,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand)
+                            )
+                        }
+
+                        TvSettingsInteractiveRow(
+                            title = "Video Tunneling",
+                            description = when (tunnelingMode) {
+                                TunnelingMode.OFF -> "Off"
+                                TunnelingMode.AUTO -> "Auto: hardware acceleration when supported"
+                                TunnelingMode.ON -> "On"
+                            },
+                            onClick = {
+                                tunnelingMode = when (tunnelingMode) {
+                                    TunnelingMode.OFF -> TunnelingMode.AUTO
+                                    TunnelingMode.AUTO -> TunnelingMode.ON
+                                    TunnelingMode.ON -> TunnelingMode.OFF
+                                }
+                                TunnelingPreferences.setModeBestEffort(context, tunnelingMode)
+                            }
+                        ) {
+                            Text(tunnelingMode.name, color = t.colors.brand, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                TvSettingsSection.IPTV -> {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("IPTV playlists", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                        TvFocusable(onClick = { showProviderTypeSelect = true }, cornerRadius = 8.dp) {
+                            Text(
+                                text = "Add provider",
+                                color = t.colors.foreground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .background(t.colors.muted)
+                                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (providers.isEmpty()) {
+                            Text("No IPTV providers configured.", color = t.colors.mutedForeground, fontSize = 14.sp)
+                        } else {
+                            providers.forEach { provider ->
+                                val isSyncing = xtreamProgress?.takeIf { it.providerId == provider.id }?.stage != null ||
+                                                syncStates[provider.id]?.status == ProviderSyncStatus.SYNCING
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(t.colors.card)
+                                        .border(1.dp, t.colors.border, RoundedCornerShape(8.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (!provider.isEnabled) Color.Gray
+                                                    else when (provider.health) {
+                                                        ProviderHealth.HEALTHY -> Color.Green
+                                                        ProviderHealth.SLOW -> Color.Yellow
+                                                        ProviderHealth.FAILED -> Color.Red
+                                                    }
+                                                )
+                                        )
+                                        Column {
+                                            Text(provider.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                            Text(
+                                                text = if (provider.type == IPTVProviderType.XTREAM) "Xtream API" else "M3U Playlist",
+                                                fontSize = 12.sp,
+                                                color = t.colors.mutedForeground
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        TvFocusable(
+                                            onClick = {
+                                                if (provider.type == IPTVProviderType.XTREAM) {
+                                                    IPTVRepository.startXtreamProviderSync(provider.id)
+                                                } else {
+                                                    coroutineScope.launch {
+                                                        IPTVRepository.syncPlaylistFromUrl(provider.id)
+                                                    }
+                                                }
+                                            },
+                                            cornerRadius = 8.dp
+                                        ) {
+                                            Box(modifier = Modifier.padding(8.dp)) {
+                                                if (isSyncing) {
+                                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = t.colors.brand, strokeWidth = 2.dp)
+                                                } else {
+                                                    Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = t.colors.foreground)
+                                                }
+                                            }
+                                        }
+
+                                        TvFocusable(
+                                            onClick = { providerToDelete = provider },
+                                            cornerRadius = 8.dp
+                                        ) {
+                                            Box(modifier = Modifier.padding(8.dp)) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TvSettingsSection.AddOns -> {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Add-on catalogs", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                        TvFocusable(
+                            onClick = {
+                                addonUrl = ""
+                                previewManifest = null
+                                addonValidationError = null
+                                showAddonDialog = true
+                            },
+                            cornerRadius = 8.dp
+                        ) {
+                            Text(
+                                text = "Add from URL",
+                                color = t.colors.foreground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .background(t.colors.muted)
+                                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (extensions.isEmpty()) {
+                            Text("No catalog add-ons configured.", color = t.colors.mutedForeground, fontSize = 14.sp)
+                        } else {
+                            extensions.forEach { addon ->
+                                val healthColor = when (addon.health) {
+                                    ExtensionHealth.ACTIVE -> Color(0xFF10B981)
+                                    ExtensionHealth.DISABLED -> Color(0xFF6B7280)
+                                    ExtensionHealth.NEEDS_CONFIGURATION, ExtensionHealth.SLOW -> Color(0xFFF59E0B)
+                                    ExtensionHealth.FAILED, ExtensionHealth.INVALID_MANIFEST -> Color(0xFFEF4444)
+                                    else -> Color(0xFF6B7280)
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(t.colors.card)
+                                        .border(1.dp, t.colors.border, RoundedCornerShape(8.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(healthColor)
+                                        )
+                                        Column {
+                                            Text(addon.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                            addon.manifest?.description?.let { desc ->
+                                                Text(desc, fontSize = 12.sp, color = t.colors.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                        }
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        TvFocusable(
+                                            onClick = {
+                                                ExtensionRepository.toggleExtension(addon.id, !addon.isEnabled)
+                                            },
+                                            cornerRadius = 8.dp
+                                        ) {
+                                            Text(
+                                                text = if (addon.isEnabled) "Disable" else "Enable",
+                                                color = t.colors.foreground,
+                                                fontSize = 12.sp,
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                            )
+                                        }
+
+                                        TvFocusable(
+                                            onClick = { addonToRemove = addon },
+                                            cornerRadius = 8.dp
+                                        ) {
+                                            Box(modifier = Modifier.padding(8.dp)) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = Color.Red)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TvSettingsSection.About -> {
+                    Text("About", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val versionName = remember {
+                            runCatching {
+                                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                                packageInfo.versionName ?: "1.0.0"
+                            }.getOrElse { "1.0.0" }
+                        }
+                        val buildNumber = remember {
+                            runCatching {
+                                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                    packageInfo.longVersionCode.toString()
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    packageInfo.versionCode.toString()
+                                }
+                            }.getOrElse { "1" }
+                        }
+
+                        TvSettingsAboutRow(label = "Version", value = versionName)
+                        TvSettingsAboutRow(label = "Build Number", value = buildNumber)
+                        val configured = com.example.calmsource.tv.BuildConfig.RELAY_BASE_URL.isNotBlank()
+                        TvSettingsAboutRow(label = "Relay sync status", value = if (configured) "Configured" else "Not set")
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        TvFocusable(onClick = onPairingClick, cornerRadius = 8.dp) {
+                            Text(
+                                text = "Device Pairing",
+                                color = t.colors.foreground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .background(t.colors.muted)
+                                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // IPTV Type Select Dialog
+    if (showProviderTypeSelect) {
+        AlertDialog(
+            onDismissRequest = { showProviderTypeSelect = false },
+            title = { Text("Add IPTV Provider", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = { Text("Select M3U playlist format or Xtream credentials format.", color = t.colors.mutedForeground) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showProviderTypeSelect = false
+                    m3uEditProvider = null
+                    m3uName = ""
+                    m3uUrl = ""
+                    m3uError = null
+                    showM3uDialog = true
+                }) {
+                    Text("M3U Playlist", color = t.colors.brand, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showProviderTypeSelect = false
+                    xtreamEditProvider = null
+                    xtreamName = ""
+                    xtreamServer = ""
+                    xtreamUsername = ""
+                    xtreamPassword = ""
+                    xtreamError = null
+                    showXtreamDialog = true
+                }) {
+                    Text("Xtream API", color = t.colors.brand, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+
+    // M3U Playlist Form Dialog
+    if (showM3uDialog) {
+        AlertDialog(
+            onDismissRequest = { showM3uDialog = false },
+            title = { Text(if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = m3uName,
+                        onValueChange = { m3uName = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    OutlinedTextField(
+                        value = m3uUrl,
+                        onValueChange = { m3uUrl = it },
+                        label = { Text("Playlist URL") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    m3uError?.let { err ->
+                        Text(err, color = Color.Red, fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val name = m3uName.trim()
+                        val url = m3uUrl.trim()
+                        if (name.isEmpty() || url.isEmpty()) {
+                            m3uError = "Please fill in all fields"
+                            return@Button
+                        }
+                        coroutineScope.launch {
+                            val editProv = m3uEditProvider
+                            if (editProv != null) {
+                                IPTVRepository.deleteProvider(editProv.id)
+                            }
+                            try {
+                                IPTVRepository.addM3uProvider(name, url)
+                                showM3uDialog = false
+                            } catch (e: Exception) {
+                                m3uError = e.localizedMessage ?: "Failed to save provider"
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showM3uDialog = false }) {
+                    Text("Cancel", color = t.colors.foreground)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+
+    // Xtream Form Dialog
+    if (showXtreamDialog) {
+        AlertDialog(
+            onDismissRequest = { showXtreamDialog = false },
+            title = { Text(if (xtreamEditProvider != null) "Edit Xtream API" else "Add Xtream API", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = xtreamName,
+                        onValueChange = { xtreamName = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    OutlinedTextField(
+                        value = xtreamServer,
+                        onValueChange = { xtreamServer = it },
+                        label = { Text("Server URL") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    OutlinedTextField(
+                        value = xtreamUsername,
+                        onValueChange = { xtreamUsername = it },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    OutlinedTextField(
+                        value = xtreamPassword,
+                        onValueChange = { xtreamPassword = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                    )
+                    xtreamError?.let { err ->
+                        Text(err, color = Color.Red, fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val name = xtreamName.trim()
+                        val server = xtreamServer.trim()
+                        val user = xtreamUsername.trim()
+                        val pass = xtreamPassword.trim()
+                        if (name.isEmpty() || server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+                            xtreamError = "Please fill in all fields"
+                            return@Button
+                        }
+                        coroutineScope.launch {
+                            val editProv = xtreamEditProvider
+                            if (editProv != null) {
+                                IPTVRepository.deleteProvider(editProv.id)
+                            }
+                            val res = IPTVRepository.addXtreamProvider(name, server, user, pass)
+                            if (res.isSuccess) {
+                                showXtreamDialog = false
+                            } else {
+                                xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showXtreamDialog = false }) {
+                    Text("Cancel", color = t.colors.foreground)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+
+    // IPTV Delete Dialog
+    if (providerToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { providerToDelete = null },
+            title = { Text("Delete IPTV Provider", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete '${providerToDelete?.name}'? This will remove all associated channels.", color = t.colors.mutedForeground) },
+            confirmButton = {
+                TextButton(onClick = {
+                    providerToDelete?.let { provider ->
+                        coroutineScope.launch {
+                            IPTVRepository.deleteProvider(provider.id)
+                            providerToDelete = null
+                        }
+                    }
+                }) {
+                    Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { providerToDelete = null }) {
+                    Text("Cancel", color = t.colors.foreground)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+
+    // Catalog Add-on Installation Dialog
+    if (showAddonDialog) {
+        fun previewUrl(url: String) {
+            val trimmedUrl = url.trim()
+            addonValidationError = null
+            previewManifest = null
+            if (trimmedUrl.isBlank()) {
+                addonValidationError = "URL cannot be blank"
+                return
+            }
+            val isHttp = trimmedUrl.lowercase().startsWith("http://")
+            if (isHttp && !prefs.allowCleartextUserSources) {
+                addonValidationError = "Unsafe schemes (HTTP) are rejected by your settings. Enable 'Allow Cleartext HTTP Sources' to use this."
+                return
+            }
+            isPreviewingAddon = true
+            coroutineScope.launch {
+                try {
+                    val result = ExtensionRepository.previewExtension(trimmedUrl)
+                    isPreviewingAddon = false
+                    if (result.isSuccess) {
+                        previewManifest = result.manifest
                     } else {
-                        FrameRateMatchingMode.OFF
+                        addonValidationError = result.error?.message ?: result.warnings.firstOrNull() ?: "Failed to load manifest"
                     }
-                    FrameRateMatchingPreferences.setModeBestEffort(context, frameRateMode)
+                } catch (e: Exception) {
+                    isPreviewingAddon = false
+                    addonValidationError = e.localizedMessage ?: "Failed to load manifest"
                 }
-            )
+            }
         }
-        item {
-            TvSettingsRow(
-                title = "Safe decoder retry",
-                description = if (safeDecoderRetry) "Enabled: retry safe profile on decoder error" else "Disabled",
-                onClick = {
-                    val next = !safeDecoderRetry
-                    safeDecoderRetry = next
-                    FallbackPreferences.setDecoderFallbackAndPersist(context, next)
-                }
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Race top streams on Play Best",
-                description = if (streamRacing) {
-                    "On: probe top candidates before selecting"
-                } else {
-                    "Off"
-                },
-                onClick = {
-                    streamRacing = !streamRacing
-                    StreamRacePreferences.setEnabledBestEffort(context, streamRacing)
-                }
-            )
-        }
-        item {
-            TvSettingsRow(
-                title = "Tunneling Mode",
-                description = when (tunnelingMode) {
-                    TunnelingMode.OFF -> "Off"
-                    TunnelingMode.AUTO -> "Auto: enable when device and codecs allow"
-                    TunnelingMode.ON -> "On"
-                },
-                onClick = {
-                    tunnelingMode = when (tunnelingMode) {
-                        TunnelingMode.OFF -> TunnelingMode.AUTO
-                        TunnelingMode.AUTO -> TunnelingMode.ON
-                        TunnelingMode.ON -> TunnelingMode.OFF
+
+        AlertDialog(
+            onDismissRequest = { showAddonDialog = false },
+            title = { Text("Add Catalog Add-on URL", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (previewManifest != null) {
+                        val manifest = previewManifest!!
+                        Text("Add-on found: ${manifest.name}", color = t.colors.foreground, fontWeight = FontWeight.Bold)
+                        Text(manifest.description ?: "No description provided.", color = t.colors.mutedForeground, fontSize = 12.sp)
+                    } else {
+                        OutlinedTextField(
+                            value = addonUrl,
+                            onValueChange = { addonUrl = it },
+                            label = { Text("Manifest URL") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        )
+                        if (isPreviewingAddon) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = t.colors.brand)
+                        }
                     }
-                    TunnelingPreferences.setModeBestEffort(context, tunnelingMode)
+                    addonValidationError?.let { err ->
+                        Text(err, color = Color.Red, fontSize = 12.sp)
+                    }
                 }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val manifest = previewManifest
+                        if (manifest != null) {
+                            if (isInstallingAddon) return@Button
+                            isInstallingAddon = true
+                            coroutineScope.launch {
+                                try {
+                                    val result = ExtensionRepository.confirmInstall(manifest, addonUrl.trim(), emptyList())
+                                    if (result.isSuccess) {
+                                        showAddonDialog = false
+                                    } else {
+                                        addonValidationError = result.error?.message ?: "Install failed"
+                                    }
+                                } catch (e: Exception) {
+                                    addonValidationError = e.localizedMessage ?: "Install failed"
+                                } finally {
+                                    isInstallingAddon = false
+                                }
+                            }
+                        } else {
+                            previewUrl(addonUrl)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
+                ) {
+                    Text(if (previewManifest != null) "Install" else "Preview")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddonDialog = false }) {
+                    Text("Cancel", color = t.colors.foreground)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+
+    // Catalog Add-on Deletion Dialog
+    if (addonToRemove != null) {
+        AlertDialog(
+            onDismissRequest = { addonToRemove = null },
+            title = { Text("Remove Add-on", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to remove '${addonToRemove?.name}'?", color = t.colors.mutedForeground) },
+            confirmButton = {
+                TextButton(onClick = {
+                    addonToRemove?.let { addon ->
+                        ExtensionRepository.removeExtension(addon.id)
+                        addonToRemove = null
+                    }
+                }) {
+                    Text("Remove", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { addonToRemove = null }) {
+                    Text("Cancel", color = t.colors.foreground)
+                }
+            },
+            containerColor = t.colors.card
+        )
+    }
+}
+
+@Composable
+fun TvLeftNavItem(
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onFocus: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
+            .onFocusChanged { if (it.isFocused) onFocus() },
+        cornerRadius = 8.dp
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(if (isSelected) t.colors.brand.copy(alpha = 0.15f) else Color.Transparent)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Text(
+                text = title,
+                color = if (isSelected) t.colors.brand else t.colors.foreground,
+                fontSize = 16.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
         }
-        item {
-            TvSettingsRow(
-                title = "Back",
-                description = "Return to settings",
-                onClick = onBack
-            )
+    }
+}
+
+@Composable
+fun TvSettingsInteractiveRow(
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionContent: @Composable () -> Unit = {}
+) {
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        cornerRadius = 8.dp
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(t.colors.card)
+                .padding(16.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                if (description.isNotEmpty()) {
+                    Text(description, fontSize = 12.sp, color = t.colors.mutedForeground, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+            actionContent()
         }
+    }
+}
+
+@Composable
+fun TvSettingsAboutRow(
+    label: String,
+    value: String
+) {
+    val t = LocalLumenTokens.current
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(t.colors.card, RoundedCornerShape(8.dp))
+            .padding(16.dp)
+    ) {
+        Text(label, fontSize = 16.sp, color = t.colors.mutedForeground)
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
     }
 }
 
@@ -369,3 +1053,4 @@ fun TvSettingsRow(
         }
     }
 }
+
