@@ -1,0 +1,13 @@
+build:
+  maxIssues: 0
+
+lumen-tokens:
+  active: true
+  ForbiddenScreenDpLiteral:
+    active: true
+  ForbiddenScreenColorLiteral:
+    active: true
+  ForbiddenScreenMaterialColors:
+    active: true
+  ForbiddenScreenRoundedCornerShape:
+    active: true

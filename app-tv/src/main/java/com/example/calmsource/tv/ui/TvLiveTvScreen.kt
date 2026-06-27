@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -70,21 +72,21 @@ fun TvLiveTvScreen(
         // Left Pane: Category nav list (Two-pane)
         Column(
             modifier = Modifier
-                .width(200.dp)
+                .width(LumenTokens.Layout.channelPanelWidth)
                 .fillMaxHeight()
-                .border(0.5.dp, t.colors.border)
-                .padding(vertical = 16.dp, horizontal = 8.dp)
+                .border(LumenTokens.Layout.hairline, t.colors.border)
+                .padding(vertical = LumenTokens.Space.lg, horizontal = LumenTokens.Space.sm2)
         ) {
             Text(
                 text = "Categories",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
-                modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.lg, start = LumenTokens.Space.sm2)
             )
 
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
                 modifier = Modifier.fillMaxSize()
             ) {
                 itemsIndexed(categories) { _, category ->
@@ -108,7 +110,7 @@ fun TvLiveTvScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(LumenTokens.Shape.sm)
                                 .background(
                                     when {
                                         isCategoryFocused -> t.colors.brand
@@ -116,7 +118,7 @@ fun TvLiveTvScreen(
                                         else -> Color.Transparent
                                     }
                                 )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm2),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
@@ -138,7 +140,7 @@ fun TvLiveTvScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp)
+                .padding(LumenTokens.Space.lg)
         ) {
             if (filteredChannels.isEmpty()) {
                 Box(
@@ -154,8 +156,8 @@ fun TvLiveTvScreen(
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(filteredChannels, key = { _, ch -> ch.id }) { index, channel ->
@@ -191,13 +193,13 @@ fun TvLiveTvScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(4.dp)
+                                        .padding(LumenTokens.Space.xs)
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(80.dp)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .height(LumenTokens.Layout.bottomNavPadding)
+                                            .clip(LumenTokens.Shape.sm)
                                             .background(t.colors.muted),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -205,10 +207,10 @@ fun TvLiveTvScreen(
                                             model = channel.logoUrl,
                                             contentDescription = channel.name,
                                             contentScale = ContentScale.Fit,
-                                            modifier = Modifier.size(56.dp)
+                                            modifier = Modifier.size(LumenTokens.Layout.playerControlSize)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
                                     Text(
                                         text = if (currentProgram != null) "NOW PLAYING" else "NO EPG INFO",
                                         fontSize = 9.5.sp,
@@ -216,7 +218,7 @@ fun TvLiveTvScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = t.colors.mutedForeground
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
                                     Text(
                                         text = currentProgram?.title ?: "No program data",
                                         fontSize = 11.5.sp,
@@ -224,7 +226,7 @@ fun TvLiveTvScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
                                     Text(
                                         text = channel.name,
                                         fontSize = 12.sp,

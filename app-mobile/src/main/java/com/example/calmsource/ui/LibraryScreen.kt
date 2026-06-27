@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,8 +77,8 @@ fun LibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.Background)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = LumenTokens.Space.lg),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)
     ) {
         item {
             Text(
@@ -84,12 +86,12 @@ fun LibraryScreen(
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = AppColors.TextMain,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2)
             )
             Text(
                 text = "Your saved and recently watched items",
                 color = AppColors.TextSub,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.md)
             )
         }
 
@@ -209,7 +211,7 @@ fun LibraryScreen(
             }
         }
 
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item { Spacer(modifier = Modifier.height(LumenTokens.Space.xxl)) }
     }
 }
 
@@ -277,7 +279,7 @@ private fun MemoryRow(
                         color = AppColors.Primary,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(top = LumenTokens.Space.sm2)
                     )
                 }
             }
@@ -302,7 +304,7 @@ private fun SearchHistoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+            .padding(vertical = LumenTokens.Radius.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(query, color = AppColors.TextMain, modifier = Modifier.weight(1f))
@@ -317,7 +319,7 @@ private fun EmptyLibraryRow(message: String) {
     Text(
         text = message,
         color = AppColors.TextSub,
-        modifier = Modifier.padding(bottom = 12.dp)
+        modifier = Modifier.padding(bottom = LumenTokens.Space.md)
     )
 }
 

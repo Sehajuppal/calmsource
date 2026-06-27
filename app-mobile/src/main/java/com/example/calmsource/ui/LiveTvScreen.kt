@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -47,6 +49,7 @@ import com.example.calmsource.core.ui.components.LumenSkeleton
 import com.example.calmsource.core.ui.components.LumenEmptyState
 import com.example.calmsource.core.ui.components.LumenErrorState
 import com.example.calmsource.core.ui.components.RowSection
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @Composable
@@ -88,22 +91,22 @@ fun LiveTvScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(t.colors.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(LumenTokens.Space.lg),
+            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
         ) {
-            LumenSkeleton(modifier = Modifier.width(180.dp).height(32.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.heroStripHeight).height(LumenTokens.Space.xxxl))
+            Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
                 repeat(4) {
-                    LumenSkeleton(modifier = Modifier.width(80.dp).height(36.dp))
+                    LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.bottomNavPadding).height(LumenTokens.Layout.offsetLg))
                 }
             }
             repeat(3) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
-                    LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                    LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
+                    LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
                 }
             }
         }
@@ -251,7 +254,7 @@ private fun ChannelsGridContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = LumenTokens.Space.lg)
     ) {
         // Categories row
         if (categories.isNotEmpty()) {
@@ -261,7 +264,7 @@ private fun ChannelsGridContent(
                 onSelect = { viewModel.setSelectedCategory(it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = LumenTokens.Space.md)
             )
         }
 
@@ -269,11 +272,11 @@ private fun ChannelsGridContent(
         if (favoriteItems.isNotEmpty()) {
             RowSection(
                 title = "Favorites",
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
             ) {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xs)
                 ) {
                     items(favoriteItems) { fav ->
                         val channelId = fav.reference.sourceId ?: ""
@@ -285,8 +288,8 @@ private fun ChannelsGridContent(
                             }
                             LumenCard(
                                 modifier = Modifier
-                                    .width(84.dp)
-                                    .height(84.dp)
+                                    .width(LumenTokens.Layout.epgBlockHeight)
+                                    .height(LumenTokens.Layout.epgBlockHeight)
                                     .clickable { onChannelSelect(channel, currentProgram) }
                             ) {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -295,7 +298,7 @@ private fun ChannelsGridContent(
                                         contentDescription = channel.name,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(54.dp)
+                                            .size(LumenTokens.Layout.channelLogoInner)
                                             .clip(CircleShape)
                                             .background(t.colors.muted)
                                     )
@@ -324,9 +327,9 @@ private fun ChannelsGridContent(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                contentPadding = PaddingValues(bottom = LumenTokens.Space.xxl),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -352,13 +355,13 @@ private fun ChannelsGridContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp)
+                                .padding(LumenTokens.Space.md)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(96.dp)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .height(LumenTokens.Layout.channelRowHeight)
+                                    .clip(LumenTokens.Shape.lg)
                                     .background(t.colors.muted),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -366,11 +369,11 @@ private fun ChannelsGridContent(
                                     model = channel.logoUrl,
                                     contentDescription = channel.name,
                                     contentScale = ContentScale.Fit,
-                                    modifier = Modifier.size(64.dp)
+                                    modifier = Modifier.size(LumenTokens.Layout.avatarLg)
                                 )
                             }
                             
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
 
                             Text(
                                 text = if (currentProgram != null) "NOW PLAYING" else "NO EPG DATA",
@@ -380,7 +383,7 @@ private fun ChannelsGridContent(
                                 color = t.colors.mutedForeground
                             )
                             
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
 
                             Text(
                                 text = currentProgram?.title ?: "No Information",
@@ -391,7 +394,7 @@ private fun ChannelsGridContent(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
 
                             Text(
                                 text = channel.name,

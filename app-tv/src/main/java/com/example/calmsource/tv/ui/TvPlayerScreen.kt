@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -462,7 +464,7 @@ fun TvPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(LumenTokens.Color.bg)
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
                     when (event.key) {
@@ -629,9 +631,9 @@ fun TvPlayerScreen(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.8f),
+                                LumenTokens.Color.bg.copy(alpha = 0.8f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.9f)
+                                LumenTokens.Color.bg.copy(alpha = 0.9f)
                             )
                         )
                     )
@@ -642,16 +644,16 @@ fun TvPlayerScreen(
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
                         .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = 48.dp, vertical = 20.dp)
+                        .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.xl)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(t.colors.brand.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                .background(t.colors.brand.copy(alpha = 0.2f), LumenTokens.Shape.sm)
+                                .padding(horizontal = LumenTokens.Radius.sm, vertical = LumenTokens.Layout.progressHeight)
                         ) {
                             Text(
                                 text = if (activeRequest.source.metadata?.isLive == true) "LIVE TV"
@@ -675,7 +677,7 @@ fun TvPlayerScreen(
                         .fillMaxWidth()
                         .align(Alignment.BottomStart)
                         .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = 48.dp, vertical = 24.dp)
+                        .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.xxl)
                 ) {
                     Column {
                         Text(
@@ -687,11 +689,11 @@ fun TvPlayerScreen(
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
 
                         // Controls Row
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val isLive = uiState.source?.metadata?.isLive == true || activeRequest.source.metadata?.isLive == true
@@ -711,7 +713,7 @@ fun TvPlayerScreen(
                                         color = t.colors.foreground,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                     )
                                 }
                             }
@@ -733,7 +735,7 @@ fun TvPlayerScreen(
                                         color = t.colors.foreground,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                     )
                                 }
                             }
@@ -757,7 +759,7 @@ fun TvPlayerScreen(
                                     color = t.colors.foreground,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                 )
                             }
 
@@ -777,7 +779,7 @@ fun TvPlayerScreen(
                                         color = t.colors.foreground,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                     )
                                 }
                             }
@@ -798,7 +800,7 @@ fun TvPlayerScreen(
                                         color = t.colors.foreground,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                     )
                                 }
                             }
@@ -821,22 +823,22 @@ fun TvPlayerScreen(
                                         color = t.colors.foreground,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                         
                         if (isLive) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(t.colors.destructive))
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(modifier = Modifier.size(LumenTokens.Space.sm2).clip(LumenTokens.Shape.md).background(t.colors.destructive))
+                                Spacer(modifier = Modifier.width(LumenTokens.Space.sm2))
                                 Text(text = "LIVE", color = t.colors.foreground, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         } else {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(LumenTokens.Space.md))
                             TvProgressBar(
                                 progressState = progressState,
                                 playbackManager = playbackManager,
@@ -859,10 +861,10 @@ fun TvPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(380.dp)
+                    .width(LumenTokens.Layout.panelWidthTv)
                     .background(t.colors.card.copy(alpha = 0.95f))
                     .border(1.dp, t.colors.border)
-                    .padding(24.dp)
+                    .padding(LumenTokens.Space.xxl)
             ) {
                 Text(
                     text = "Live Channels",
@@ -875,7 +877,7 @@ fun TvPlayerScreen(
                     color = t.colors.mutedForeground,
                     fontSize = 14.sp
                 )
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Layout.iconMd))
                 if (channels.isEmpty()) {
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -887,7 +889,7 @@ fun TvPlayerScreen(
                                 color = t.colors.mutedForeground,
                                 fontSize = 16.sp
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                             TvFocusable(
                                 modifier = Modifier.focusRequester(channelSwitcherFocusRequester),
                                 onClick = { showChannelSwitcher = false }
@@ -895,14 +897,14 @@ fun TvPlayerScreen(
                                 Text(
                                     text = "Close",
                                     color = t.colors.foreground,
-                                    modifier = Modifier.padding(12.dp)
+                                    modifier = Modifier.padding(LumenTokens.Space.md)
                                 )
                             }
                         }
                     }
                 } else {
                     androidx.compose.foundation.lazy.LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
                         modifier = Modifier.weight(1f)
                     ) {
                         itemsIndexed(channels, key = { _, channel -> channel.id }) { index, channel ->
@@ -921,7 +923,7 @@ fun TvPlayerScreen(
                                     text = if (channel.id == activeRequest.source.id) "Playing  ${channel.name}" else channel.name,
                                     color = if (channel.id == activeRequest.source.id) t.colors.brandGlow else t.colors.foreground,
                                     fontWeight = if (channel.id == activeRequest.source.id) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(LumenTokens.Space.md),
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
@@ -942,10 +944,10 @@ fun TvPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(380.dp)
+                    .width(LumenTokens.Layout.panelWidthTv)
                     .background(t.colors.card.copy(alpha = 0.95f))
                     .border(1.dp, t.colors.border)
-                    .padding(24.dp)
+                    .padding(LumenTokens.Space.xxl)
                     .onKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.Back) {
                             showTrackSelector = false
@@ -959,10 +961,10 @@ fun TvPlayerScreen(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Layout.iconMd))
 
                 androidx.compose.foundation.lazy.LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs),
                     modifier = Modifier.weight(1f)
                 ) {
                     if (trackSelectorType == TrackType.AUDIO) {
@@ -1031,7 +1033,7 @@ private fun TvTrackRow(
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1077,13 +1079,13 @@ fun TvErrorOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f)),
+            .background(LumenTokens.Color.bg.copy(alpha = 0.85f)),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.widthIn(max = 500.dp)
+            modifier = Modifier.widthIn(max = LumenTokens.Layout.playerSheetMaxWidth)
         ) {
             val explanation = when (error) {
                 is PlaybackError.Network -> "A network connection error occurred. Please check your internet connection."
@@ -1110,10 +1112,10 @@ fun TvErrorOverlay(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xxxl))
             
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onTryNext != null) {
@@ -1126,7 +1128,7 @@ fun TvErrorOverlay(
                             color = t.colors.foreground,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                         )
                     }
                 }
@@ -1140,7 +1142,7 @@ fun TvErrorOverlay(
                         color = t.colors.foreground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                     )
                 }
             }
@@ -1169,8 +1171,8 @@ fun TvProgressBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
+                .height(LumenTokens.Space.sm2)
+                .clip(LumenTokens.Shape.md)
                 .background(t.colors.muted.copy(alpha = 0.5f))
                 .focusRequester(focusRequester)
                 .onFocusChanged { isProgressBarFocused = it.isFocused || it.hasFocus }
@@ -1201,9 +1203,9 @@ fun TvProgressBar(
                     modifier = Modifier
                         .fillMaxSize()
                         .border(
-                            width = 2.dp,
+                            width = LumenTokens.Space.xxs,
                             color = t.colors.brand,
-                            shape = RoundedCornerShape(4.dp)
+                            shape = LumenTokens.Shape.md
                         )
                 )
             }
@@ -1220,7 +1222,7 @@ fun TvProgressBar(
                     .background(t.colors.brand)
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
         Text(
             text = "${formatTime(progressState.currentPositionMs)} / ${formatTime(progressState.durationMs)}",
             color = t.colors.foreground,

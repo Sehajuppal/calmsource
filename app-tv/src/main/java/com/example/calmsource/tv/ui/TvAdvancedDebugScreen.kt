@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,8 +53,8 @@ fun TvAdvancedDebugScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(LumenTokens.Space.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
     ) {
         item {
             Text(
@@ -155,7 +157,7 @@ private fun TvDebugSection(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
     ) {
         Text(title, color = TvColors.BorderFocused, fontWeight = FontWeight.Bold)
         rows.forEach { (label, value) ->

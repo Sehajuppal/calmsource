@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.google.gms.google.services)
   alias(libs.plugins.google.firebase.crashlytics)
+  id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -150,4 +151,13 @@ dependencies {
   // play-services-mlkit-barcode-scanning is defined in libs.versions.toml but commented out here for offline build compatibility
   // implementation(libs.play.services.mlkit.barcode.scanning)
   implementation(libs.zxing.core)
+  detektPlugins(project(":detekt-rules"))
+}
+
+detekt {
+    toolVersion = "1.23.7"
+    config.from("$rootDir/config/detekt.yml")
+    buildUponDefaultConfig = false
+    allRules = false
+    parallel = true
 }

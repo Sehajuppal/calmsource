@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -20,16 +22,16 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(LumenTokens.Space.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
     ) {
         item {
-            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = 16.dp)) {
+            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenTokens.Space.lg)) {
                 Text(text = "← Back", color = TvColors.TextMain)
             }
         }
         item {
-            Text(text = "Priorities Configuration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = 12.dp))
+            Text(text = "Priorities Configuration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = LumenTokens.Space.md))
         }
 
         item {
@@ -105,7 +107,7 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.fillMaxWidth()) {
                     Text(text = "Low-Data Bandwidth Mode", color = TvColors.TextMain, modifier = Modifier.weight(1f))
                     Text(text = if (prefs.preferLowerDataUsage) "Enabled" else "Disabled", color = if (prefs.preferLowerDataUsage) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
                 }
@@ -118,7 +120,7 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.fillMaxWidth()) {
                     Text(text = "Separate IPTV Categories by Provider", color = TvColors.TextMain, modifier = Modifier.weight(1f))
                     Text(text = if (prefs.separateIptvCategoriesByProvider) "Enabled" else "Disabled", color = if (prefs.separateIptvCategoriesByProvider) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
                 }

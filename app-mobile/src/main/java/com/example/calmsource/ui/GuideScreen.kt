@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -87,15 +89,15 @@ fun GuideScreen(
         // Sticky Channel Header Column
         Column(
             modifier = Modifier
-                .width(68.dp)
+                .width(LumenTokens.Layout.epgTimeColumnWidth)
                 .fillMaxHeight()
         ) {
             // Spacer to align with time ruler
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
-                    .border(0.5.dp, t.colors.border)
+                    .height(LumenTokens.Layout.epgRowHeight)
+                    .border(LumenTokens.Layout.hairline, t.colors.border)
                     .background(t.colors.muted)
             )
 
@@ -109,9 +111,9 @@ fun GuideScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(84.dp)
-                            .border(0.5.dp, t.colors.border)
-                            .padding(8.dp),
+                            .height(LumenTokens.Layout.epgBlockHeight)
+                            .border(LumenTokens.Layout.hairline, t.colors.border)
+                            .padding(LumenTokens.Space.sm2),
                         contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
@@ -119,7 +121,7 @@ fun GuideScreen(
                             contentDescription = channel.name,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(LumenTokens.Layout.avatarMd)
                                 .clip(CircleShape)
                                 .background(t.colors.muted)
                         )
@@ -138,17 +140,17 @@ fun GuideScreen(
             // Time Ruler Header
             Row(
                 modifier = Modifier
-                    .height(44.dp)
+                    .height(LumenTokens.Layout.epgRowHeight)
                     .background(t.colors.muted)
-                    .border(0.5.dp, t.colors.border),
+                    .border(LumenTokens.Layout.hairline, t.colors.border),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ticks.forEach { tickTime ->
                     Box(
                         modifier = Modifier
-                            .width(120.dp)
+                            .width(LumenTokens.Layout.epgMinBlockWidth)
                             .fillMaxHeight()
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = LumenTokens.Space.sm2),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
@@ -172,8 +174,8 @@ fun GuideScreen(
                     val nowNext = nowNextMap[channel.id]
                     Row(
                         modifier = Modifier
-                            .height(84.dp)
-                            .border(0.5.dp, t.colors.border),
+                            .height(LumenTokens.Layout.epgBlockHeight)
+                            .border(LumenTokens.Layout.hairline, t.colors.border),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val currentProgram = nowNext?.currentProgram
@@ -191,7 +193,7 @@ fun GuideScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
+                                    .padding(horizontal = LumenTokens.Space.lg)
                             ) {
                                 Text("No program info", color = t.colors.mutedForeground, fontSize = 12.sp)
                             }
@@ -200,7 +202,8 @@ fun GuideScreen(
                                 val pStart = maxOf(program.startTimeMs, startOfCurrentHour)
                                 val pEnd = minOf(program.endTimeMs, endOfTimeline)
                                 val durationMinutes = (pEnd - pStart) / 60000.0
-                                val blockWidth = (durationMinutes * 4.0).coerceAtLeast(120.0).dp
+                                val blockWidth = (durationMinutes * 4.0).dp
+                                    .coerceAtLeast(LumenTokens.Layout.epgMinBlockWidth)
 
                                 val isCurrent = System.currentTimeMillis() in program.startTimeMs..program.endTimeMs
 
@@ -219,7 +222,7 @@ fun GuideScreen(
                                     modifier = Modifier
                                         .width(blockWidth)
                                         .fillMaxHeight()
-                                        .padding(4.dp)
+                                        .padding(LumenTokens.Space.xs)
                                 ) {
                                     LumenCard(
                                         modifier = Modifier
@@ -233,7 +236,7 @@ fun GuideScreen(
                                                     if (isCurrent) t.colors.brand.copy(alpha = 0.15f)
                                                     else Color.Transparent
                                                 )
-                                                .padding(8.dp),
+                                                .padding(LumenTokens.Space.sm2),
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
@@ -244,7 +247,7 @@ fun GuideScreen(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
-                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
                                             Text(
                                                 text = "${timeFormatter.format(Date(program.startTimeMs))} - ${timeFormatter.format(Date(program.endTimeMs))}",
                                                 fontSize = 10.sp,
