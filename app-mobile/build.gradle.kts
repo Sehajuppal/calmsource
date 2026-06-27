@@ -135,6 +135,7 @@ dependencies {
   implementation(project(":feature:search"))
 
   // Coil, Icons & Media3
+  implementation("androidx.palette:palette-ktx:1.0.0")
   implementation(libs.coil.compose)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.media3.exoplayer)
