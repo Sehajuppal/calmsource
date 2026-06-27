@@ -1,0 +1,195 @@
+{
+  "$schema": "https://schemas.tokens.studio/latest/tokens-schema.json",
+  "$description": "Lumen design tokens — single source of truth for web (Tailwind v4) AND Kotlin Compose (mobile + TV). Derived from src/styles.css. OKLCH source values are preserved in $extensions.web.oklch for web codegen; Compose uses the sRGB hex value.",
+  "color": {
+    "bg": {
+      "base":    { "$value": "#0B0B12", "$type": "color", "$description": "App background. Standard dark.", "$extensions": { "web": { "oklch": "oklch(0.06 0.005 270)" } } },
+      "oled":    { "$value": "#000000", "$type": "color", "$description": "OLED true-black variant" } ,
+      "graphite":{ "$value": "#1F1F26", "$type": "color", "$description": "Graphite variant" }
+    },
+    "surface": {
+      "card":      { "$value": "#1A1A22", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.13 0.008 270)" } } },
+      "muted":     { "$value": "#252531", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.18 0.008 270)" } } },
+      "accent":    { "$value": "#2C2C38", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.22 0.01 270)" } } },
+      "popover":   { "$value": "#1A1A22", "$type": "color" },
+      "glass":     { "$value": "rgba(26,26,34,0.60)", "$type": "color", "$description": "Glass surface — apply backdrop blur 24px" },
+      "glassStrong": { "$value": "rgba(26,26,34,0.80)", "$type": "color", "$description": "Glass surface — apply backdrop blur 40px" }
+    },
+    "text": {
+      "primary":   { "$value": "#FAFAFA", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.985 0 0)" } } },
+      "secondary": { "$value": "#A3A3AD", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.68 0.012 270)" } } },
+      "muted":     { "$value": "#6B7280", "$type": "color" },
+      "onBrand":   { "$value": "#FCFCFC", "$type": "color" }
+    },
+    "brand": {
+      "base":      { "$value": "#3D6BFF", "$type": "color", "$description": "Electric Cobalt — primary brand color", "$extensions": { "web": { "oklch": "oklch(0.62 0.22 260)" } } },
+      "glow":      { "$value": "#5C86FF", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.70 0.24 260)" } } },
+      "foreground":{ "$value": "#FCFCFC", "$type": "color" }
+    },
+    "border": {
+      "subtle":   { "$value": "rgba(255,255,255,0.08)", "$type": "color" },
+      "default":  { "$value": "rgba(255,255,255,0.10)", "$type": "color" },
+      "strong":   { "$value": "rgba(255,255,255,0.18)", "$type": "color" }
+    },
+    "focus": {
+      "halo":     { "$value": "#3D6BFF", "$type": "color", "$description": "TV focus halo — 3dp ring + 6dp outer glow at 60% alpha" }
+    },
+    "feedback": {
+      "danger":   { "$value": "#E5484D", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.62 0.22 25)" } } },
+      "success":  { "$value": "#34D399", "$type": "color" },
+      "warning":  { "$value": "#FBBF24", "$type": "color" }
+    }
+  },
+
+  "radius": {
+    "xs":   { "$value": "6px",  "$type": "dimension" },
+    "sm":   { "$value": "10px", "$type": "dimension" },
+    "md":   { "$value": "14px", "$type": "dimension" },
+    "lg":   { "$value": "16px", "$type": "dimension", "$description": "Poster card / standard card" },
+    "xl":   { "$value": "20px", "$type": "dimension" },
+    "xxl":  { "$value": "24px", "$type": "dimension", "$description": "Hero" },
+    "pill": { "$value": "999px","$type": "dimension" }
+  },
+
+  "space": {
+    "0":  { "$value": "0px",  "$type": "dimension" },
+    "1":  { "$value": "2px",  "$type": "dimension" },
+    "2":  { "$value": "4px",  "$type": "dimension" },
+    "3":  { "$value": "6px",  "$type": "dimension" },
+    "4":  { "$value": "8px",  "$type": "dimension" },
+    "5":  { "$value": "12px", "$type": "dimension" },
+    "6":  { "$value": "16px", "$type": "dimension" },
+    "7":  { "$value": "20px", "$type": "dimension" },
+    "8":  { "$value": "24px", "$type": "dimension" },
+    "9":  { "$value": "32px", "$type": "dimension" },
+    "10": { "$value": "40px", "$type": "dimension" },
+    "11": { "$value": "56px", "$type": "dimension" },
+    "12": { "$value": "72px", "$type": "dimension" }
+  },
+
+  "rowGutter": {
+    "mobile": { "$value": "16px", "$type": "dimension" },
+    "tv":     { "$value": "24px", "$type": "dimension" }
+  },
+  "sectionGap": {
+    "mobile": { "$value": "32px", "$type": "dimension" },
+    "tv":     { "$value": "40px", "$type": "dimension" }
+  },
+  "sidePadding": {
+    "mobile": { "$value": "20px", "$type": "dimension" },
+    "tv":     { "$value": "48px", "$type": "dimension" }
+  },
+
+  "tile": {
+    "posterPortrait": {
+      "mobile": { "width": { "$value": "150px", "$type": "dimension" }, "height": { "$value": "220px", "$type": "dimension" } },
+      "tv":     { "width": { "$value": "220px", "$type": "dimension" }, "height": { "$value": "320px", "$type": "dimension" } }
+    },
+    "landscape": {
+      "mobile": { "width": { "$value": "260px", "$type": "dimension" }, "height": { "$value": "150px", "$type": "dimension" } },
+      "tv":     { "width": { "$value": "380px", "$type": "dimension" }, "height": { "$value": "215px", "$type": "dimension" } }
+    }
+  },
+
+  "hero": {
+    "minHeight": {
+      "phone":       { "$value": "480px", "$type": "dimension" },
+      "phoneDetails":{ "$value": "360px", "$type": "dimension" },
+      "tv":          { "$value": "720px", "$type": "dimension" },
+      "tvDetails":   { "$value": "540px", "$type": "dimension" }
+    },
+    "aspect": {
+      "mobile": { "$value": "16:9", "$type": "string" },
+      "tv":     { "$value": "16:7", "$type": "string" }
+    }
+  },
+
+  "font": {
+    "family": {
+      "display": { "$value": "Inter Tight, SF Pro Display, Inter, system-ui, sans-serif", "$type": "fontFamily" },
+      "sans":    { "$value": "Inter, SF Pro Text, system-ui, sans-serif", "$type": "fontFamily" },
+      "serif":   { "$value": "Instrument Serif, Georgia, serif", "$type": "fontFamily" }
+    }
+  },
+
+  "type": {
+    "display":  { "fontSize": "44px", "lineHeight": "52px", "weight": 700, "letterSpacingEm": -0.018, "family": "display" },
+    "h1":       { "fontSize": "32px", "lineHeight": "40px", "weight": 700, "letterSpacingEm": -0.018, "family": "display" },
+    "h2":       { "fontSize": "24px", "lineHeight": "32px", "weight": 700, "letterSpacingEm": -0.012, "family": "display" },
+    "title":    { "fontSize": "20px", "lineHeight": "28px", "weight": 600, "letterSpacingEm": -0.010, "family": "display" },
+    "rowTitle": { "fontSize": "17px", "lineHeight": "22px", "weight": 700, "letterSpacingEm": -0.012, "family": "display" },
+    "body":     { "fontSize": "15px", "lineHeight": "22px", "weight": 400, "letterSpacingEm": -0.011, "family": "sans" },
+    "caption":  { "fontSize": "13px", "lineHeight": "18px", "weight": 400, "letterSpacingEm": 0,      "family": "sans" },
+    "meta":     { "fontSize": "12px", "lineHeight": "16px", "weight": 500, "letterSpacingEm": 0.016,  "family": "sans" },
+    "eyebrow":  { "fontSize": "11px", "lineHeight": "14px", "weight": 700, "letterSpacingEm": 0.136,  "family": "sans", "textTransform": "uppercase" },
+    "$extensions": {
+      "tv": { "multiplier": 1.15, "note": "Multiply fontSize+lineHeight for TV (10-foot viewing). Compose: apply LumenTokens.Type.TV scale." },
+      "compose": { "letterSpacingFormula": "letterSpacingSp = letterSpacingEm * fontSize.value", "lineHeightFormula": "lineHeightSp already absolute — use as-is" }
+    }
+  },
+
+  "motion": {
+    "duration": {
+      "fast":       { "$value": "160ms", "$type": "duration" },
+      "standard":   { "$value": "220ms", "$type": "duration" },
+      "base":       { "$value": "240ms", "$type": "duration" },
+      "emphasized": { "$value": "320ms", "$type": "duration" },
+      "focus":      { "$value": "180ms", "$type": "duration", "$description": "TV focus scale + halo" },
+      "tile":       { "$value": "420ms", "$type": "duration", "$description": "Hover lift on web posters" },
+      "cinematic":  { "$value": "520ms", "$type": "duration", "$description": "Hero crossfade, profile avatar" }
+    },
+    "easing": {
+      "standard":     { "$value": "cubic-bezier(0.4, 0, 0.2, 1)",   "$type": "cubicBezier", "$description": "Compose: FastOutSlowInEasing" },
+      "decelerate":   { "$value": "cubic-bezier(0.0, 0, 0.2, 1)",   "$type": "cubicBezier", "$description": "Compose: LinearOutSlowInEasing" },
+      "accelerate":   { "$value": "cubic-bezier(0.4, 0, 1, 1)",     "$type": "cubicBezier", "$description": "Compose: FastOutLinearInEasing" },
+      "appleOut":     { "$value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "$type": "cubicBezier", "$description": "Used on poster lift + profile avatar" },
+      "tileEase":     { "$value": "cubic-bezier(0.22, 1, 0.36, 1)", "$type": "cubicBezier", "$description": "TV tile glow/shadow" },
+      "focusBounce":  { "$value": "cubic-bezier(0.34, 1.56, 0.64, 1)","$type": "cubicBezier","$description": "Spring-like bounce for focus state" }
+    },
+    "spring": {
+      "emphasized": { "stiffness": 400, "dampingRatio": 0.7,  "$description": "Compose: spring(0.7, 400f)" },
+      "snappy":     { "stiffness": 600, "dampingRatio": 0.85, "$description": "Quick settle" },
+      "soft":       { "stiffness": 220, "dampingRatio": 0.85, "$description": "Sheet/drawer" }
+    },
+    "focus": {
+      "scale":       { "$value": 1.06,  "$type": "number", "$description": "TV poster focus scale" },
+      "hoverScale":  { "$value": 1.055, "$type": "number", "$description": "Web hover scale" },
+      "liftY":       { "$value": "-6px","$type": "dimension" }
+    }
+  },
+
+  "focusRing": {
+    "stroke":    { "$value": "3px",  "$type": "dimension" },
+    "outerGlow": { "$value": "6px",  "$type": "dimension" },
+    "alpha":     { "$value": 0.6,    "$type": "number" }
+  },
+
+  "elevation": {
+    "0":   { "$value": "none", "$type": "shadow" },
+    "1":   { "$value": "0 1px 2px rgba(0,0,0,0.30)", "$type": "shadow" },
+    "tile":{ "$value": "0 8px 24px -12px rgba(0,0,0,0.55)", "$type": "shadow" },
+    "lift":{ "$value": "0 12px 24px -10px rgba(0,0,0,0.60), 0 40px 80px -28px rgba(0,0,0,0.95)", "$type": "shadow" },
+    "hero":{ "$value": "0 34px 70px -30px rgba(0,0,0,0.90)", "$type": "shadow" }
+  },
+
+  "scrim": {
+    "heroLeftToRight":   { "$value": "linear-gradient(77deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 35%, transparent 62%)" },
+    "heroBottom":        { "$value": "linear-gradient(180deg, transparent 45%, rgba(8,8,12,0.85) 92%, var(--color-background) 100%)" },
+    "heroTop":           { "$value": "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 26%)" },
+    "rowFadeWidthPx":    { "$value": 56, "$type": "number" }
+  },
+
+  "z": {
+    "base": 0, "rowHover": 10, "header": 40, "modal": 60, "toast": 80, "skipLink": 100
+  },
+
+  "breakpoints": {
+    "xs": { "$value": "480px",  "$type": "dimension" },
+    "sm": { "$value": "640px",  "$type": "dimension" },
+    "md": { "$value": "768px",  "$type": "dimension" },
+    "lg": { "$value": "1024px", "$type": "dimension" },
+    "xl": { "$value": "1280px", "$type": "dimension" },
+    "tv": { "$value": "1920px", "$type": "dimension" },
+    "tv4k": { "$value": "2560px", "$type": "dimension" }
+  }
+}

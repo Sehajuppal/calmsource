@@ -2,7 +2,6 @@
 package com.example.calmsource.core.ui.theme
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
@@ -12,121 +11,140 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Canonical Lumen design tokens — values match the web Lumen app exactly.
- * Screens and components must read from here; never fork literals.
+ * Semantic Lumen tokens — core values generated from tokens/lumen.json (see LumenTokensGenerated).
+ * App-only extensions (profile swatches, layout dims) stay here.
  */
 object LumenTokens {
 
     object Color {
-        val bg = androidx.compose.ui.graphics.Color(0xFF06070B)
-        val surface = androidx.compose.ui.graphics.Color(0xFF0E1117)
-        val surfaceHi = androidx.compose.ui.graphics.Color(0xFF151A22)
-        val border = androidx.compose.ui.graphics.Color(0xFF1F2630)
-        val textPrimary = androidx.compose.ui.graphics.Color(0xFFF5F7FA)
-        val textSecondary = androidx.compose.ui.graphics.Color(0xFFA6ADBB)
-        val textMuted = androidx.compose.ui.graphics.Color(0xFF6B7280)
-        val brand = androidx.compose.ui.graphics.Color(0xFF3D6BFF)
-        val brandHi = androidx.compose.ui.graphics.Color(0xFF5C86FF)
-        val focusHalo = androidx.compose.ui.graphics.Color(0x993D6BFF)
-        val focusRingWidth = 3.dp
-        val focusGlowWidth = 6.dp
-        val danger = androidx.compose.ui.graphics.Color(0xFFFF4D5E)
-        val success = androidx.compose.ui.graphics.Color(0xFF34D399)
-        val warning = androidx.compose.ui.graphics.Color(0xFFF59E0B)
-        val errorBright = androidx.compose.ui.graphics.Color(0xFFEF4444)
-        val statusHealthy = androidx.compose.ui.graphics.Color(0xFF10B981)
-        val ratingGold = androidx.compose.ui.graphics.Color(0xFFFBBF24)
-        val info = androidx.compose.ui.graphics.Color(0xFF3B82F6)
-        val cyan = androidx.compose.ui.graphics.Color(0xFF22D3EE)
-        val violet = androidx.compose.ui.graphics.Color(0xFFA78BFA)
-        val glassOverlay = androidx.compose.ui.graphics.Color(0x1AFFFFFF)
-        val glassOverlayFaint = androidx.compose.ui.graphics.Color(0x0DFFFFFF)
-        val controlScrimDark = androidx.compose.ui.graphics.Color(0xCC0B0B10)
-        val controlScrimLight = androidx.compose.ui.graphics.Color(0xCCFAFAFA)
-        val debridTint = androidx.compose.ui.graphics.Color(0x3D10B981)
-        val warningSurface = androidx.compose.ui.graphics.Color(0xFFFEF3C7)
-        val warningText = androidx.compose.ui.graphics.Color(0xFFD97706)
-        val debridPanel = androidx.compose.ui.graphics.Color(0xFF1C1B2A)
-        val errorSoft = androidx.compose.ui.graphics.Color(0xFFE57373)
-        val dangerContainer = androidx.compose.ui.graphics.Color(0x33FF4D5E)
-        val successContainer = androidx.compose.ui.graphics.Color(0x1F10B981)
+        val bg get() = LumenTokensGenerated.Color.bgBase
+        val surface get() = LumenTokensGenerated.Color.surfaceCard
+        val surfaceHi get() = LumenTokensGenerated.Color.surfaceMuted
+        val border get() = LumenTokensGenerated.Color.borderDefault
+        val textPrimary get() = LumenTokensGenerated.Color.textPrimary
+        val textSecondary get() = LumenTokensGenerated.Color.textSecondary
+        val textMuted get() = LumenTokensGenerated.Color.textMuted
+        val brand get() = LumenTokensGenerated.Color.brandBase
+        val brandHi get() = LumenTokensGenerated.Color.brandGlow
+        val focusHalo get() = LumenTokensGenerated.Color.focusHalo
+        val focusRingWidth get() = LumenTokensGenerated.FocusRing.stroke
+        val focusGlowWidth get() = LumenTokensGenerated.FocusRing.outerGlow
+        val danger get() = LumenTokensGenerated.Color.danger
+        val success get() = LumenTokensGenerated.Color.success
+        val warning get() = LumenTokensGenerated.Color.warning
+        val glassOverlay get() = LumenTokensGenerated.Color.surfaceGlass
+        val glassOverlayFaint get() = LumenTokensGenerated.Color.borderSubtle
 
-        val profilePink = androidx.compose.ui.graphics.Color(0xFFEC4899)
-        val profileBlue = androidx.compose.ui.graphics.Color(0xFF3B82F6)
-        val profileGreen = androidx.compose.ui.graphics.Color(0xFF10B981)
-        val profileAmber = androidx.compose.ui.graphics.Color(0xFFF59E0B)
-        val profilePurple = androidx.compose.ui.graphics.Color(0xFF8B5CF6)
-        val profileRed = androidx.compose.ui.graphics.Color(0xFFEF4444)
-        val profileIndigo = androidx.compose.ui.graphics.Color(0xFF818CF8)
-        val profileFuchsia = androidx.compose.ui.graphics.Color(0xFFD946EF)
-        val profileYellow = androidx.compose.ui.graphics.Color(0xFFFCD34D)
-        val profileRose = androidx.compose.ui.graphics.Color(0xFFF43F5E)
-        val profileEmerald = androidx.compose.ui.graphics.Color(0xFF6EE7B7)
-        val profileCyan = androidx.compose.ui.graphics.Color(0xFF06B6D4)
-        val profileSky = androidx.compose.ui.graphics.Color(0xFF7DD3FC)
-        val profileViolet = androidx.compose.ui.graphics.Color(0xFF8B5CF6)
-        val profilePeach = androidx.compose.ui.graphics.Color(0xFFFDA4AF)
-        val profileOrange = androidx.compose.ui.graphics.Color(0xFFF97316)
-        val profileLilac = androidx.compose.ui.graphics.Color(0xFFC084FC)
-        val profileMagenta = androidx.compose.ui.graphics.Color(0xFFEC4899)
+        val errorBright = Color(0xFFEF4444)
+        val statusHealthy = Color(0xFF10B981)
+        val ratingGold = Color(0xFFFBBF24)
+        val info = Color(0xFF3B82F6)
+        val cyan = Color(0xFF22D3EE)
+        val violet = Color(0xFFA78BFA)
+        val controlScrimDark = Color(0xCC0B0B10)
+        val controlScrimLight = Color(0xCCFAFAFA)
+        val debridTint = Color(0x3D10B981)
+        val warningSurface = Color(0xFFFEF3C7)
+        val warningText = Color(0xFFD97706)
+        val debridPanel = Color(0xFF1C1B2A)
+        val errorSoft = Color(0xFFE57373)
+        val dangerContainer = Color(0x33E5484D)
+        val successContainer = Color(0x1F10B981)
+
+        val profilePink = Color(0xFFEC4899)
+        val profileBlue = Color(0xFF3B82F6)
+        val profileGreen = Color(0xFF10B981)
+        val profileAmber = Color(0xFFF59E0B)
+        val profilePurple = Color(0xFF8B5CF6)
+        val profileRed = Color(0xFFEF4444)
+        val profileIndigo = Color(0xFF818CF8)
+        val profileFuchsia = Color(0xFFD946EF)
+        val profileYellow = Color(0xFFFCD34D)
+        val profileRose = Color(0xFFF43F5E)
+        val profileEmerald = Color(0xFF6EE7B7)
+        val profileCyan = Color(0xFF06B6D4)
+        val profileSky = Color(0xFF7DD3FC)
+        val profileViolet = Color(0xFF8B5CF6)
+        val profilePeach = Color(0xFFFDA4AF)
+        val profileOrange = Color(0xFFF97316)
+        val profileLilac = Color(0xFFC084FC)
+        val profileMagenta = Color(0xFFEC4899)
     }
 
     object Radius {
-        val xs: Dp = 6.dp
-        val sm: Dp = 10.dp
-        val md: Dp = 14.dp
-        val lg: Dp = 20.dp
-        val xl: Dp = 28.dp
-        val pill: Dp = 999.dp
+        val xs get() = LumenTokensGenerated.Radius.xs
+        val sm get() = LumenTokensGenerated.Radius.sm
+        val md get() = LumenTokensGenerated.Radius.md
+        val lg get() = LumenTokensGenerated.Radius.lg
+        val xl get() = LumenTokensGenerated.Radius.xl
+        val xxl get() = LumenTokensGenerated.Radius.xxl
+        val pill get() = LumenTokensGenerated.Radius.pill
     }
 
     object Shape {
-        val xs = RoundedCornerShape(Radius.xs)
-        val sm = RoundedCornerShape(Radius.sm)
-        val md = RoundedCornerShape(Radius.md)
-        val lg = RoundedCornerShape(Radius.lg)
-        val xl = RoundedCornerShape(Radius.xl)
-        val pill = RoundedCornerShape(Radius.pill)
-        val poster = lg
-        val hero = xl
-        val chip = pill
-        val button = md
+        val xs get() = LumenTokensGenerated.Shape.xs
+        val sm get() = LumenTokensGenerated.Shape.sm
+        val md get() = LumenTokensGenerated.Shape.md
+        val lg get() = LumenTokensGenerated.Shape.lg
+        val xl get() = LumenTokensGenerated.Shape.xl
+        val xxl get() = LumenTokensGenerated.Shape.xxl
+        val pill get() = LumenTokensGenerated.Shape.pill
+        val poster get() = LumenTokensGenerated.Shape.poster
+        val hero get() = LumenTokensGenerated.Shape.hero
+        val chip get() = LumenTokensGenerated.Shape.chip
+        val button get() = LumenTokensGenerated.Shape.button
     }
 
-  /** Spacing scale: 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 56, 72 */
     object Space {
-        val xxs: Dp = 2.dp
-        val xs: Dp = 4.dp
-        val sm: Dp = 6.dp
-        val sm2: Dp = 8.dp
-        val md: Dp = 12.dp
-        val lg: Dp = 16.dp
-        val xl: Dp = 20.dp
-        val xxl: Dp = 24.dp
-        val xxxl: Dp = 32.dp
-        val xxxxl: Dp = 40.dp
-        val xxxxxl: Dp = 56.dp
-        val xxxxxxl: Dp = 72.dp
+        val xxs get() = LumenTokensGenerated.Space.xxs
+        val xs get() = LumenTokensGenerated.Space.xs
+        val sm get() = LumenTokensGenerated.Space.sm
+        val sm2 get() = LumenTokensGenerated.Space.sm2
+        val md get() = LumenTokensGenerated.Space.md
+        val lg get() = LumenTokensGenerated.Space.lg
+        val xl get() = LumenTokensGenerated.Space.xl
+        val xxl get() = LumenTokensGenerated.Space.xxl
+        val xxxl get() = LumenTokensGenerated.Space.xxxl
+        val xxxxl get() = LumenTokensGenerated.Space.xxxxl
+        val xxxxxl get() = LumenTokensGenerated.Space.xxxxxl
+        val xxxxxxl get() = LumenTokensGenerated.Space.xxxxxxl
 
-        fun rowGutter(isTv: Boolean): Dp = if (isTv) xxl else lg
-        fun sectionVertical(isTv: Boolean): Dp = if (isTv) xxxxl else xxxl
+        fun rowGutter(isTv: Boolean): Dp = LumenTokensGenerated.Space.rowGutter(isTv)
+        fun sectionVertical(isTv: Boolean): Dp = LumenTokensGenerated.Space.sectionVertical(isTv)
+        fun sidePadding(isTv: Boolean): Dp =
+            if (isTv) LumenTokensGenerated.Space.sidePaddingTv else LumenTokensGenerated.Space.sidePaddingMobile
     }
 
     object Motion {
-        const val standardMs: Int = 220
-        const val emphasizedMs: Int = 320
-        const val focusScaleMs: Int = 180
-        const val maxFadeMs: Int = 400
-        const val springStiffness: Float = 380f
-        const val springDamping: Float = 32f
-        const val focusScale: Float = 1.06f
+        const val standardMs: Int = LumenTokensGenerated.Motion.standardMs
+        const val emphasizedMs: Int = LumenTokensGenerated.Motion.emphasizedMs
+        const val focusScaleMs: Int = LumenTokensGenerated.Motion.focusMs
+        const val maxFadeMs: Int = LumenTokensGenerated.Motion.cinematicMs
+        const val springStiffness: Float = LumenTokensGenerated.Motion.springStiffness
+        const val springDamping: Float = LumenTokensGenerated.Motion.springDamping
+        const val focusScale: Float = LumenTokensGenerated.Motion.focusScale
     }
 
     object AspectRatio {
-        const val heroMobile: Float = 16f / 9f
-        const val heroTv: Float = 16f / 7f
-        const val poster: Float = 2f / 3f
-        const val landscapeCard: Float = 16f / 9f
+        const val heroMobile: Float = LumenTokensGenerated.AspectRatio.heroMobile
+        const val heroTv: Float = LumenTokensGenerated.AspectRatio.heroTv
+        const val posterPortraitMobile: Float = LumenTokensGenerated.AspectRatio.posterPortraitMobile
+        const val posterPortraitTv: Float = LumenTokensGenerated.AspectRatio.posterPortraitTv
+        const val landscapeMobile: Float = LumenTokensGenerated.AspectRatio.landscapeMobile
+        const val landscapeTv: Float = LumenTokensGenerated.AspectRatio.landscapeTv
+    }
+
+    object Hero {
+        val minHeightPhone get() = LumenTokensGenerated.Hero.minHeightPhone
+        val minHeightPhoneDetails get() = LumenTokensGenerated.Hero.minHeightPhoneDetails
+        val minHeightTv get() = LumenTokensGenerated.Hero.minHeightTv
+        val minHeightTvDetails get() = LumenTokensGenerated.Hero.minHeightTvDetails
+    }
+
+    object FocusRing {
+        const val alpha: Float = LumenTokensGenerated.FocusRing.alpha
+        val stroke get() = LumenTokensGenerated.FocusRing.stroke
+        val outerGlow get() = LumenTokensGenerated.FocusRing.outerGlow
     }
 
     object Elevation {
@@ -216,7 +234,7 @@ data class LumenRadii(
     val md: Dp = LumenTokens.Radius.md,
     val lg: Dp = LumenTokens.Radius.lg,
     val xl: Dp = LumenTokens.Radius.xl,
-    val xxl: Dp = LumenTokens.Radius.xl,
+    val xxl: Dp = LumenTokens.Radius.xxl,
     val pill: Dp = LumenTokens.Radius.pill,
 )
 
@@ -298,7 +316,7 @@ object LumenPalette {
     )
 
     val Oled = Standard.copy(
-        background = Color(0xFF000000),
+        background = LumenTokensGenerated.Color.bgOled,
         card = LumenTokens.Color.bg,
         muted = LumenTokens.Color.surface,
     )
@@ -309,5 +327,5 @@ object LumenShapes {
     val md get() = LumenTokens.Shape.md
     val lg get() = LumenTokens.Shape.lg
     val xl get() = LumenTokens.Shape.xl
-    val xxl get() = LumenTokens.Shape.xl
+    val xxl get() = LumenTokens.Shape.xxl
 }
