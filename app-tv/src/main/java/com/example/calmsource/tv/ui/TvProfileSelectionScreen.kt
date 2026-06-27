@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.calmsource.core.database.entity.ProfileEntity
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
 
 @Composable
 fun TvProfileSelectionScreen(
@@ -36,6 +37,7 @@ fun TvProfileSelectionScreen(
     onOpenSetup: () -> Unit = {},
     viewModel: ProfileSelectionViewModel = hiltViewModel()
 ) {
+    val t = LocalLumenTokens.current
     val profiles by viewModel.profiles.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -63,7 +65,7 @@ fun TvProfileSelectionScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background),
+            .background(t.colors.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -75,7 +77,7 @@ fun TvProfileSelectionScreen(
                 text = "Who's watching?",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
-                color = TvColors.TextMain,
+                color = t.colors.foreground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -84,7 +86,7 @@ fun TvProfileSelectionScreen(
             Text(
                 text = "Select a profile or add a new one to start",
                 fontSize = 16.sp,
-                color = TvColors.TextSub,
+                color = t.colors.mutedForeground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 24.dp)
@@ -96,7 +98,7 @@ fun TvProfileSelectionScreen(
             ) { isFocused ->
                 Text(
                     text = "Open Setup",
-                    color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
+                    color = if (isFocused) t.colors.foreground else t.colors.brand,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -151,6 +153,7 @@ fun TvProfileAvatarCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalLumenTokens.current
     var isFocused by remember { mutableStateOf(false) }
     val scaleFactor by animateFloatAsState(
         targetValue = if (isFocused) 1.15f else 1.0f,
@@ -226,7 +229,7 @@ fun TvProfileAvatarCard(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = name,
-            color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
+            color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -242,6 +245,7 @@ fun TvAddProfileCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalLumenTokens.current
     var isFocused by remember { mutableStateOf(false) }
     val scaleFactor by animateFloatAsState(
         targetValue = if (isFocused) 1.15f else 1.0f,
@@ -266,7 +270,7 @@ fun TvAddProfileCard(
             modifier = Modifier
                 .size(120.dp)
                 .clip(CircleShape)
-                .background(TvColors.Surface)
+                .background(t.colors.card)
                 .border(
                     width = if (isFocused) 3.dp else 0.dp,
                     color = if (isFocused) Color.White else Color.Transparent,
@@ -276,7 +280,7 @@ fun TvAddProfileCard(
         ) {
             Text(
                 text = "+",
-                color = TvColors.TextMain,
+                color = t.colors.foreground,
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Light,
                 maxLines = 1,
@@ -286,7 +290,7 @@ fun TvAddProfileCard(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "Add Profile",
-            color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
+            color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -302,6 +306,7 @@ fun TvProfileCreationDialog(
     onDismiss: () -> Unit,
     onCreate: (String) -> Unit
 ) {
+    val t = LocalLumenTokens.current
     var newProfileName by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
     val textFieldFocusRequester = remember { FocusRequester() }
@@ -327,8 +332,8 @@ fun TvProfileCreationDialog(
         Column(
             modifier = Modifier
                 .width(420.dp)
-                .background(TvColors.Surface, RoundedCornerShape(16.dp))
-                .border(1.dp, TvColors.BorderFocused.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                .background(t.colors.card, RoundedCornerShape(t.radii.lg))
+                .border(1.dp, t.colors.brand.copy(alpha = 0.5f), RoundedCornerShape(t.radii.lg))
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -336,7 +341,7 @@ fun TvProfileCreationDialog(
                 text = "Create Profile",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TvColors.TextMain,
+                color = t.colors.foreground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -353,7 +358,7 @@ fun TvProfileCreationDialog(
                 placeholder = {
                     Text(
                         text = "Profile Name",
-                        color = TvColors.TextSub,
+                        color = t.colors.mutedForeground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -375,7 +380,7 @@ fun TvProfileCreationDialog(
             if (!errorText.isNullOrBlank()) {
                 Text(
                     text = errorText!!,
-                    color = Color(0xFFEF4444),
+                    color = t.colors.destructive,
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -400,7 +405,7 @@ fun TvProfileCreationDialog(
                 ) { isFocused ->
                     Text(
                         text = "Cancel",
-                        color = if (isFocused) TvColors.Background else TvColors.TextMain,
+                        color = if (isFocused) t.colors.background else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         maxLines = 1,
@@ -425,7 +430,7 @@ fun TvProfileCreationDialog(
                 ) { isFocused ->
                     Text(
                         text = "Create",
-                        color = if (isFocused) TvColors.Background else TvColors.TextMain,
+                        color = if (isFocused) t.colors.background else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         maxLines = 1,
