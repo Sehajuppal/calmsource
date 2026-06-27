@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
@@ -95,14 +97,14 @@ fun TvOnboardingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(48.dp),
+            .padding(LumenTokens.Layout.iconXl),
         contentAlignment = Alignment.Center
     ) {
         when (val currentState = state) {
             is PairingState.Idle, is PairingState.Connecting -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = TvColors.BorderFocused)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                     Text(
                         text = "Connecting to pairing server...",
                         color = TvColors.TextMain,
@@ -113,7 +115,7 @@ fun TvOnboardingScreen(
             is PairingState.Decrypting -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = TvColors.BorderFocused)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                     Text(
                         text = "Decrypting and saving credentials...",
                         color = TvColors.TextMain,
@@ -132,14 +134,14 @@ fun TvOnboardingScreen(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.md))
                     Text(
                         text = currentState.message,
                         color = TvColors.TextSub,
                         fontSize = 16.sp
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
+                    Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
                         TvFocusCard(onClick = { viewModel.startPairing() }) {
                             Text("Retry", color = TvColors.TextMain, fontSize = 16.sp)
                         }
@@ -171,7 +173,7 @@ fun TvOnboardingScreen(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(end = 32.dp),
+                            .padding(end = LumenTokens.Space.xxxl),
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
@@ -180,7 +182,7 @@ fun TvOnboardingScreen(
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                         Text(
                             text = "Scan the QR code on your phone, or open calmsource.tv/setup on your device, and enter the PIN code displayed on the right.",
                             color = TvColors.TextSub,
@@ -206,9 +208,9 @@ fun TvOnboardingScreen(
                         if (qrBitmap != null) {
                             Box(
                                 modifier = Modifier
-                                    .size(240.dp)
-                                    .background(Color.White, shape = RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
+                                    .size(LumenTokens.Layout.detailsContentTop)
+                                    .background(LumenTokens.Color.textPrimary, shape = LumenTokens.Shape.sm)
+                                    .padding(LumenTokens.Space.md)
                             ) {
                                 Image(
                                     bitmap = qrBitmap,
@@ -219,15 +221,15 @@ fun TvOnboardingScreen(
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(240.dp)
-                                    .background(Color.Gray, shape = RoundedCornerShape(8.dp)),
+                                    .size(LumenTokens.Layout.detailsContentTop)
+                                    .background(Color.Gray, shape = LumenTokens.Shape.sm),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Failed to generate QR Code", color = Color.White)
+                                Text("Failed to generate QR Code", color = LumenTokens.Color.textPrimary)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
 
                         Text(
                             text = "PIN CODE",
@@ -235,7 +237,7 @@ fun TvOnboardingScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
                         Text(
                             text = currentState.pin,
                             color = TvColors.TextMain,
@@ -244,7 +246,7 @@ fun TvOnboardingScreen(
                             letterSpacing = 4.sp
                         )
 
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.xxxl))
 
                         Button(
                             onClick = { viewModel.skipAuthentication() },

@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -109,7 +111,7 @@ fun TvGuideScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -146,13 +148,13 @@ fun TvGuideScreen(
         LumenCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .height(LumenTokens.Layout.inputWidthSm)
+                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(8.dp),
+                    .padding(LumenTokens.Space.sm2),
                 verticalArrangement = Arrangement.Center
             ) {
                 if (focusedProgram != null) {
@@ -162,13 +164,13 @@ fun TvGuideScreen(
                         fontWeight = FontWeight.Bold,
                         color = t.colors.foreground
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
                     Text(
                         text = "${timeFormatter.format(Date(focusedProgram!!.startTimeMs))} - ${timeFormatter.format(Date(focusedProgram!!.endTimeMs))}",
                         fontSize = 11.sp,
                         color = t.colors.brand
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
                     Text(
                         text = focusedProgram?.description ?: "No description available.",
                         fontSize = 11.sp,
@@ -195,7 +197,7 @@ fun TvGuideScreen(
             // Sticky Left Channel list
             LazyColumn(
                 modifier = Modifier
-                    .width(68.dp)
+                    .width(LumenTokens.Layout.epgTimeColumnWidth)
                     .fillMaxHeight()
             ) {
                 // Ruler alignment spacer
@@ -203,9 +205,9 @@ fun TvGuideScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(36.dp)
+                            .height(LumenTokens.Layout.offsetLg)
                             .background(t.colors.muted)
-                            .border(0.5.dp, t.colors.border)
+                            .border(LumenTokens.Layout.hairline, t.colors.border)
                     )
                 }
 
@@ -213,9 +215,9 @@ fun TvGuideScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(68.dp)
-                            .border(0.5.dp, t.colors.border)
-                            .padding(8.dp),
+                            .height(LumenTokens.Layout.epgTimeColumnWidth)
+                            .border(LumenTokens.Layout.hairline, t.colors.border)
+                            .padding(LumenTokens.Space.sm2),
                         contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
@@ -223,7 +225,7 @@ fun TvGuideScreen(
                             contentDescription = channel.name,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(LumenTokens.Space.xxxxl)
                                 .clip(CircleShape)
                                 .background(t.colors.muted)
                         )
@@ -241,17 +243,17 @@ fun TvGuideScreen(
                 // Time Ruler Row
                 Row(
                     modifier = Modifier
-                        .height(36.dp)
+                        .height(LumenTokens.Layout.offsetLg)
                         .background(t.colors.muted)
-                        .border(0.5.dp, t.colors.border),
+                        .border(LumenTokens.Layout.hairline, t.colors.border),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ticks.forEach { tickTime ->
                         Box(
                             modifier = Modifier
-                                .width(120.dp)
+                                .width(LumenTokens.Layout.epgMinBlockWidth)
                                 .fillMaxHeight()
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = LumenTokens.Space.sm2),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
@@ -274,8 +276,8 @@ fun TvGuideScreen(
                         val nowNext = nowNextMap[channel.id]
                         Row(
                             modifier = Modifier
-                                .height(68.dp)
-                                .border(0.5.dp, t.colors.border),
+                                .height(LumenTokens.Layout.epgTimeColumnWidth)
+                                .border(LumenTokens.Layout.hairline, t.colors.border),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val currentProgram = nowNext?.currentProgram
@@ -292,7 +294,7 @@ fun TvGuideScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
+                                        .padding(horizontal = LumenTokens.Space.lg)
                                 ) {
                                     Text("No program information", color = t.colors.mutedForeground, fontSize = 11.sp)
                                 }
@@ -301,7 +303,8 @@ fun TvGuideScreen(
                                     val pStart = maxOf(program.startTimeMs, startOfCurrentHour)
                                     val pEnd = minOf(program.endTimeMs, endOfTimeline)
                                     val durationMinutes = (pEnd - pStart) / 60000.0
-                                    val blockWidth = (durationMinutes * 4.0).coerceAtLeast(140.0).dp
+                                    val blockWidth = (durationMinutes * 4.0).dp
+                                        .coerceAtLeast(LumenTokens.Layout.epgMinBlockWidthTv)
 
                                     val isCurrent = System.currentTimeMillis() in program.startTimeMs..program.endTimeMs
 
@@ -324,7 +327,7 @@ fun TvGuideScreen(
                                         modifier = Modifier
                                             .width(blockWidth)
                                             .fillMaxHeight()
-                                            .padding(4.dp)
+                                            .padding(LumenTokens.Space.xs)
                                             .run {
                                                 if (isFirstCard) focusRequester(initialFocusRequester) else this
                                             }
@@ -346,7 +349,7 @@ fun TvGuideScreen(
                                                         if (isCurrent) t.colors.brand.copy(alpha = 0.15f)
                                                         else Color.Transparent
                                                     )
-                                                    .padding(8.dp),
+                                                    .padding(LumenTokens.Space.sm2),
                                                 verticalArrangement = Arrangement.Center
                                             ) {
                                                 Text(
@@ -357,7 +360,7 @@ fun TvGuideScreen(
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
                                                 Text(
                                                     text = "${timeFormatter.format(Date(program.startTimeMs))} - ${timeFormatter.format(Date(program.endTimeMs))}",
                                                     fontSize = 9.5.sp,

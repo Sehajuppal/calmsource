@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,11 +77,11 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(LumenTokens.Space.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
     ) {
         item {
-            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = 16.dp)) {
+            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenTokens.Space.lg)) {
                 Text(text = "< Back", color = TvColors.TextMain)
             }
         }
@@ -94,7 +96,7 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                 text = "Provider enrichment is cache-first and never replaces playback selection.",
                 color = TvColors.TextSub,
                 fontSize = 14.sp,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = LumenTokens.Space.xs)
             )
         }
 
@@ -128,7 +130,7 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
         }
 
         item {
-            Text("Search", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            Text("Search", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = LumenTokens.Space.sm2))
         }
         item {
             TvProviderToggleRow(
@@ -145,9 +147,9 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
         }
 
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = LumenTokens.Space.sm2)) {
                 Text("Providers", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(LumenTokens.Space.md))
                 Text("${sortedRows.size}", color = TvColors.TextSub, fontSize = 14.sp)
             }
         }
@@ -195,7 +197,7 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = LumenTokens.Space.sm2)
             ) { isFocused ->
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Text("Clear Provider Cache", color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -203,7 +205,7 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                 }
             }
             statusMessage?.let { message ->
-                Text(message, color = TvColors.TextSub, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(message, color = TvColors.TextSub, fontSize = 13.sp, modifier = Modifier.padding(top = LumenTokens.Space.sm2))
             }
         }
     }
@@ -252,12 +254,12 @@ private fun TvDiscoveryProviderItem(
     onFailures: () -> Unit
 ) {
     val healthColor = when {
-        row.failureCount >= 5 -> Color(0xFFEF4444)
-        row.failureCount > 0 -> Color(0xFFF59E0B)
-        else -> Color(0xFF10B981)
+        row.failureCount >= 5 -> LumenTokens.Color.errorBright
+        row.failureCount > 0 -> LumenTokens.Color.warning
+        else -> LumenTokens.Color.statusHealthy
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)) {
         TvFocusCard(
             onClick = onToggle,
             modifier = Modifier.fillMaxWidth()
@@ -278,7 +280,7 @@ private fun TvDiscoveryProviderItem(
                         row.capabilities.sortedBy { it.name }.joinToString("  |  ") { tvProviderTypeShortLabel(it) },
                         color = TvColors.TextSub,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = LumenTokens.Space.xs)
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
@@ -291,14 +293,14 @@ private fun TvDiscoveryProviderItem(
                         "Reliability ${(row.reliabilityScore * 100).toInt()}%",
                         color = healthColor,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = LumenTokens.Space.xs)
                     )
                     Text("${row.failureCount} failures", color = TvColors.TextSub, fontSize = 12.sp)
                 }
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2), modifier = Modifier.fillMaxWidth()) {
             TvFocusCard(
                 onClick = { if (canMoveUp) onMove(-1) },
                 modifier = Modifier.weight(1f)
@@ -337,11 +339,11 @@ private fun TvProviderFailuresDialog(
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
-                .width(520.dp)
-                .background(TvColors.Surface, RoundedCornerShape(12.dp))
-                .padding(24.dp)
+                .width(LumenTokens.Layout.heroHeightLg)
+                .background(TvColors.Surface, LumenTokens.Shape.md)
+                .padding(LumenTokens.Space.xxl)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
                 Text("Provider Failures", color = TvColors.TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(providerName, color = TvColors.BorderFocused, fontSize = 15.sp)
                 if (failures.isEmpty()) {

@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.google.gms.google.services)
   alias(libs.plugins.google.firebase.crashlytics)
+  id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -156,4 +157,13 @@ dependencies {
   implementation(libs.media3.datasource.okhttp)
   implementation(libs.zxing.core)
   implementation("androidx.palette:palette-ktx:1.0.0")
+  detektPlugins(project(":detekt-rules"))
+}
+
+detekt {
+    toolVersion = "1.23.7"
+    config.from("$rootDir/config/detekt.yml")
+    buildUponDefaultConfig = false
+    allRules = false
+    parallel = true
 }

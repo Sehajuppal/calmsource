@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -80,7 +82,7 @@ fun TvProfileSelectionScreen(
                 color = t.colors.foreground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.sm2)
             )
 
             Text(
@@ -89,26 +91,26 @@ fun TvProfileSelectionScreen(
                 color = t.colors.mutedForeground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
             )
 
             TvFocusCard(
                 onClick = onOpenSetup,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
             ) { isFocused ->
                 Text(
                     text = "Open Setup",
                     color = if (isFocused) t.colors.foreground else t.colors.brand,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Space.sm2)
                 )
             }
 
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.xl),
                 verticalAlignment = Alignment.CenterVertically,
-                contentPadding = PaddingValues(horizontal = 48.dp)
+                contentPadding = PaddingValues(horizontal = LumenTokens.Layout.iconXl)
             ) {
                 items(profiles, key = { it.id }) { profile ->
                     val focusRequester = focusRequesters.getOrPut(profile.id) { FocusRequester() }
@@ -172,12 +174,12 @@ fun TvProfileAvatarCard(
     val backgroundColor = remember(name) {
         val hash = name.hashCode()
         val colors = listOf(
-            Color(0xFFEC4899), // Pink
-            Color(0xFF3B82F6), // Blue
-            Color(0xFF10B981), // Green
-            Color(0xFFF59E0B), // Amber
-            Color(0xFF8B5CF6), // Purple
-            Color(0xFFEF4444)  // Red
+            LumenTokens.Color.profilePink,
+            LumenTokens.Color.info,
+            LumenTokens.Color.statusHealthy,
+            LumenTokens.Color.warning,
+            LumenTokens.Color.profilePurple,
+            LumenTokens.Color.errorBright,
         )
         colors[kotlin.math.abs(hash) % colors.size]
     }
@@ -191,19 +193,19 @@ fun TvProfileAvatarCard(
                 scaleY = scaleFactor
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LumenTokens.Shape.lg)
             .clickable { onClick() }
             .focusable()
-            .padding(12.dp)
+            .padding(LumenTokens.Space.md)
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(LumenTokens.Layout.epgMinBlockWidth)
                 .clip(CircleShape)
                 .background(backgroundColor)
                 .border(
-                    width = if (isFocused) 3.dp else 0.dp,
-                    color = if (isFocused) Color.White else Color.Transparent,
+                    width = if (isFocused) LumenTokens.Color.focusRingWidth else 0.dp,
+                    color = if (isFocused) LumenTokens.Color.textPrimary else Color.Transparent,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -218,7 +220,7 @@ fun TvProfileAvatarCard(
             } else {
                 Text(
                     text = initials,
-                    color = Color.White,
+                    color = LumenTokens.Color.textPrimary,
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -226,7 +228,7 @@ fun TvProfileAvatarCard(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.md))
         Text(
             text = name,
             color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
@@ -235,7 +237,7 @@ fun TvProfileAvatarCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(120.dp)
+            modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidth)
         )
     }
 }
@@ -261,19 +263,19 @@ fun TvAddProfileCard(
                 scaleY = scaleFactor
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LumenTokens.Shape.lg)
             .clickable { onClick() }
             .focusable()
-            .padding(12.dp)
+            .padding(LumenTokens.Space.md)
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(LumenTokens.Layout.epgMinBlockWidth)
                 .clip(CircleShape)
                 .background(t.colors.card)
                 .border(
-                    width = if (isFocused) 3.dp else 0.dp,
-                    color = if (isFocused) Color.White else Color.Transparent,
+                    width = if (isFocused) LumenTokens.Color.focusRingWidth else 0.dp,
+                    color = if (isFocused) LumenTokens.Color.textPrimary else Color.Transparent,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -287,7 +289,7 @@ fun TvAddProfileCard(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.md))
         Text(
             text = "Add Profile",
             color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
@@ -296,7 +298,7 @@ fun TvAddProfileCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(120.dp)
+            modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidth)
         )
     }
 }
@@ -324,17 +326,17 @@ fun TvProfileCreationDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f))
+            .background(LumenTokens.Color.bg.copy(alpha = 0.85f))
             .clickable(enabled = false) {}
-            .padding(24.dp),
+            .padding(LumenTokens.Space.xxl),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(420.dp)
-                .background(t.colors.card, RoundedCornerShape(t.radii.lg))
-                .border(1.dp, t.colors.brand.copy(alpha = 0.5f), RoundedCornerShape(t.radii.lg))
-                .padding(32.dp),
+                .width(LumenTokens.Layout.pinSheetWidth)
+                .background(t.colors.card, LumenTokens.Shape.lg)
+                .border(1.dp, t.colors.brand.copy(alpha = 0.5f), LumenTokens.Shape.lg)
+                .padding(LumenTokens.Space.xxxl),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -344,7 +346,7 @@ fun TvProfileCreationDialog(
                 color = t.colors.foreground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
             )
 
             TvTextField(
@@ -384,18 +386,18 @@ fun TvProfileCreationDialog(
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = LumenTokens.Space.sm2, bottom = LumenTokens.Space.xs),
                     textAlign = TextAlign.Start
                 )
             } else {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
             ) {
                 TvFocusCard(
                     onClick = onDismiss,
@@ -411,7 +413,7 @@ fun TvProfileCreationDialog(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.xs)
                     )
                 }
 
@@ -436,7 +438,7 @@ fun TvProfileCreationDialog(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.xs)
                     )
                 }
             }

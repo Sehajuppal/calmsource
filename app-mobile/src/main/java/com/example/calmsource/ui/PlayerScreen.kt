@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
@@ -419,7 +421,7 @@ fun PlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(LumenTokens.Color.bg)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
@@ -488,10 +490,10 @@ fun PlayerScreen(
                     .fillMaxHeight()
                     .fillMaxWidth(0.5f)
                     .align(Alignment.CenterStart)
-                    .background(Color.Black.copy(alpha = 0.25f)),
+                    .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("◀◀ 10s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("◀◀ 10s", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             }
         }
         if (showDoubleTapRightFeedback) {
@@ -500,10 +502,10 @@ fun PlayerScreen(
                     .fillMaxHeight()
                     .fillMaxWidth(0.5f)
                     .align(Alignment.CenterEnd)
-                    .background(Color.Black.copy(alpha = 0.25f)),
+                    .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("10s ▶▶", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("10s ▶▶", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             }
         }
 
@@ -514,7 +516,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f))
+                    .background(LumenTokens.Color.bg.copy(alpha = 0.7f))
                     .then(
                         if (uiState.source != null) Modifier.clickable(enabled = false) {}
                         else Modifier
@@ -523,19 +525,19 @@ fun PlayerScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.md),
                     modifier = t.glassSurface(dropBlur = isLowRam)
-                        .clip(RoundedCornerShape(20.dp))
-                        .padding(horizontal = 32.dp, vertical = 24.dp)
+                        .clip(LumenTokens.Shape.lg)
+                        .padding(horizontal = LumenTokens.Space.xxxl, vertical = LumenTokens.Space.xxl)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
                     ) {
                         CircularProgressIndicator(
                             color = t.colors.brand,
-                            modifier = Modifier.size(28.dp),
-                            strokeWidth = 3.dp
+                            modifier = Modifier.size(LumenTokens.Radius.xl),
+                            strokeWidth = LumenTokens.Color.focusRingWidth
                         )
                         Text(
                             text = "Switching source...",
@@ -605,9 +607,9 @@ fun PlayerScreen(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.8f),
+                                LumenTokens.Color.bg.copy(alpha = 0.8f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.9f)
+                                LumenTokens.Color.bg.copy(alpha = 0.9f)
                             )
                         )
                     )
@@ -618,20 +620,20 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
                         .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.md)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = ::handleBackPress, modifier = Modifier.size(48.dp)) {
+                        IconButton(onClick = ::handleBackPress, modifier = Modifier.size(LumenTokens.Layout.iconXl)) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = t.colors.foreground,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(LumenTokens.Radius.xl)
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(LumenTokens.Space.lg))
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
@@ -656,9 +658,9 @@ fun PlayerScreen(
                                     userInteractionTrigger++
                                     showChannelSwitcher = true
                                 },
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Channels", tint = t.colors.foreground, modifier = Modifier.size(28.dp))
+                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Channels", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Radius.xl))
                             }
                         }
                         if (showMultipleAudio) {
@@ -668,9 +670,9 @@ fun PlayerScreen(
                                     trackSelectorType = TrackType.AUDIO
                                     showTrackSelector = true
                                 },
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
                             ) {
-                                Icon(Icons.Default.Audiotrack, contentDescription = "Audio", tint = t.colors.foreground, modifier = Modifier.size(26.dp))
+                                Icon(Icons.Default.Audiotrack, contentDescription = "Audio", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Layout.playerControlIcon))
                             }
                         }
                         if (showSubtitlePicker) {
@@ -680,9 +682,9 @@ fun PlayerScreen(
                                     trackSelectorType = TrackType.SUBTITLE
                                     showTrackSelector = true
                                 },
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
                             ) {
-                                Icon(Icons.Default.Subtitles, contentDescription = "Subtitles", tint = t.colors.foreground, modifier = Modifier.size(26.dp))
+                                Icon(Icons.Default.Subtitles, contentDescription = "Subtitles", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Layout.playerControlIcon))
                             }
                         }
                         IconButton(
@@ -690,9 +692,9 @@ fun PlayerScreen(
                                 userInteractionTrigger++
                                 showAdvancedPanel = !showAdvancedPanel
                             },
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(LumenTokens.Layout.iconXl)
                         ) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = t.colors.foreground, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Radius.xl))
                         }
                     }
                 }
@@ -701,10 +703,10 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(32.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxxl)
                 ) {
                     if (isLive && currentIndex != -1) {
-                        IconButton(onClick = { switchChannel(-1) }, modifier = Modifier.size(64.dp)) {
+                        IconButton(onClick = { switchChannel(-1) }, modifier = Modifier.size(LumenTokens.Layout.avatarLg)) {
                             Icon(Icons.Default.SkipPrevious, contentDescription = "Prev Channel", tint = t.colors.foreground, modifier = Modifier.fillMaxSize())
                         }
                     } else if (!isLive) {
@@ -714,7 +716,7 @@ fun PlayerScreen(
                                 playbackManager.seekTo((progressState.currentPositionMs - 10_000L).coerceAtLeast(0L))
                             },
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(LumenTokens.Layout.playerControlSize)
                                 .background(t.colors.muted.copy(alpha = 0.6f), CircleShape)
                         ) {
                             Text("-10s", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -723,8 +725,8 @@ fun PlayerScreen(
 
                     // Contrast-adaptive Play/Pause Button
                     val isLightBackdrop = playButtonLuminance > 0.55f
-                    val controlBg = if (isLightBackdrop) Color(0xCC0B0B10) else Color(0xCCFAFAFA)
-                    val controlFg = if (isLightBackdrop) Color(0xFFFAFAFA) else Color(0xFF0B0B10)
+                    val controlBg = if (isLightBackdrop) LumenTokens.Color.controlScrimDark else LumenTokens.Color.controlScrimLight
+                    val controlFg = if (isLightBackdrop) LumenTokens.Color.textPrimary else LumenTokens.Color.bg
 
                     IconButton(
                         onClick = {
@@ -733,19 +735,19 @@ fun PlayerScreen(
                             else playbackManager.play()
                         },
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(LumenTokens.Layout.bottomNavPadding)
                             .background(controlBg, CircleShape)
                     ) {
                         Icon(
                             imageVector = if (uiState.playerState == PlayerState.PLAYING) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (uiState.playerState == PlayerState.PLAYING) "Pause" else "Play",
                             tint = controlFg,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(LumenTokens.Layout.iconXl)
                         )
                     }
 
                     if (isLive && currentIndex != -1) {
-                        IconButton(onClick = { switchChannel(1) }, modifier = Modifier.size(64.dp)) {
+                        IconButton(onClick = { switchChannel(1) }, modifier = Modifier.size(LumenTokens.Layout.avatarLg)) {
                             Icon(Icons.Default.SkipNext, contentDescription = "Next Channel", tint = t.colors.foreground, modifier = Modifier.fillMaxSize())
                         }
                     } else if (!isLive) {
@@ -757,7 +759,7 @@ fun PlayerScreen(
                                 playbackManager.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
                             },
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(LumenTokens.Layout.playerControlSize)
                                 .background(t.colors.muted.copy(alpha = 0.6f), CircleShape)
                         ) {
                             Text("+10s", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -771,7 +773,7 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                         .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.lg)
                 ) {
                     if (!isLive) {
                         MobilePlayerProgressBar(
@@ -790,12 +792,12 @@ fun PlayerScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .background(t.colors.destructive, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .background(t.colors.destructive, LumenTokens.Shape.md)
+                                    .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
                             ) {
                                 Text(
                                     text = "LIVE",
-                                    color = Color.White,
+                                    color = LumenTokens.Color.textPrimary,
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.labelMedium
                                 )
@@ -832,18 +834,18 @@ fun PlayerScreen(
         ) {
             Card(
                 modifier = Modifier
-                    .width(320.dp)
+                    .width(LumenTokens.Layout.playerMenuWidth)
                     .fillMaxHeight()
-                    .padding(16.dp),
+                    .padding(LumenTokens.Space.lg),
                 colors = CardDefaults.cardColors(containerColor = t.colors.card.copy(alpha = 0.95f)),
                 border = BorderStroke(1.dp, t.colors.border)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(LumenTokens.Space.lg)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
                 ) {
                     Text("Advanced Options", style = MaterialTheme.typography.titleMedium, color = t.colors.foreground)
                     HorizontalDivider(color = t.colors.border)
@@ -883,7 +885,7 @@ fun PlayerScreen(
                                     fallbackPolicy = policy 
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = LumenTokens.Space.xs)
                         ) {
                             RadioButton(
                                 selected = fallbackPolicy == policy,
@@ -892,7 +894,7 @@ fun PlayerScreen(
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(LumenTokens.Space.sm2))
                             Text(
                                 text = when (policy) {
                                     AutoFallbackPolicy.OFF -> "Off"
@@ -955,7 +957,7 @@ private fun MobilePlayerProgressBar(
                 val newPosition = (newProgress * progressState.durationMs).toLong()
                 onSeek(newPosition)
             },
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.iconXl),
             colors = SliderDefaults.colors(
                 thumbColor = t.colors.brand,
                 activeTrackColor = t.colors.brand,
@@ -983,12 +985,12 @@ fun PlayerTrackSelectorSheet(
 ) {
     val t = LocalLumenTokens.current
     val subtitlesOff = remember(subtitleTracks) { subtitleTracks.none { it.isSelected } }
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = LumenTokens.Space.xxl)) {
         Text(
             text = if (trackType == TrackType.AUDIO) "Audio track" else "Subtitles",
             style = MaterialTheme.typography.titleLarge,
             color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
         )
         LazyColumn(modifier = Modifier.fillMaxWidth()) {
             if (trackType == TrackType.AUDIO) {
@@ -1070,7 +1072,7 @@ fun ChannelSwitcherSheet(
     LazyColumn(modifier = Modifier.fillMaxWidth()) {
         groups.forEach { (category, categoryChannels) ->
             item(key = "category-$category") {
-                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp), color = t.colors.brand)
+                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(LumenTokens.Space.lg), color = t.colors.brand)
             }
             items(categoryChannels, key = { it.id }) { channel ->
                 ListItem(
@@ -1098,13 +1100,13 @@ fun ErrorOverlay(
     val t = LocalLumenTokens.current
     LumenCard(
         modifier = modifier
-            .padding(32.dp)
-            .widthIn(max = 400.dp)
+            .padding(LumenTokens.Space.xxxl)
+            .widthIn(max = LumenTokens.Layout.sheetMaxWidth)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg)
         ) {
             val explanation = when (error) {
                 is PlaybackError.TerminalError -> "Automatic fallback exhausted. All available sources failed to play. Please go back and select a different source manually."
@@ -1141,7 +1143,7 @@ fun ErrorOverlay(
                 onClick = onChooseAnother,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(LumenTokens.Layout.buttonHeight)
             )
         }
     }

@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -125,14 +127,14 @@ fun TvSearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(24.dp)
+            .padding(LumenTokens.Space.xxl)
     ) {
         Text(
             text = "Search",
             fontSize = 38.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
         )
 
         TvTextField(
@@ -142,10 +144,10 @@ fun TvSearchScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
             onSearchAction = { submitQuery() },
-            shape = RoundedCornerShape(8.dp),
+            shape = LumenTokens.Shape.sm,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = LumenTokens.Space.lg)
                 .focusRequester(searchFieldFocusRequester)
         )
 
@@ -155,16 +157,16 @@ fun TvSearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(LumenTokens.Space.lg),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
                 ) {
                     repeat(3) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
                         }
                     }
                 }
@@ -201,14 +203,14 @@ fun TvSearchScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = LumenTokens.Space.sm2)
                     )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(bottom = 16.dp)
+                            .padding(bottom = LumenTokens.Space.lg)
                     ) {
                         suggestedTags.forEach { label ->
                             val requester = focusRequesters.getOrPut("suggested_chips:$label") { FocusRequester() }
@@ -217,7 +219,7 @@ fun TvSearchScreen(
                                     viewModel.search(label)
                                     viewModel.submitSearch(label)
                                 },
-                                cornerRadius = 8.dp,
+                                cornerRadius = LumenTokens.Space.sm2,
                                 modifier = Modifier
                                     .focusRequester(requester)
                                     .onFocusChanged { focusState ->
@@ -234,7 +236,7 @@ fun TvSearchScreen(
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier
                                         .background(t.colors.card)
-                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                        .padding(horizontal = LumenTokens.Radius.md, vertical = LumenTokens.Space.sm2)
                                 )
                             }
                         }
@@ -257,7 +259,7 @@ fun TvSearchScreen(
             else -> {
                 LazyColumn(
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -266,8 +268,8 @@ fun TvSearchScreen(
                         item(key = "titles-section") {
                             RowSection(title = "Titles") {
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.sm2),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     itemsIndexed(titlesGroup, key = { index, result -> tvSearchResultLazyKey("titles", index, result) }) { index, result ->
@@ -303,8 +305,8 @@ fun TvSearchScreen(
                         item(key = "channels-section") {
                             RowSection(title = "Live Channels") {
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.sm2),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     itemsIndexed(channelsGroup, key = { index, result -> tvSearchResultLazyKey("channels", index, result) }) { index, result ->

@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -173,15 +175,15 @@ fun TvIptvScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(LumenTokens.Space.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
     ) {
         item {
             TvFocusCard(
                 onClick = onBack, 
                 modifier = Modifier
                     .wrapContentSize()
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = LumenTokens.Space.lg)
                     .focusRequester(stableFocusRequester)
             ) {
                 Text(text = "← Back", color = TvColors.TextMain)
@@ -191,23 +193,23 @@ fun TvIptvScreen(onBack: () -> Unit) {
         if (!XtreamRepository.isEncryptedStorageAvailable()) {
             item {
                 androidx.compose.material3.Surface(
-                    color = androidx.compose.ui.graphics.Color(0xFFE57373),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    color = LumenTokens.Color.errorSoft,
+                    shape = LumenTokens.Shape.sm,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = LumenTokens.Space.md)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(LumenTokens.Space.lg)) {
                         Text(
                             text = "Warning: Secure Storage Unavailable",
                             fontWeight = FontWeight.Bold,
-                            color = androidx.compose.ui.graphics.Color.Black,
+                            color = LumenTokens.Color.bg,
                             fontSize = 16.sp
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
                         Text(
                             text = "Encrypted storage is unavailable. Your credentials will only be saved in-memory and will be lost on app exit.",
-                            color = androidx.compose.ui.graphics.Color.Black,
+                            color = LumenTokens.Color.bg,
                             fontSize = 14.sp
                         )
                     }
@@ -215,7 +217,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
             }
         }
         item {
-            Text(text = "TV Sources (M3U Playlists)", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = 12.dp))
+            Text(text = "TV Sources (M3U Playlists)", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = LumenTokens.Space.md))
         }
         item {
             TvIptvOptimizationSettings(
@@ -232,7 +234,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                     text = "No IPTV providers yet. Add an M3U playlist or Xtream login below.",
                     color = TvColors.TextSub,
                     fontSize = 14.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
                 )
             }
         } else {
@@ -251,28 +253,28 @@ fun TvIptvScreen(onBack: () -> Unit) {
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(400.dp)
-                                .background(TvColors.Surface, RoundedCornerShape(12.dp))
-                                .padding(24.dp)
+                                .width(LumenTokens.Layout.sheetMaxWidth)
+                                .background(TvColors.Surface, LumenTokens.Shape.md)
+                                .padding(LumenTokens.Space.xxl)
                         ) {
                             Column {
                                 Text("Delete Provider", color = TvColors.TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(LumenTokens.Space.md))
                                 Text("Are you sure you want to delete '${providerToDelete?.name}'? This will remove all associated channels and data.", color = TvColors.TextSub, fontSize = 16.sp)
                                 providerDeleteError?.let { error ->
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(error, color = Color(0xFFEF4444), fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+                                    Text(error, color = LumenTokens.Color.errorBright, fontSize = 14.sp)
                                 }
                                 if (isDeletingProvider) {
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
                                     ) {
                                         androidx.compose.material3.CircularProgressIndicator(
                                             color = TvColors.BorderFocused,
-                                            strokeWidth = 3.dp,
-                                            modifier = Modifier.size(24.dp)
+                                            strokeWidth = LumenTokens.Color.focusRingWidth,
+                                            modifier = Modifier.size(LumenTokens.Space.xxl)
                                         )
                                         Text(
                                             "Removing provider and channel data…",
@@ -281,7 +283,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
                                 when (isDeletingProvider) {
                                     true -> {
                                         // Show cancel button while deleting
@@ -297,7 +299,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                             modifier = Modifier.fillMaxWidth().focusRequester(dialogCancelFocusRequester)
                                         ) { isFocused ->
                                             Box(
-                                                modifier = Modifier.padding(12.dp),
+                                                modifier = Modifier.padding(LumenTokens.Space.md),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub)
@@ -305,7 +307,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                         }
                                     }
                                     false -> {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
                                             TvFocusCard(
                                                 onClick = {
                                                     stableFocusRequester.requestFocus()
@@ -316,7 +318,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                                     .weight(1f)
                                                     .focusRequester(dialogCancelFocusRequester)
                                             ) { isFocused ->
-                                                Box(modifier = Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                                                Box(modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md), contentAlignment = Alignment.Center) {
                                                     Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub)
                                                 }
                                             }
@@ -344,7 +346,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                                 },
                                                 modifier = Modifier.weight(1f)
                                             ) { isFocused ->
-                                                Box(modifier = Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                                                Box(modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md), contentAlignment = Alignment.Center) {
                                                     Text("Delete", color = if (isFocused) TvColors.TextMain else Color.Red)
                                                 }
                                             }
@@ -359,9 +361,9 @@ fun TvIptvScreen(onBack: () -> Unit) {
             items(providers, key = { it.id }) { provider ->
                 val syncState = syncStates[provider.id] ?: ProviderSyncState(provider.id, ProviderSyncStatus.IDLE)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                    modifier = Modifier.fillMaxWidth().padding(bottom = LumenTokens.Space.xs)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         if (provider.type == IPTVProviderType.XTREAM) {
@@ -387,9 +389,9 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                 IPTVRepository.setProviderEnabled(provider.id, !provider.isEnabled)
                             }
                         },
-                        modifier = Modifier.width(100.dp)
+                        modifier = Modifier.width(LumenTokens.Layout.inputWidthSm)
                     ) { isFocused ->
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.md), contentAlignment = Alignment.Center) {
                             Text(
                                 text = if (provider.isEnabled) "Disable" else "Enable",
                                 color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
@@ -403,12 +405,12 @@ fun TvIptvScreen(onBack: () -> Unit) {
                             providerDeleteError = null
                             providerToDelete = provider
                         },
-                        modifier = Modifier.width(90.dp)
+                        modifier = Modifier.width(LumenTokens.Layout.inputWidthXs)
                     ) { isFocused ->
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.md), contentAlignment = Alignment.Center) {
                             Text(
                                 text = "Delete",
-                                color = if (isFocused) Color.White else Color(0xFFEF4444),
+                                color = if (isFocused) LumenTokens.Color.textPrimary else LumenTokens.Color.errorBright,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -419,7 +421,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
         }
 
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md), modifier = Modifier.fillMaxWidth()) {
                 TvFocusCard(
                     onClick = {
                         showM3uForm = true
@@ -432,7 +434,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                        modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                     )
                 }
                 TvFocusCard(
@@ -447,7 +449,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                        modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                     )
                 }
             }
@@ -455,10 +457,10 @@ fun TvIptvScreen(onBack: () -> Unit) {
 
         if (showM3uForm) {
             item {
-                Text(text = "Add M3U Playlist", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Text(text = "Add M3U Playlist", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2))
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.padding(bottom = LumenTokens.Space.lg)) {
                     var isNameFocused by remember { mutableStateOf(false) }
                     TvTextField(
                         value = m3uName,
@@ -468,7 +470,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isNameFocused = it.isFocused }
-                            .border(if (isNameFocused) 2.dp else 0.dp, if (isNameFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isNameFocused) LumenTokens.Space.xxs else 0.dp, if (isNameFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     var isUrlFocused by remember { mutableStateOf(false) }
                     TvTextField(
@@ -479,26 +481,26 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isUrlFocused = it.isFocused }
-                            .border(if (isUrlFocused) 2.dp else 0.dp, if (isUrlFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isUrlFocused) LumenTokens.Space.xxs else 0.dp, if (isUrlFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     m3uAddError?.let { error ->
-                        Text(text = error, color = Color(0xFFEF4444), fontSize = 14.sp)
+                        Text(text = error, color = LumenTokens.Color.errorBright, fontSize = 14.sp)
                     }
                     if (isAddingM3u) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(LumenTokens.Layout.iconSm),
+                                strokeWidth = LumenTokens.Space.xxs,
                                 color = TvColors.BorderFocused
                             )
                             Text("Adding playlist and starting sync...", color = TvColors.TextSub, fontSize = 14.sp)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md), modifier = Modifier.fillMaxWidth()) {
                         TvFocusCard(
                             onClick = {
                                 if (!isAddingM3u) {
@@ -516,7 +518,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                 color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                             )
                         }
                         TvFocusCard(
@@ -530,7 +532,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                 color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                             )
                         }
                     }
@@ -540,22 +542,22 @@ fun TvIptvScreen(onBack: () -> Unit) {
 
         if (showXtreamForm || (providers.isEmpty() && !showM3uForm)) {
             item {
-                Text(text = "Add Xtream Login", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Text(text = "Add Xtream Login", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2))
             }
             item {                if (showHttpWarning) {
                     androidx.compose.ui.window.Dialog(onDismissRequest = { showHttpWarning = false }) {
                         Box(
                             modifier = Modifier
-                                .width(400.dp)
-                                .background(TvColors.Surface, RoundedCornerShape(12.dp))
-                                .padding(24.dp)
+                                .width(LumenTokens.Layout.sheetMaxWidth)
+                                .background(TvColors.Surface, LumenTokens.Shape.md)
+                                .padding(LumenTokens.Space.xxl)
                         ) {
                             Column {
                                 Text("Insecure Connection", color = TvColors.TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(LumenTokens.Space.md))
                                 Text("You are attempting to connect via an unencrypted HTTP URL. This connection is not secure. Are you sure you want to proceed?", color = TvColors.TextSub, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
+                                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
                                     TvFocusCard(
                                         onClick = {
                                             stableFocusRequester.requestFocus()
@@ -563,7 +565,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                         },
                                         modifier = Modifier.weight(1f)
                                     ) { isFocused ->
-                                        Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub, modifier = Modifier.padding(12.dp))
+                                        Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub, modifier = Modifier.padding(LumenTokens.Space.md))
                                     }
                                     TvFocusCard(
                                         onClick = {
@@ -573,7 +575,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                         }, 
                                         modifier = Modifier.weight(1f)
                                     ) { isFocused ->
-                                        Text("Proceed Anyway", color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused, modifier = Modifier.padding(12.dp))
+                                        Text("Proceed Anyway", color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused, modifier = Modifier.padding(LumenTokens.Space.md))
                                     }
                                 }
                             }
@@ -582,7 +584,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.padding(bottom = LumenTokens.Space.lg)) {
                     var isNameFocused by remember { mutableStateOf(false) }
                     TvTextField(
                         value = xtreamName,
@@ -592,7 +594,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isNameFocused = it.isFocused }
-                            .border(if (isNameFocused) 2.dp else 0.dp, if (isNameFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isNameFocused) LumenTokens.Space.xxs else 0.dp, if (isNameFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     var isServerFocused by remember { mutableStateOf(false) }
                     TvTextField(
@@ -603,7 +605,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isServerFocused = it.isFocused }
-                            .border(if (isServerFocused) 2.dp else 0.dp, if (isServerFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isServerFocused) LumenTokens.Space.xxs else 0.dp, if (isServerFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     var isUsernameFocused by remember { mutableStateOf(false) }
                     TvTextField(
@@ -614,7 +616,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isUsernameFocused = it.isFocused }
-                            .border(if (isUsernameFocused) 2.dp else 0.dp, if (isUsernameFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isUsernameFocused) LumenTokens.Space.xxs else 0.dp, if (isUsernameFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     var isPasswordFocused by remember { mutableStateOf(false) }
                     TvTextField(
@@ -626,25 +628,25 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
                             .onFocusChanged { isPasswordFocused = it.isFocused }
-                            .border(if (isPasswordFocused) 2.dp else 0.dp, if (isPasswordFocused) TvColors.BorderFocused else Color.Transparent, RoundedCornerShape(4.dp))
+                            .border(if (isPasswordFocused) LumenTokens.Space.xxs else 0.dp, if (isPasswordFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                     if (xtreamAddError != null) {
                         Text(
                             text = xtreamAddError!!,
-                            color = Color(0xFFEF4444),
+                            color = LumenTokens.Color.errorBright,
                             fontSize = 14.sp,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = LumenTokens.Space.xs)
                         )
                     }
                     if (isAddingXtream) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(LumenTokens.Layout.iconSm),
+                                strokeWidth = LumenTokens.Space.xxs,
                                 color = TvColors.BorderFocused
                             )
                             Text(
@@ -655,7 +657,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         }
                     }
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TvFocusCard(
@@ -677,7 +679,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                 color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                             )
                         }
                         TvFocusCard(
@@ -702,7 +704,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                 color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                             )
                         }
                     }
@@ -711,7 +713,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
         }
 
         item {
-            Text(text = "Program Guides (EPG)", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = 16.dp, bottom = 12.dp))
+            Text(text = "Program Guides (EPG)", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.md))
         }
 
         if (!showEpgForm) {
@@ -732,18 +734,18 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                        modifier = Modifier.padding(vertical = LumenTokens.Space.sm2, horizontal = LumenTokens.Space.md)
                     )
                 }
             }
             epgAddError?.takeIf { !showEpgForm }?.let { error ->
                 item {
-                    Text(error, color = Color(0xFFEF4444), fontSize = 13.sp)
+                    Text(error, color = LumenTokens.Color.errorBright, fontSize = 13.sp)
                 }
             }
         } else {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.padding(bottom = LumenTokens.Space.md)) {
                     Text("Add XMLTV Guide", color = TvColors.TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     if (providers.size > 1) {
                         providers.forEach { provider ->
@@ -755,7 +757,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                                     text = (if (epgProviderId == provider.id) "● " else "○ ") + provider.name,
                                     color = if (isFocused || epgProviderId == provider.id) TvColors.TextMain else TvColors.TextSub,
                                     fontSize = 14.sp,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier.padding(LumenTokens.Radius.sm)
                                 )
                             }
                         }
@@ -775,9 +777,9 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     )
                     epgAddError?.let { error ->
-                        Text(error, color = Color(0xFFEF4444), fontSize = 13.sp)
+                        Text(error, color = LumenTokens.Color.errorBright, fontSize = 13.sp)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
                         TvFocusCard(
                             onClick = {
                                 if (!isAddingEpg) {
@@ -789,7 +791,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                             },
                             modifier = Modifier.weight(1f)
                         ) { isFocused ->
-                            Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub, modifier = Modifier.padding(12.dp))
+                            Text("Cancel", color = if (isFocused) TvColors.TextMain else TvColors.TextSub, modifier = Modifier.padding(LumenTokens.Space.md))
                         }
                         TvFocusCard(
                             onClick = {
@@ -834,7 +836,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                             Text(
                                 if (isAddingEpg) "Adding..." else "Add & Sync",
                                 color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
-                                modifier = Modifier.padding(12.dp)
+                                modifier = Modifier.padding(LumenTokens.Space.md)
                             )
                         }
                     }
@@ -870,7 +872,7 @@ fun TvIptvScreen(onBack: () -> Unit) {
                         Column {
                             Text(text = source.name, color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Text(text = com.example.calmsource.core.network.UrlRedactor.redactUrl(source.url), color = if (isFocused) TvColors.TextMain else TvColors.TextSub, fontSize = 12.sp)
-                            Text(text = lastSyncText, color = TvColors.BorderFocused, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            Text(text = lastSyncText, color = TvColors.BorderFocused, fontSize = 12.sp, modifier = Modifier.padding(top = LumenTokens.Space.xs))
                         }
                         Text(
                             text = if (isFocused) "Press OK to Sync ↻" else "Sync",
@@ -905,11 +907,11 @@ private fun TvIptvOptimizationSettings(
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm),
         modifier = Modifier
             .fillMaxWidth()
-            .background(TvColors.Surface, RoundedCornerShape(6.dp))
-            .padding(16.dp)
+            .background(TvColors.Surface, LumenTokens.Shape.xs)
+            .padding(LumenTokens.Space.lg)
     ) {
         Text("Channel Optimization", color = TvColors.TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(
@@ -936,9 +938,9 @@ private fun TvIptvOptimizationSettings(
                 .fillMaxWidth()
                 .onFocusChanged { languagesFocused = it.isFocused }
                 .border(
-                    if (languagesFocused) 2.dp else 0.dp,
+                    if (languagesFocused) LumenTokens.Space.xxs else 0.dp,
                     if (languagesFocused) TvColors.BorderFocused else Color.Transparent,
-                    RoundedCornerShape(4.dp)
+                    LumenTokens.Shape.md
                 )
         )
         TvTextField(
@@ -952,14 +954,14 @@ private fun TvIptvOptimizationSettings(
                 .fillMaxWidth()
                 .onFocusChanged { countryFocused = it.isFocused }
                 .border(
-                    if (countryFocused) 2.dp else 0.dp,
+                    if (countryFocused) LumenTokens.Space.xxs else 0.dp,
                     if (countryFocused) TvColors.BorderFocused else Color.Transparent,
-                    RoundedCornerShape(4.dp)
+                    LumenTokens.Shape.md
                 )
         )
 
         Text("Favorite categories", color = TvColors.TextMain, fontSize = 14.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)) {
             listOf("Sports", "Movies", "News", "Kids").forEach { category ->
                 TvFocusCard(
                     modifier = Modifier.weight(1f),
@@ -999,7 +1001,7 @@ private fun TvIptvOptimizationSettings(
         }
 
         Text("Group channels by", color = TvColors.TextMain, fontSize = 14.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)) {
             IptvGroupMode.entries.forEach { mode ->
                 TvFocusCard(
                     modifier = Modifier.weight(1f),
@@ -1062,8 +1064,8 @@ fun TvIptvItem(
     val statusColor = when (syncState.status) {
         ProviderSyncStatus.IDLE -> TvColors.TextSub
         ProviderSyncStatus.SYNCING -> TvColors.BorderFocused
-        ProviderSyncStatus.SUCCESS -> Color(0xFF10B981)
-        ProviderSyncStatus.ERROR -> Color(0xFFEF4444)
+        ProviderSyncStatus.SUCCESS -> LumenTokens.Color.statusHealthy
+        ProviderSyncStatus.ERROR -> LumenTokens.Color.errorBright
     }
 
     var channelsCount by remember(provider.id, syncState) { mutableIntStateOf(0) }
@@ -1100,8 +1102,8 @@ fun TvIptvItem(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                    modifier = Modifier.padding(top = LumenTokens.Space.xs)
                 ) {
                     Text(
                         text = "Sync: ${syncState.status.name}",
@@ -1119,11 +1121,11 @@ fun TvIptvItem(
                 if (syncState.status == ProviderSyncStatus.SYNCING) {
                     Box(
                         modifier = Modifier
-                            .padding(top = 6.dp)
+                            .padding(top = LumenTokens.Space.sm)
                             .fillMaxWidth(0.5f)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color(0x1AFFFFFF))
+                            .height(LumenTokens.Space.xs)
+                            .clip(LumenTokens.Shape.md)
+                            .background(LumenTokens.Color.glassOverlay)
                     ) {
                         Box(
                             modifier = Modifier
@@ -1137,7 +1139,7 @@ fun TvIptvItem(
                 val syncError = syncState.error
                 if (syncError != null) {
                     val safeError = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(syncError)
-                    Text(text = "Needs attention: $safeError", color = Color(0xFFEF4444), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                    Text(text = "Needs attention: $safeError", color = LumenTokens.Color.errorBright, fontSize = 11.sp, modifier = Modifier.padding(top = LumenTokens.Space.xxs))
                 }
             }
             Text(
@@ -1171,9 +1173,9 @@ fun TvXtreamProviderItem(
     onSync: () -> Unit
 ) {
     val healthColor = when (provider.health) {
-        ProviderHealth.HEALTHY -> Color(0xFF10B981)
-        ProviderHealth.SLOW -> Color(0xFFF59E0B)
-        ProviderHealth.FAILED -> Color(0xFFEF4444)
+        ProviderHealth.HEALTHY -> LumenTokens.Color.statusHealthy
+        ProviderHealth.SLOW -> LumenTokens.Color.warning
+        ProviderHealth.FAILED -> LumenTokens.Color.errorBright
     }
 
     val isSyncing = syncProgress != null &&
@@ -1210,9 +1212,9 @@ fun TvXtreamProviderItem(
                 }
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(LumenTokens.Shape.md)
                         .background(healthColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
                 ) {
                     Text(
                         text = provider.health.name,
@@ -1224,7 +1226,7 @@ fun TvXtreamProviderItem(
             }
 
             syncProgress?.takeIf { isSyncing }?.let { progress ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
                 Text(
                     text = xtreamStageLabel(progress.stage),
                     color = TvColors.BorderFocused,
@@ -1233,11 +1235,11 @@ fun TvXtreamProviderItem(
                 )
                 Box(
                     modifier = Modifier
-                        .padding(top = 4.dp)
+                        .padding(top = LumenTokens.Space.xs)
                         .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color(0x1AFFFFFF))
+                        .height(LumenTokens.Space.sm)
+                        .clip(LumenTokens.Shape.xs)
+                        .background(LumenTokens.Color.glassOverlay)
                 ) {
                     Box(
                         modifier = Modifier
@@ -1249,16 +1251,16 @@ fun TvXtreamProviderItem(
             }
 
             if (syncProgress != null && syncProgress.stage == XtreamSyncStage.COMPLETE) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
                 Text(
                     text = "✓ Sync Complete",
-                    color = Color(0xFF10B981),
+                    color = LumenTokens.Color.statusHealthy,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(top = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                    modifier = Modifier.padding(top = LumenTokens.Space.xs)
                 ) {
                     Text(
                         text = "Live: ${syncProgress.liveChannelCount}",
@@ -1279,28 +1281,28 @@ fun TvXtreamProviderItem(
             }
 
             if (syncProgress != null && syncProgress.stage == XtreamSyncStage.FAILED) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
                 val safeError = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(syncProgress.error ?: "Sync failed")
                 Text(
                     text = "Needs attention: $safeError",
-                    color = Color(0xFFEF4444),
+                    color = LumenTokens.Color.errorBright,
                     fontSize = 14.sp
                 )
             }
 
             val warning = syncProgress?.warning
             if (!warning.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFEF3C7))
-                        .padding(12.dp)
+                        .clip(LumenTokens.Shape.sm)
+                        .background(LumenTokens.Color.warningSurface)
+                        .padding(LumenTokens.Space.md)
                 ) {
                     Text(
                         text = warning,
-                        color = Color(0xFFD97706),
+                        color = LumenTokens.Color.warningText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -1308,7 +1310,7 @@ fun TvXtreamProviderItem(
             }
 
             if (!isSyncing) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
                 Text(
                     text = if (isFocused) "Press OK to Sync ↻" else "Sync",
                     color = if (isFocused) TvColors.BorderFocused else TvColors.TextSub,

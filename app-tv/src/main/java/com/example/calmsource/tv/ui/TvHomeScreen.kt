@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
 
 import androidx.compose.foundation.background
@@ -100,20 +102,20 @@ fun TvHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(top = 24.dp)
+            .padding(top = LumenTokens.Space.xxl)
     ) {
         Text(
             text = "CalmSource",
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = 48.dp)
+            modifier = Modifier.padding(horizontal = LumenTokens.Layout.iconXl)
         )
         Text(
             text = "Your media sanctuary",
             fontSize = 16.sp,
             color = t.colors.mutedForeground,
-            modifier = Modifier.padding(start = 48.dp, end = 48.dp, bottom = 24.dp)
+            modifier = Modifier.padding(start = LumenTokens.Layout.iconXl, end = LumenTokens.Layout.iconXl, bottom = LumenTokens.Space.xxl)
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -125,13 +127,13 @@ fun TvHomeScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 48.dp, vertical = 16.dp)
+                                    .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.lg)
                             ) {
-                                LumenSkeleton(modifier = Modifier.width(160.dp).height(28.dp))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.posterTileWidth).height(LumenTokens.Radius.xl))
+                                Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
                                     repeat(6) {
-                                        LumenSkeleton(modifier = Modifier.width(140.dp).height(210.dp))
+                                        LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidthTv).height(LumenTokens.Layout.posterTileHeightTv))
                                     }
                                 }
                             }
@@ -174,9 +176,9 @@ fun TvHomeScreen(
                         LazyRow(
                             state = listState,
                             flingBehavior = rememberSnapFlingBehavior(listState),
-                            contentPadding = PaddingValues(horizontal = 48.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.padding(bottom = 32.dp)
+                            contentPadding = PaddingValues(horizontal = LumenTokens.Layout.iconXl),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                            modifier = Modifier.padding(bottom = LumenTokens.Space.xxxl)
                         ) {
                             items(uniqueItems, key = { "${it.type}-${it.id}" }) { item ->
                                 val itemKey = "${row.rowType}:${item.id}"
@@ -234,8 +236,8 @@ fun TvHomeScreen(
                     color = t.colors.brand,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(horizontal = 48.dp)
-                        .size(24.dp)
+                        .padding(horizontal = LumenTokens.Layout.iconXl)
+                        .size(LumenTokens.Space.xxl)
                 )
             }
         }
@@ -252,7 +254,7 @@ private fun SectionTitle(title: String) {
         color = t.colors.foreground,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
+        modifier = Modifier.padding(start = LumenTokens.Layout.iconXl, end = LumenTokens.Layout.iconXl, bottom = LumenTokens.Space.lg)
     )
 }
 
@@ -270,7 +272,7 @@ fun TvVODItemCard(
     ) {
         Column(
             modifier = Modifier
-                .width(140.dp)
+                .width(LumenTokens.Layout.epgMinBlockWidthTv)
                 .background(t.colors.card)
         ) {
             AsyncImage(
@@ -279,9 +281,9 @@ fun TvVODItemCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
+                    .height(LumenTokens.Layout.posterTileHeightTv)
+                    .clip(LumenTokens.Shape.sm)
+                    .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
             Text(
                 text = item.title,
@@ -290,7 +292,7 @@ fun TvVODItemCard(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = LumenTokens.Space.sm2, start = LumenTokens.Space.sm2, end = LumenTokens.Space.sm2, bottom = LumenTokens.Space.xs)
             )
             if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
                 Text(
@@ -300,7 +302,7 @@ fun TvVODItemCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = LumenTokens.Space.sm2, end = LumenTokens.Space.sm2, bottom = LumenTokens.Space.sm2)
                 )
             }
         }
@@ -323,20 +325,20 @@ fun TvLiveChannelCard(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .width(220.dp)
+                .width(LumenTokens.Layout.tileWidthMd)
                 .background(t.colors.card)
-                .padding(12.dp)
+                .padding(LumenTokens.Space.md)
         ) {
             AsyncImage(
                 model = logoUrl,
                 contentDescription = channelName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
+                    .size(LumenTokens.Layout.iconXl)
+                    .clip(LumenTokens.Shape.sm)
+                    .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(LumenTokens.Space.md))
             Column {
                 Text(
                     text = channelName,

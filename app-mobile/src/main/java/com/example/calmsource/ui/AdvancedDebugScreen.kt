@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,9 +57,9 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.Background)
-            .padding(16.dp)
+            .padding(LumenTokens.Space.lg)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
     ) {
         SubScreenHeader(title = "Advanced Debug", onBack = onBack)
         DebugSection(
@@ -104,7 +106,7 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
                     fuzzyEnabled = !fuzzyEnabled
                     DiscoverySearchFeatureFlags.enableFuzzyFallback = fuzzyEnabled
                 }
-                .padding(vertical = 8.dp),
+                .padding(vertical = LumenTokens.Space.sm2),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(

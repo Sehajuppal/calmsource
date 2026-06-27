@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -130,22 +132,22 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(16.dp)
+            .padding(LumenTokens.Space.lg)
     ) {
         Text(
             text = "Search",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .border(1.dp, t.colors.border, RoundedCornerShape(14.dp))
-                .clip(RoundedCornerShape(14.dp))
+                .padding(bottom = LumenTokens.Space.md)
+                .border(1.dp, t.colors.border, LumenTokens.Shape.md)
+                .clip(LumenTokens.Shape.md)
                 .background(t.colors.card)
         ) {
             TextField(
@@ -201,16 +203,16 @@ fun SearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(LumenTokens.Space.lg),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
                 ) {
                     repeat(3) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(120.dp))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
                         }
                     }
                 }
@@ -247,7 +249,7 @@ fun SearchScreen(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
                     )
                     ChipRow(
                         items = suggestedTags,
@@ -256,14 +258,14 @@ fun SearchScreen(
                             viewModel.search(tag)
                             viewModel.submitSearch(tag)
                         },
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                        modifier = Modifier.padding(start = LumenTokens.Space.lg, end = LumenTokens.Space.lg, bottom = LumenTokens.Space.lg)
                     )
                 }
             }
             else -> {
                 LazyColumn(
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -276,7 +278,7 @@ fun SearchScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
                                 letterSpacing = 1.6.sp,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2)
                             )
                         }
                         itemsIndexed(
@@ -305,7 +307,7 @@ fun SearchScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
                                 letterSpacing = 1.6.sp,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2)
                             )
                         }
                         itemsIndexed(
@@ -348,11 +350,11 @@ private fun SearchFilterBar(
     val activeType = filters["type"]
     val activeGenre = filters["genre"]
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(bottom = 12.dp)
+            .padding(bottom = LumenTokens.Space.md)
     ) {
         SEARCH_TYPE_FILTERS.forEach { (label, value) ->
             val selected = activeType == value || (value == null && activeType == null)
@@ -423,16 +425,16 @@ fun DiscoverySearchResultItem(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
         ) {
             AsyncImage(
                 model = result.posterUrl,
                 contentDescription = "Artwork for ${result.title}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(64.dp, 90.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x1AFFFFFF))
+                    .size(LumenTokens.Layout.avatarLg, LumenTokens.Layout.inputWidthXs)
+                    .clip(LumenTokens.Shape.sm)
+                    .background(LumenTokens.Color.glassOverlay)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -461,7 +463,7 @@ fun DiscoverySearchResultItem(
                     color = t.colors.mutedForeground.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = LumenTokens.Space.xxs)
                 )
 
                 Text(
@@ -470,7 +472,7 @@ fun DiscoverySearchResultItem(
                     color = t.colors.mutedForeground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = LumenTokens.Space.xs)
                 )
             }
         }

@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenTokens
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -36,12 +38,12 @@ import com.example.calmsource.core.database.entity.ProfileEntity
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 
 private val GRADIENTS = listOf(
-    Brush.linearGradient(listOf(Color(0xFF818CF8), Color(0xFFD946EF))), // Indigo-Fuchsia
-    Brush.linearGradient(listOf(Color(0xFFFCD34D), Color(0xFFF43F5E))), // Amber-Rose
-    Brush.linearGradient(listOf(Color(0xFF6EE7B7), Color(0xFF06B6D4))), // Emerald-Cyan
-    Brush.linearGradient(listOf(Color(0xFF7DD3FC), Color(0xFF8B5CF6))), // Sky-Violet
-    Brush.linearGradient(listOf(Color(0xFFFDA4AF), Color(0xFFF97316))), // Rose-Orange
-    Brush.linearGradient(listOf(Color(0xFFC084FC), Color(0xFFEC4899)))  // Purple-Pink
+    Brush.linearGradient(listOf(LumenTokens.Color.profileIndigo, LumenTokens.Color.profileFuchsia)),
+    Brush.linearGradient(listOf(LumenTokens.Color.profileYellow, LumenTokens.Color.profileRose)),
+    Brush.linearGradient(listOf(LumenTokens.Color.profileEmerald, LumenTokens.Color.profileCyan)),
+    Brush.linearGradient(listOf(LumenTokens.Color.profileSky, LumenTokens.Color.profileViolet)),
+    Brush.linearGradient(listOf(LumenTokens.Color.profilePeach, LumenTokens.Color.profileOrange)),
+    Brush.linearGradient(listOf(LumenTokens.Color.profileLilac, LumenTokens.Color.profileMagenta)),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,19 +76,19 @@ fun ProfilesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(LumenTokens.Space.xxl),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xxxl))
 
             // Subtitle CalmSource
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(LumenTokens.Space.sm)
                         .clip(CircleShape)
                         .background(t.colors.foreground.copy(alpha = 0.7f))
                 )
@@ -99,7 +101,7 @@ fun ProfilesScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
 
             Text(
                 text = "Who's watching?",
@@ -109,7 +111,7 @@ fun ProfilesScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
 
             Text(
                 text = if (editing) "Tap a profile to edit or delete it." else "Choose a profile to continue your story.",
@@ -118,12 +120,12 @@ fun ProfilesScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xxxl))
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xl),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xl),
                 modifier = Modifier.weight(1f)
             ) {
                 items(profiles) { profile ->
@@ -149,7 +151,7 @@ fun ProfilesScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
 
             // Manage Profiles Button
             Button(
@@ -161,20 +163,20 @@ fun ProfilesScreen(
                     containerColor = t.colors.card,
                     contentColor = t.colors.foreground
                 ),
-                shape = RoundedCornerShape(24.dp),
+                shape = LumenTokens.Shape.md,
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
-                    .border(1.dp, t.colors.border, RoundedCornerShape(24.dp))
+                    .border(1.dp, t.colors.border, LumenTokens.Shape.md)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                    modifier = Modifier.padding(vertical = LumenTokens.Space.xs)
                 ) {
                     Icon(
                         imageVector = if (editing) Icons.Default.Check else Icons.Default.Edit,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(LumenTokens.Space.lg)
                     )
                     Text(
                         text = if (editing) "Done" else "Manage Profiles",
@@ -256,15 +258,15 @@ fun ProfileCard(
                 scaleY = scaleFactor
             }
             .clickable { onSelect() }
-            .padding(8.dp)
+            .padding(LumenTokens.Space.sm2)
     ) {
         Box(
             modifier = Modifier
                 .aspectRatio(1f)
                 .fillMaxWidth(0.8f)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(LumenTokens.Shape.md)
                 .background(gradient)
-                .border(2.dp, t.colors.border, RoundedCornerShape(24.dp)),
+                .border(LumenTokens.Space.xxs, t.colors.border, LumenTokens.Shape.md),
             contentAlignment = Alignment.Center
         ) {
             if (avatarUrl != null && !avatarUrl.startsWith("gradient://")) {
@@ -276,7 +278,7 @@ fun ProfileCard(
             } else {
                 Text(
                     text = initials,
-                    color = Color.White,
+                    color = LumenTokens.Color.textPrimary,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -286,20 +288,20 @@ fun ProfileCard(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .background(LumenTokens.Color.bg.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Profile",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+                        tint = LumenTokens.Color.textPrimary,
+                        modifier = Modifier.size(LumenTokens.Radius.xl)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
 
         Text(
             text = profile.name,
@@ -322,15 +324,15 @@ fun AddProfileCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clickable { onClick() }
-            .padding(8.dp)
+            .padding(LumenTokens.Space.sm2)
     ) {
         Box(
             modifier = Modifier
                 .aspectRatio(1f)
                 .fillMaxWidth(0.8f)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(LumenTokens.Shape.md)
                 .background(t.colors.card.copy(alpha = 0.4f))
-                .border(2.dp, t.colors.border, RoundedCornerShape(24.dp)),
+                .border(LumenTokens.Space.xxs, t.colors.border, LumenTokens.Shape.md),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -341,7 +343,7 @@ fun AddProfileCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
 
         Text(
             text = "Add Profile",
@@ -436,7 +438,7 @@ fun EditProfileDialog(
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
@@ -461,18 +463,18 @@ fun EditProfileDialog(
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     GRADIENTS.forEachIndexed { index, gradient ->
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(LumenTokens.Layout.offsetLg)
                                 .clip(CircleShape)
                                 .background(gradient)
                                 .clickable { selectedGradientIndex = index }
                                 .border(
-                                    2.dp,
+                                    LumenTokens.Space.xxs,
                                     if (selectedGradientIndex == index) t.colors.foreground else Color.Transparent,
                                     CircleShape
                                 )
@@ -483,7 +485,7 @@ fun EditProfileDialog(
         },
         confirmButton = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
             ) {
                 IconButton(
                     onClick = onDelete,
