@@ -1,0 +1,11 @@
+{
+  "name": "calmsource-tokens",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tokens:build": "node build-tokens.mjs",
+    "tokens:check": "node build-tokens.mjs && git -C .. diff --exit-code -- core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTokens.Generated.kt core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTypeScale.Generated.kt core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenMotion.Generated.kt"
+  },
+  "devDependencies": {
+  }
+}

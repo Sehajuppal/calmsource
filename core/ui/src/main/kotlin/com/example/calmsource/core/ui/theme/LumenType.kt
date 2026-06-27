@@ -7,15 +7,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 
-/**
- * Inter for UI; Instrument Serif for display headers only.
- * Bundle font files under core/ui/src/main/res/font/ when available.
- */
+/** Inter for UI body copy; Inter Tight for display/headline (matches web lumen.json). */
 val InterFamily: FontFamily = FontFamily.SansSerif
-val InstrumentSerifFamily: FontFamily = FontFamily.Serif
+val InterTightFamily: FontFamily = FontFamily.SansSerif
 
 @Immutable
 data class LumenTypeScale(
@@ -23,8 +18,10 @@ data class LumenTypeScale(
     val h1: TextStyle,
     val h2: TextStyle,
     val title: TextStyle,
+    val rowTitle: TextStyle,
     val body: TextStyle,
     val caption: TextStyle,
+    val meta: TextStyle,
     val eyebrow: TextStyle,
 )
 
@@ -33,57 +30,17 @@ val LocalLumenTypeScale = compositionLocalOf<LumenTypeScale> {
 }
 
 fun buildLumenTypeScale(isTv: Boolean): LumenTypeScale {
-    val m = if (isTv) 1.15f else 1f
-    fun bodySp(n: Float) = (n * m).sp
-    fun displaySp(n: Float) = n.sp
-
-    val displayFamily = InstrumentSerifFamily
-    val uiFamily = InterFamily
-
+    val generated = generatedLumenTypeScale(isTv)
     return LumenTypeScale(
-        display = TextStyle(
-            fontFamily = displayFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = displaySp(if (isTv) 52f else 44f),
-            lineHeight = displaySp(if (isTv) 56f else 48f),
-        ),
-        h1 = TextStyle(
-            fontFamily = displayFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = displaySp(if (isTv) 40f else 32f),
-            lineHeight = displaySp(if (isTv) 44f else 36f),
-        ),
-        h2 = TextStyle(
-            fontFamily = displayFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = displaySp(if (isTv) 32f else 24f),
-            lineHeight = displaySp(if (isTv) 36f else 28f),
-        ),
-        title = TextStyle(
-            fontFamily = uiFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = displaySp(if (isTv) 28f else 20f),
-            lineHeight = displaySp(if (isTv) 32f else 24f),
-        ),
-        body = TextStyle(
-            fontFamily = uiFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = bodySp(15f),
-            lineHeight = bodySp(22f),
-        ),
-        caption = TextStyle(
-            fontFamily = uiFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = bodySp(13f),
-            lineHeight = bodySp(18f),
-        ),
-        eyebrow = TextStyle(
-            fontFamily = uiFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = bodySp(11f),
-            lineHeight = bodySp(14f),
-            letterSpacing = 0.12.em,
-        ),
+        display = generated.display,
+        h1 = generated.h1,
+        h2 = generated.h2,
+        title = generated.title,
+        rowTitle = generated.rowTitle,
+        body = generated.body,
+        caption = generated.caption,
+        meta = generated.meta,
+        eyebrow = generated.eyebrow,
     )
 }
 
@@ -93,8 +50,10 @@ object LumenType {
     val H1: TextStyle @Composable get() = LocalLumenTypeScale.current.h1
     val H2: TextStyle @Composable get() = LocalLumenTypeScale.current.h2
     val Title: TextStyle @Composable get() = LocalLumenTypeScale.current.title
+    val RowTitle: TextStyle @Composable get() = LocalLumenTypeScale.current.rowTitle
     val Body: TextStyle @Composable get() = LocalLumenTypeScale.current.body
     val Caption: TextStyle @Composable get() = LocalLumenTypeScale.current.caption
+    val Meta: TextStyle @Composable get() = LocalLumenTypeScale.current.meta
     val Eyebrow: TextStyle @Composable get() = LocalLumenTypeScale.current.eyebrow
 }
 
@@ -109,7 +68,7 @@ fun lumenTypography(isTv: Boolean): Typography {
         headlineMedium = scale.title,
         headlineSmall = scale.title,
         titleLarge = scale.title,
-        titleMedium = scale.body,
+        titleMedium = scale.rowTitle,
         bodyLarge = scale.body,
         bodyMedium = scale.caption,
         labelLarge = scale.caption,
