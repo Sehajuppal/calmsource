@@ -1,12 +1,16 @@
 package com.example.calmsource.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
@@ -19,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -55,6 +60,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.components.LumenCard
+import com.example.calmsource.core.ui.components.ChipRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,18 +75,23 @@ fun SearchScreen(
     onChannelClick: (String) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    val t = LocalLumenTokens.current
     val query by viewModel.query.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
     val filters by viewModel.filters.collectAsState()
     val scrollPosition by viewModel.scrollPosition.collectAsState()
-    val sections = remember(searchResults) { searchResults.toDiscoverySections() }
+    
+    val titlesGroup = remember(searchResults) { searchResults.filter { it.type != "channel" } }
+    val channelsGroup = remember(searchResults) { searchResults.filter { it.type == "channel" } }
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = scrollPosition.first,
         initialFirstVisibleItemScrollOffset = scrollPosition.second
     )
+    val focusRequester = remember { FocusRequester() }
 
     fun submitQuery() {
         val submittedQuery = query.trim()
@@ -95,6 +110,10 @@ fun SearchScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     LaunchedEffect(listState) {
         snapshotFlow {
             listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
@@ -108,51 +127,71 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(t.colors.background)
             .padding(16.dp)
     ) {
         Text(
             text = "Search",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = AppColors.TextMain,
+            color = t.colors.foreground,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        TextField(
-            value = query,
-            onValueChange = viewModel::search,
-            placeholder = { Text("Search movies, shows, and live channels...", color = AppColors.TextSub) },
-            trailingIcon = {
-                IconButton(onClick = { submitQuery() }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search connected sources",
-                        tint = AppColors.TextSub
-                    )
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = AppColors.Surface,
-                unfocusedContainerColor = AppColors.Surface,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = AppColors.TextMain,
-                unfocusedTextColor = AppColors.TextMain
-            ),
-            shape = RoundedCornerShape(12.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp)
-        )
+                .border(1.dp, t.colors.border, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(14.dp))
+                .background(t.colors.card)
+        ) {
+            TextField(
+                value = query,
+                onValueChange = viewModel::search,
+                placeholder = { Text("Search movies, shows, and channels...", color = t.colors.mutedForeground) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = t.colors.mutedForeground
+                    )
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.search("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear search",
+                                tint = t.colors.mutedForeground
+                            )
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = t.colors.foreground,
+                    unfocusedTextColor = t.colors.foreground,
+                    cursorColor = t.colors.brand
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+            )
+        }
 
-        SearchFilterBar(
-            filters = filters,
-            onSelectType = { viewModel.setFilter("type", it) },
-            onSelectGenre = { viewModel.setFilter("genre", it) }
-        )
+        if (query.isNotEmpty()) {
+            SearchFilterBar(
+                filters = filters,
+                onSelectType = { viewModel.setFilter("type", it) },
+                onSelectGenre = { viewModel.setFilter("genre", it) }
+            )
+        }
 
         when {
             isSearching && searchResults.isEmpty() -> {
@@ -162,30 +201,72 @@ fun SearchScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AppColors.Primary)
+                    CircularProgressIndicator(color = t.colors.brand)
                 }
             }
-            searchResults.isEmpty() && query.isNotBlank() -> {
+            searchResults.isEmpty() && query.isNotEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "No matches found in your catalogs or connected sources.", color = AppColors.TextSub)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    ) {
+                        Text(
+                            text = "No matches",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = t.colors.foreground
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "No matches found in your catalogs or connected sources.",
+                            fontSize = 14.sp,
+                            color = t.colors.mutedForeground
+                        )
+                    }
                 }
             }
-            query.isBlank() -> {
-                Box(
+            query.isEmpty() -> {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
                 ) {
+                    val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
-                        text = "Search movies, shows, and channels across your catalogs.",
-                        color = AppColors.TextSub
+                        text = "Suggested Genres",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = t.colors.mutedForeground,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
+                    ChipRow(
+                        items = suggestedTags,
+                        selected = null,
+                        onSelect = { tag ->
+                            viewModel.search(tag)
+                            viewModel.submitSearch(tag)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Search movies, shows, and channels across your catalogs.",
+                            color = t.colors.mutedForeground,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
             else -> {
@@ -196,34 +277,54 @@ fun SearchScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    sections.forEach { section ->
-                        item(key = section.key) {
+                    if (titlesGroup.isNotEmpty()) {
+                        item(key = "header-titles") {
                             Text(
-                                text = section.title,
-                                fontSize = 18.sp,
+                                text = "TITLES · ${titlesGroup.size}",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AppColors.Primary,
+                                color = t.colors.mutedForeground,
+                                letterSpacing = 1.6.sp,
                                 modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                             )
                         }
                         itemsIndexed(
-                            section.results,
-                            key = { index, result -> searchResultLazyKey(section.key, index, result) }
+                            titlesGroup,
+                            key = { index, result -> searchResultLazyKey("titles", index, result) }
                         ) { _, result ->
                             DiscoverySearchResultItem(
                                 result = result,
                                 onClick = {
-                                    if (result.type == "channel") {
-                                        onChannelClick(result.id)
-                                    } else {
-                                        val selectedQuery = query.trim()
-                                        if (selectedQuery.isNotEmpty()) {
-                                            scope.launch {
-                                                viewModel.recordSearchInterest(selectedQuery, result)
-                                            }
+                                    val selectedQuery = query.trim()
+                                    if (selectedQuery.isNotEmpty()) {
+                                        scope.launch {
+                                            viewModel.recordSearchInterest(selectedQuery, result)
                                         }
-                                        onMediaClick(result.toMediaItem())
                                     }
+                                    onMediaClick(result.toMediaItem())
+                                }
+                            )
+                        }
+                    }
+                    if (channelsGroup.isNotEmpty()) {
+                        item(key = "header-channels") {
+                            Text(
+                                text = "LIVE CHANNELS · ${channelsGroup.size}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = t.colors.mutedForeground,
+                                letterSpacing = 1.6.sp,
+                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                            )
+                        }
+                        itemsIndexed(
+                            channelsGroup,
+                            key = { index, result -> searchResultLazyKey("channels", index, result) }
+                        ) { _, result ->
+                            DiscoverySearchResultItem(
+                                result = result,
+                                onClick = {
+                                    onChannelClick(result.id)
                                 }
                             )
                         }
@@ -252,6 +353,7 @@ private fun SearchFilterBar(
     onSelectType: (String?) -> Unit,
     onSelectGenre: (String?) -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val activeType = filters["type"]
     val activeGenre = filters["genre"]
     Row(
@@ -268,8 +370,10 @@ private fun SearchFilterBar(
                 onClick = { onSelectType(value) },
                 label = { Text(label) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = AppColors.Primary,
-                    selectedLabelColor = Color.White
+                    containerColor = t.colors.card,
+                    selectedContainerColor = t.colors.brand,
+                    labelColor = t.colors.foreground,
+                    selectedLabelColor = t.colors.brandForeground
                 )
             )
         }
@@ -280,44 +384,14 @@ private fun SearchFilterBar(
                 onClick = { onSelectGenre(if (selected) null else genre) },
                 label = { Text(genre) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = AppColors.Secondary,
-                    selectedLabelColor = Color.White
+                    containerColor = t.colors.card,
+                    selectedContainerColor = t.colors.brand,
+                    labelColor = t.colors.foreground,
+                    selectedLabelColor = t.colors.brandForeground
                 )
             )
         }
     }
-}
-
-private data class DiscoverySearchSection(
-    val key: String,
-    val title: String,
-    val results: List<SearchDisplayResult>
-)
-
-private fun List<SearchDisplayResult>.toDiscoverySections(): List<DiscoverySearchSection> {
-    val orderedTypes = listOf("movie", "series", "episode", "channel")
-    val grouped = groupBy { it.type.lowercase() }
-    return buildList {
-        orderedTypes.forEach { type ->
-            grouped[type]?.takeIf { it.isNotEmpty() }?.let { results ->
-                add(DiscoverySearchSection(type, type.toSearchSectionTitle(), results))
-            }
-        }
-        grouped
-            .filterKeys { it !in orderedTypes }
-            .toSortedMap()
-            .forEach { (type, results) ->
-                add(DiscoverySearchSection(type, type.toSearchSectionTitle(), results))
-            }
-    }
-}
-
-private fun String.toSearchSectionTitle(): String = when (this) {
-    "movie" -> "Movies"
-    "series" -> "Series"
-    "episode" -> "Episodes"
-    "channel" -> "Live Channels"
-    else -> replaceFirstChar { it.uppercase() }
 }
 
 private fun searchResultLazyKey(
@@ -350,9 +424,11 @@ fun DiscoverySearchResultItem(
     result: SearchDisplayResult,
     onClick: () -> Unit
 ) {
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+    val t = LocalLumenTokens.current
+    LumenCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -363,64 +439,49 @@ fun DiscoverySearchResultItem(
                 contentDescription = "Artwork for ${result.title}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(60.dp, 90.dp)
+                    .size(64.dp, 90.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0x1AFFFFFF))
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = result.title,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AppColors.TextMain,
-                    maxLines = 2,
+                    color = t.colors.foreground,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                
+                val meta = remember(result) {
+                    buildString {
+                        append(result.type.toSearchItemTypeLabel())
+                        if (result.sourceLabel.isNotEmpty()) {
+                            append(" · ")
+                            append(result.sourceLabel)
+                        }
+                    }
+                }
+                
                 Text(
-                    text = result.subtitle ?: result.type.toSearchItemTypeLabel(),
-                    fontSize = 12.sp,
-                    color = AppColors.TextSub,
+                    text = meta,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = t.colors.mutedForeground.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 6.dp)
-                ) {
-                    SearchSourceChip(result.sourceLabel)
-                    if (result.hasPlayableSource) {
-                        SearchSourceChip("Streams ready")
-                    }
-                }
-
                 Text(
-                    text = if (result.hasPlayableSource) "Playable source available" else "Catalog match",
-                    fontSize = 11.sp,
-                    color = AppColors.Secondary,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    text = result.subtitle ?: "",
+                    fontSize = 12.5.sp,
+                    color = t.colors.mutedForeground,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
     }
-}
-
-@Composable
-private fun SearchSourceChip(label: String) {
-    Text(
-        text = label.ifBlank { "local" },
-        color = AppColors.Primary,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color(0x1AFFFFFF))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-    )
 }
