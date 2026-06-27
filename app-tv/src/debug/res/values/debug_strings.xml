@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only auto-setup credentials. These are NEVER included in release
+     builds (this file is in the debug source set only).
+     Fill in your actual dev credentials and add this file to .gitignore
+     to prevent accidental commits. -->
+<resources>
+    <!-- Xtream provider auto-setup -->
+    <string name="debug_xtream_server_url"></string>
+    <string name="debug_xtream_username"></string>
+    <string name="debug_xtream_password"></string>
+
+    <!-- Torrentio extension manifest URL -->
+    <string name="debug_torrentio_url"></string>
+
+    <!-- AIOStreams extension manifest URL -->
+    <string name="debug_aio_url"></string>
+</resources>

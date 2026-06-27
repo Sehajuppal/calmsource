@@ -1,0 +1,586 @@
+package com.example.calmsource.feature.search
+
+import com.example.calmsource.core.model.*
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * Integration tests for Xtream VOD and live channel search integration.
+ *
+ * These tests verify that:
+ * 1. Xtream live channels (imported as IPTVChannel) appear in search results
+ * 2. Xtream VOD items appear as MediaType.MOVIE in search results
+ * 3. Xtream VOD merges correctly with extension results (deduplication)
+ * 4. No duplicate cards appear across Xtream, M3U, and Extension results
+ * 5. Source badge shows "IPTV" (not "Xtream")
+ * 6. Raw stream URLs are hidden from search result labels
+ * 7. Spider-Man merged result is unaffected by Xtream integration
+ *
+ * All tests use mock/fake data — no real providers or Room database required.
+ */
+class XtreamSearchIntegrationTest {
+
+    @Before
+    fun setUp() {
+        // Reset Xtream VOD items before each test
+        VODSearchProviderImpl.xtreamVodItems = emptyList()
+        VODSearchProviderImpl.xtreamSeriesItems = emptyList()
+    }
+
+    @After
+    fun tearDown() {
+        // Clean up
+        VODSearchProviderImpl.xtreamVodItems = emptyList()
+        VODSearchProviderImpl.xtreamSeriesItems = emptyList()
+    }
+
+    // ─── Test 1: Xtream live channel appears in search results ────────
+
+    @Test
+    fun `Xtream live channel appears in search results`() = runBlocking {
+        // Xtream live channels are imported as IPTVChannel objects by the IPTV
+        // import pipeline — they go through IPTVSearchProviderImpl just like M3U
+        // channels. This test verifies that an Xtream-sourced channel is found
+        // when searching by name.
+        val xtreamChannel = Channel(
+            id = "chan-xtream-hbo",
+            name = "HBO Max Xtream",
+            logoUrl = "https://example.com/hbo-logo.png",
+            streamUrl = "", // resolved at playback time
+            category = "Movies"
+        )
+
+        // Build a provider result simulating what IPTVSearchProviderImpl would
+        // return when an Xtream live channel matches.
+        val providerResult = SearchProviderResult(
+            providerId = "prov-iptv-live",
+            providerName = "IPTV Live Channels",
+            query = SearchQuery("HBO"),
+            channels = listOf(xtreamChannel)
+        )
+
+        val prefs = FakeData.defaultPreferences
+        val groups = SearchResultMerger.merge(listOf(providerResult), "HBO", prefs)
+
+        // The channel should appear in the Live Channels group
+        val liveGroup = groups.firstOrNull { it.groupType == SearchGroupType.LIVE_CHANNELS }
+        assertNotNull("Xtream live channel should appear in Live Channels group", liveGroup)
+
+        val result = liveGroup!!.results.first()
+        assertEquals("HBO Max Xtream", result.mediaItem.title)
+        assertTrue(
+            "Xtream live channel should be sourced from IPTV",
+            result.availableFrom.contains(SourceType.IPTV)
+        )
+    }
+
+    // ─── Test 2: Xtream VOD appears in search results as Movie ───────
+
+    @Test
+    fun `Xtream VOD appears in search results as Movie`() = runBlocking {
+        // Inject a fake Xtream VOD item
+        val xtreamVod = XtreamVodItem(
+            id = "xvod-1",
+            name = "The Dark Knight",
+            streamId = "501",
+            categoryId = "cat-action",
+            poster = "https://example.com/dark-knight.jpg",
+            rating = 9.0,
+            containerExtension = "mkv"
+        )
+        VODSearchProviderImpl.xtreamVodItems = listOf(xtreamVod)
+
+        // Use the VODSearchProviderImpl directly
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("Dark Knight"), prefs)
+
+        // Verify the Xtream VOD item appears as a media item
+        val darkKnightItem = result.mediaItems.firstOrNull {
+            it.title == "The Dark Knight"
+        }
+        assertNotNull("Xtream VOD should appear in media items", darkKnightItem)
+        assertEquals(MediaType.MOVIE, darkKnightItem!!.type)
+        assertEquals("https://example.com/dark-knight.jpg", darkKnightItem.posterUrl)
+        assertEquals(9.0, darkKnightItem.rating!!, 0.001)
+
+        // Verify stream source exists with iptv-xtream extension ID
+        val xtreamSource = result.streamSources.firstOrNull {
+            it.extensionId == "iptv-xtream"
+        }
+        assertNotNull("Xtream VOD should have an iptv-xtream source", xtreamSource)
+        assertEquals("xtream-src-501", xtreamSource!!.id)
+    }
+
+    // ─── Test 3: Xtream VOD merges with extension result for same title
+
+    @Test
+    fun `Xtream series appears in search results as Show`() = runBlocking {
+        val xtreamSeries = XtreamSeriesItem(
+            id = "",
+            name = "Mirzapur",
+            seriesId = "90210",
+            categoryId = "cat-indian",
+            poster = "https://example.com/mirzapur.jpg",
+            rating = 8.5
+        )
+        VODSearchProviderImpl.xtreamSeriesItems = listOf(xtreamSeries)
+
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("mirzapur"), prefs)
+
+        val mirzapur = result.mediaItems.firstOrNull { it.title == "Mirzapur" }
+        assertNotNull("Xtream series should appear in media items", mirzapur)
+        assertEquals(MediaType.SHOW, mirzapur!!.type)
+        assertEquals("Xtream Series Catalog", mirzapur.overview)
+        assertEquals("https://example.com/mirzapur.jpg", mirzapur.posterUrl)
+        assertEquals(8.5, mirzapur.rating!!, 0.001)
+
+        val seriesSource = result.streamSources.firstOrNull { it.id == "xtream-series-90210" }
+        assertNotNull("Xtream series should carry a safe IPTV catalog source", seriesSource)
+        assertEquals("iptv-xtream", seriesSource!!.extensionId)
+        assertEquals("Series", seriesSource.resolution)
+        assertTrue("Series catalog source must not expose a raw playback URL", seriesSource.url.isBlank())
+
+        val groups = SearchResultMerger.merge(listOf(result), "mirzapur", prefs)
+        assertTrue(
+            "Xtream series should be grouped as a show",
+            groups.any { group ->
+                group.groupType == SearchGroupType.SHOWS &&
+                    group.results.any { it.mediaItem.title == "Mirzapur" }
+            }
+        )
+    }
+
+    @Test
+    fun `Xtream VOD merges with extension result for same title`() = runBlocking {
+        // Inject Xtream VOD with "Spider-Man: Homecoming"
+        val xtreamVod = XtreamVodItem(
+            id = "xvod-spiderman",
+            name = "Spider-Man: Homecoming",
+            streamId = "777",
+            categoryId = "cat-action",
+            poster = "https://example.com/spiderman.jpg",
+            rating = 7.9
+        )
+        VODSearchProviderImpl.xtreamVodItems = listOf(xtreamVod)
+
+        val prefs = FakeData.defaultPreferences
+        val spiderman = FakeData.movieSpiderman
+
+        // Build two provider results: one from VOD (with Xtream source) and
+        // one from extensions (with extension source)
+        val vodResult = SearchProviderResult(
+            providerId = "prov-vod",
+            providerName = "VOD",
+            query = SearchQuery("Spider-Man"),
+            mediaItems = listOf(spiderman),
+            streamSources = listOf(
+                FakeData.spidermanSources[0], // IPTV source
+                StreamSource(
+                    id = "xtream-src-777",
+                    name = "Spider-Man: Homecoming",
+                    url = "",
+                    extensionId = "iptv-xtream",
+                    resolution = "1080p",
+                    language = "Unknown"
+                )
+            )
+        )
+        val extResult = SearchProviderResult(
+            providerId = "prov-extensions",
+            providerName = "Extensions",
+            query = SearchQuery("Spider-Man"),
+            mediaItems = listOf(spiderman),
+            streamSources = listOf(FakeData.spidermanSources[2]) // Extension source
+        )
+
+        val groups = SearchResultMerger.merge(
+            listOf(vodResult, extResult), "Spider-Man", prefs
+        )
+
+        // Find the movies group and locate Spider-Man
+        val moviesGroup = groups.firstOrNull { it.groupType == SearchGroupType.MOVIES }
+        assertNotNull("Movies group should exist", moviesGroup)
+
+        // Spider-Man should appear as one merged card (not duplicated)
+        val spidermanCards = moviesGroup!!.results.filter {
+            it.mediaItem.title.contains("Spider-Man", ignoreCase = true)
+        }
+        assertEquals(
+            "Spider-Man should be exactly one merged card",
+            1, spidermanCards.size
+        )
+
+        val card = spidermanCards.first()
+        // Should have multiple watch options from both IPTV and Extension
+        assertTrue(
+            "Merged card should have IPTV source",
+            card.availableFrom.contains(SourceType.IPTV)
+        )
+        assertTrue(
+            "Merged card should have Extension source",
+            card.availableFrom.contains(SourceType.EXTENSION)
+        )
+        assertTrue(
+            "Should have at least 2 watch options after merge",
+            card.watchOptions.size >= 2
+        )
+    }
+
+    // ─── Test 4: No duplicate cards for Xtream + M3U + Extension ─────
+
+    @Test
+    fun `no duplicate cards for Xtream plus M3U plus Extension results`() = runBlocking {
+        val prefs = FakeData.defaultPreferences
+        val spiderman = FakeData.movieSpiderman
+
+        // Provider 1: M3U IPTV VOD
+        val m3uResult = SearchProviderResult(
+            providerId = "prov-vod",
+            providerName = "VOD",
+            query = SearchQuery("Spider-Man"),
+            mediaItems = listOf(spiderman),
+            streamSources = listOf(FakeData.spidermanSources[0]) // IPTV source
+        )
+
+        // Provider 2: Xtream VOD (same media item, different source)
+        val xtreamResult = SearchProviderResult(
+            providerId = "prov-vod-xtream",
+            providerName = "Xtream VOD",
+            query = SearchQuery("Spider-Man"),
+            mediaItems = listOf(spiderman),
+            streamSources = listOf(
+                StreamSource(
+                    id = "xtream-src-999",
+                    name = "Spider-Man: Homecoming",
+                    url = "",
+                    extensionId = "iptv-xtream",
+                    resolution = "1080p",
+                    language = "Unknown"
+                )
+            )
+        )
+
+        // Provider 3: Extension
+        val extResult = SearchProviderResult(
+            providerId = "prov-extensions",
+            providerName = "Extensions",
+            query = SearchQuery("Spider-Man"),
+            mediaItems = listOf(spiderman),
+            streamSources = listOf(FakeData.spidermanSources[2]) // Extension source
+        )
+
+        val groups = SearchResultMerger.merge(
+            listOf(m3uResult, xtreamResult, extResult),
+            "Spider-Man", prefs
+        )
+
+        // Count Spider-Man across ALL groups — should appear once per group
+        // but always reference the same media item (deduplication by ID)
+        val allSpidermanResults = groups.flatMap { it.results }.filter {
+            it.mediaItem.id == spiderman.id
+        }.distinctBy { it.mediaItem.id }
+
+        assertEquals(
+            "Spider-Man should appear as exactly 1 unique card (deduplicated)",
+            1, allSpidermanResults.size
+        )
+
+        // The single card should merge all source types
+        val card = allSpidermanResults.first()
+        assertTrue(card.availableFrom.contains(SourceType.IPTV))
+        assertTrue(card.availableFrom.contains(SourceType.EXTENSION))
+    }
+
+    // ─── Test 5: Xtream source badge shows as IPTV ───────────────────
+
+    @Test
+    fun `Xtream source badge shows as IPTV`() = runBlocking {
+        val xtreamVod = XtreamVodItem(
+            id = "xvod-badge",
+            name = "Avengers: Endgame",
+            streamId = "600",
+            categoryId = "cat-action"
+        )
+        VODSearchProviderImpl.xtreamVodItems = listOf(xtreamVod)
+
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("Avengers"), prefs)
+
+        // Verify the source has "iptv-xtream" extensionId
+        val xtreamSource = result.streamSources.firstOrNull {
+            it.id == "xtream-src-600"
+        }
+        assertNotNull("Xtream source should exist", xtreamSource)
+        assertTrue(
+            "Xtream extensionId must start with 'iptv-' for IPTV badge",
+            xtreamSource!!.extensionId.startsWith("iptv-")
+        )
+
+        // When merged, verify SourceType is IPTV (not a custom type)
+        val mediaItem = MediaItem(
+            id = "xtream-vod-600",
+            title = "Avengers: Endgame",
+            type = MediaType.MOVIE,
+            overview = "Xtream VOD"
+        )
+        val providerResult = SearchProviderResult(
+            providerId = "prov-vod",
+            providerName = "VOD",
+            query = SearchQuery("Avengers"),
+            mediaItems = listOf(mediaItem),
+            streamSources = listOf(xtreamSource)
+        )
+
+        val groups = SearchResultMerger.merge(listOf(providerResult), "Avengers", prefs)
+        val allResults = groups.flatMap { it.results }
+        val avengersResult = allResults.firstOrNull {
+            it.mediaItem.title.contains("Avengers")
+        }
+        assertNotNull(avengersResult)
+        assertTrue(
+            "Source badge should show IPTV for Xtream items",
+            avengersResult!!.availableFrom.contains(SourceType.IPTV)
+        )
+        // Verify it does NOT show as EXTENSION or DEBRID
+        assertFalse(
+            "Should not show as EXTENSION",
+            avengersResult.availableFrom.contains(SourceType.EXTENSION)
+        )
+        assertFalse(
+            "Should not show as DEBRID",
+            avengersResult.availableFrom.contains(SourceType.DEBRID)
+        )
+    }
+
+    // ─── Test 6: Raw stream URL hidden in search results ─────────────
+
+    @Test
+    fun `raw stream URL hidden in search results`() = runBlocking {
+        val xtreamVod = XtreamVodItem(
+            id = "xvod-url",
+            name = "Hidden URL Movie",
+            streamId = "800",
+            categoryId = "cat-drama"
+        )
+        VODSearchProviderImpl.xtreamVodItems = listOf(xtreamVod)
+
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("Hidden URL"), prefs)
+
+        // Verify the stream source URL is blank (not exposed)
+        val xtreamSource = result.streamSources.firstOrNull {
+            it.id == "xtream-src-800"
+        }
+        assertNotNull("Source should exist", xtreamSource)
+        assertTrue(
+            "Xtream stream URL should be blank (resolved at playback)",
+            xtreamSource!!.url.isEmpty()
+        )
+
+        // Verify the source name does not contain URLs
+        assertFalse(
+            "Source name should not contain http://",
+            xtreamSource.name.contains("http://")
+        )
+        assertFalse(
+            "Source name should not contain https://",
+            xtreamSource.name.contains("https://")
+        )
+
+        // Also verify that the built WatchOption labels from the merger don't
+        // expose raw URLs
+        val mediaItem = MediaItem(
+            id = "xtream-vod-800",
+            title = "Hidden URL Movie",
+            type = MediaType.MOVIE
+        )
+        val providerResult = SearchProviderResult(
+            providerId = "prov-vod",
+            providerName = "VOD",
+            query = SearchQuery("Hidden URL"),
+            mediaItems = listOf(mediaItem),
+            streamSources = listOf(xtreamSource)
+        )
+
+        val groups = SearchResultMerger.merge(listOf(providerResult), "Hidden URL", prefs)
+        val allResults = groups.flatMap { it.results }
+        allResults.forEach { resultItem ->
+            resultItem.watchOptions.forEach { option ->
+                assertFalse(
+                    "WatchOption title must not contain http:// for ${option.id}",
+                    option.title.contains("http://")
+                )
+                assertFalse(
+                    "WatchOption title must not contain https:// for ${option.id}",
+                    option.title.contains("https://")
+                )
+                assertFalse(
+                    "WatchOption languageLabel must not contain http:// for ${option.id}",
+                    option.languageLabel.contains("http://")
+                )
+            }
+        }
+    }
+
+    // ─── Test 7: Spider-Man merged result still works with Xtream ─────
+
+    @Test
+    fun `Spider-Man merged result still works with Xtream integration`() = runBlocking {
+        // Inject Xtream VOD item for Spider-Man to make sure it doesn't
+        // break the existing Spider-Man merge scenario
+        VODSearchProviderImpl.xtreamVodItems = listOf(
+            XtreamVodItem(
+                id = "xvod-spiderman-xtream",
+                name = "Spider-Man: Homecoming",
+                streamId = "888",
+                categoryId = "cat-marvel",
+                poster = "https://example.com/sm.jpg",
+                rating = 7.9
+            )
+        )
+
+        val spiderman = FakeData.movieSpiderman
+        val sources = FakeData.spidermanSources
+        val prefs = FakeData.defaultPreferences
+
+        // Build the standard Spider-Man scenario with all provider types
+        val providerResults = listOf(
+            SearchProviderResult(
+                providerId = "prov-vod",
+                providerName = "VOD",
+                query = SearchQuery("Spider-Man Homecoming"),
+                mediaItems = listOf(spiderman),
+                streamSources = listOf(
+                    sources[0], // IPTV source
+                    StreamSource(
+                        id = "xtream-src-888",
+                        name = "Spider-Man: Homecoming",
+                        url = "",
+                        extensionId = "iptv-xtream",
+                        resolution = "1080p",
+                        language = "Unknown"
+                    )
+                )
+            ),
+            SearchProviderResult(
+                providerId = "prov-extensions",
+                providerName = "Extensions",
+                query = SearchQuery("Spider-Man Homecoming"),
+                mediaItems = listOf(spiderman),
+                streamSources = listOf(sources[2]) // Extension source
+            ),
+            SearchProviderResult(
+                providerId = "prov-debrid",
+                providerName = "Debrid",
+                query = SearchQuery("Spider-Man Homecoming"),
+                mediaItems = listOf(spiderman),
+                streamSources = listOf(sources[1]) // Debrid source
+            )
+        )
+
+        val mergedGroups = SearchResultMerger.merge(
+            providerResults, "Spider-Man Homecoming", prefs
+        )
+
+        // Find movies group
+        val moviesGroup = mergedGroups.firstOrNull { it.groupType == SearchGroupType.MOVIES }
+        assertNotNull("Movies group should exist", moviesGroup)
+
+        val result = moviesGroup!!.results.first()
+        assertEquals("Spider-Man: Homecoming", result.mediaItem.title)
+
+        // All three source types must be present
+        assertTrue(
+            "IPTV source must be present",
+            result.availableFrom.contains(SourceType.IPTV)
+        )
+        assertTrue(
+            "Extension source must be present",
+            result.availableFrom.contains(SourceType.EXTENSION)
+        )
+        assertTrue(
+            "Debrid source must be present",
+            result.availableFrom.contains(SourceType.DEBRID)
+        )
+
+        // Best match option must exist
+        assertNotNull("Best match option should exist", result.bestMatchOption)
+
+        // Multiple watch options should be retained
+        assertTrue(
+            "Should have multiple watch options",
+            result.watchOptions.size >= 3
+        )
+
+        // Language variety should be maintained
+        assertTrue(
+            "Should contain Hindi language option",
+            result.languages.contains("Hindi")
+        )
+        assertTrue(
+            "Should contain English language option",
+            result.languages.contains("English")
+        )
+
+        // Dual audio flag should still be true (from IPTV source)
+        assertTrue("Dual audio should still be flagged", result.isDualAudio)
+    }
+
+    // ─── Additional edge case tests ──────────────────────────────────
+
+    @Test
+    fun `empty Xtream VOD list does not affect existing search`() = runBlocking {
+        // With no Xtream items, existing search behavior should be unchanged
+        VODSearchProviderImpl.xtreamVodItems = emptyList()
+
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("Spider-Man"), prefs)
+
+        // Should still find Spider-Man from FakeData
+        val spidermanItem = result.mediaItems.firstOrNull {
+            it.title.contains("Spider-Man")
+        }
+        assertNotNull("Spider-Man should still be found from FakeData", spidermanItem)
+
+        // No xtream sources should exist
+        val xtreamSources = result.streamSources.filter {
+            it.extensionId == "iptv-xtream"
+        }
+        assertTrue("No Xtream sources with empty list", xtreamSources.isEmpty())
+    }
+
+    @Test
+    fun `Xtream VOD with same title as FakeData movie does not create duplicate media item`() = runBlocking {
+        // If an Xtream VOD has the same title as an existing FakeData movie,
+        // the VODSearchProviderImpl should not create a duplicate MediaItem
+        val xtreamVod = XtreamVodItem(
+            id = "xvod-inception",
+            name = "Inception",
+            streamId = "999",
+            categoryId = "cat-scifi"
+        )
+        VODSearchProviderImpl.xtreamVodItems = listOf(xtreamVod)
+
+        val prefs = FakeData.defaultPreferences
+        val result = VODSearchProviderImpl().search(SearchQuery("Inception"), prefs)
+
+        // Count Inception media items — should be exactly 1 (not duplicated)
+        val inceptionItems = result.mediaItems.filter {
+            it.title.normalizeForSearch() == "inception"
+        }
+        assertEquals(
+            "Inception should appear once even with Xtream duplicate",
+            1, inceptionItems.size
+        )
+
+        // But the Xtream source should still be added
+        val xtreamSource = result.streamSources.firstOrNull {
+            it.id == "xtream-src-999"
+        }
+        assertNotNull("Xtream source should still be added", xtreamSource)
+    }
+}

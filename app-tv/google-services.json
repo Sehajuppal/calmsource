@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "700882590610",
+    "project_id": "test-8ea428c2",
+    "storage_bucket": "test-8ea428c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700882590610:android:14f69ca3ed82f53240ff4b",
+        "android_client_info": {
+          "package_name": "com.example.calmsource"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeTvK08ikAe9Fb2IVZPeDLd78MZQBRCbU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700882590610:android:46d8484dc91fddf640ff4b",
+        "android_client_info": {
+          "package_name": "com.example.calmsource.tv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeTvK08ikAe9Fb2IVZPeDLd78MZQBRCbU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

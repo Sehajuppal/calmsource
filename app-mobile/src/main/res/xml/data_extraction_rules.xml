@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="calmsource_db" />
+        <exclude domain="database" path="calmsource_db-wal" />
+        <exclude domain="database" path="calmsource_db-shm" />
+        <exclude domain="database" path="discovery_engine.db" />
+        <exclude domain="database" path="discovery_engine.db-wal" />
+        <exclude domain="database" path="discovery_engine.db-shm" />
+        <exclude domain="sharedpref" path="iptv_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="debrid_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="debug_auto_setup.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="calmsource_db" />
+        <exclude domain="database" path="calmsource_db-wal" />
+        <exclude domain="database" path="calmsource_db-shm" />
+        <exclude domain="database" path="discovery_engine.db" />
+        <exclude domain="database" path="discovery_engine.db-wal" />
+        <exclude domain="database" path="discovery_engine.db-shm" />
+        <exclude domain="sharedpref" path="iptv_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="debrid_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="debug_auto_setup.xml" />
+    </device-transfer>
+</data-extraction-rules>

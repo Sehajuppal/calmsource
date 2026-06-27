@@ -1,0 +1,86 @@
+*.iml
+.gradle
+.gradle-worker/
+.gradle_challenger/
+.gradle_user_home/
+/local.properties
+/.idea/
+.DS_Store
+build/
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# UI dump artifacts
+mobile*.xml
+tv*.xml
+mobile_final_*.xml
+
+# Build outputs
+*.apk
+*.aab
+*.hprof
+
+# Log/output files from builds
+build-error.txt
+test-output.txt
+lint-output.txt
+iptv-security-test.txt
+iptv-full-test.txt
+full-test-output.txt
+*.log
+
+# AI/Agent dirs
+.agents/
+...agents/
+.gemini/
+.claude/
+.commandcode/
+orchestrator/
+workspace/
+scratch/
+
+# Node
+node_modules/
+calmsource-backend/
+
+# JDK bundled
+jdk17/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Firebase logs
+firetv-logs/
+
+# Kotlin metadata
+.kotlin/
+
+# Astro site (if any)
+site/
+/public/
+/src/
+
+# Root-level temp/log/script files
+/*.txt
+/*.ps1
+/*.py
+/*.md
+/*.mjs
+/*.json
+
+# Keep essential root files
+!/.gitignore
+!/AGENTS.md
+!/build.gradle.kts
+!/settings.gradle.kts
+!/gradle.properties
+!/gradlew
+!/gradlew.bat
