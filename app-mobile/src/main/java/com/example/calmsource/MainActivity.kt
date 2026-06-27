@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 private fun saveMobileScreen(screen: MobileScreen): Bundle {
     return Bundle().apply {
         when (screen) {
+            is MobileScreen.Profiles -> putString("type", "Profiles")
             is MobileScreen.Home -> putString("type", "Home")
             is MobileScreen.LiveTv -> putString("type", "LiveTv")
             is MobileScreen.Library -> putString("type", "Library")
@@ -61,6 +62,7 @@ private fun resumeDeepLinkFor(request: com.example.calmsource.core.model.Playbac
 
 private fun restoreMobileScreen(bundle: Bundle): MobileScreen? {
     return when (val type = bundle.getString("type")) {
+        "Profiles" -> MobileScreen.Profiles
         "Home" -> MobileScreen.Home
         "LiveTv" -> MobileScreen.LiveTv
         "Library" -> MobileScreen.Library

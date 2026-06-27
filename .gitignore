@@ -90,3 +90,13 @@ $null
 *.bak
 local_db.db
 dummy.m3u
+
+# Never commit imported Lovable web exports into this Android repo
+lovable-*/
+/web/
+/mobile/
+*.tsx
+*.ts
+bun.lock
+pnpm-lock.yaml
+yarn.lock

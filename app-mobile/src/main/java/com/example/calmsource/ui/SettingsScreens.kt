@@ -56,7 +56,7 @@ private val SettingsSubScreenSaver = Saver<SettingsSubScreen?, String>(
 )
 
 @Composable
-fun SettingsScreens() {
+fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     var currentSubScreen by rememberSaveable(stateSaver = SettingsSubScreenSaver) {
         mutableStateOf<SettingsSubScreen?>(null)
     }
@@ -67,7 +67,7 @@ fun SettingsScreens() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (currentSubScreen == null) {
-            SettingsRootScreen(onNavigate = { currentSubScreen = it })
+            SettingsRootScreen(onNavigate = { currentSubScreen = it }, onNavigateToProfiles = onNavigateToProfiles)
         } else {
             when (currentSubScreen) {
                 SettingsSubScreen.IPTV -> IptvManagerScreen(onBack = { currentSubScreen = null })
@@ -88,7 +88,7 @@ fun SettingsScreens() {
 }
 
 @Composable
-fun SettingsRootScreen(onNavigate: (SettingsSubScreen) -> Unit) {
+fun SettingsRootScreen(onNavigate: (SettingsSubScreen) -> Unit, onNavigateToProfiles: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -139,6 +139,7 @@ fun SettingsRootScreen(onNavigate: (SettingsSubScreen) -> Unit) {
         }
 
         SettingsSection(title = "Preferences") {
+            SettingsRow(title = "Profiles", subtitle = "Switch or manage your profiles", onClick = onNavigateToProfiles)
             SettingsRow(title = "Source Priorities & Language", subtitle = "Set preferred audio language, resolution, debrid filters", onClick = { onNavigate(SettingsSubScreen.PRIORITIES) })
             SettingsRow(title = "Discovery Providers", subtitle = "Control enrichment sources, cache, privacy, and ranking signals", onClick = { onNavigate(SettingsSubScreen.DISCOVERY_PROVIDERS) })
             SettingsRow(title = "Search Configurations", subtitle = "Tune indexing engines and search history thresholds", onClick = { onNavigate(SettingsSubScreen.SEARCH) })

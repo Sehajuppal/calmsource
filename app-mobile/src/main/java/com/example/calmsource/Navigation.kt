@@ -48,6 +48,7 @@ import com.example.calmsource.core.model.CalmSourceDeepLink
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.ui.AppColors
 import com.example.calmsource.ui.DetailsScreen
+import com.example.calmsource.ui.ProfilesScreen
 import com.example.calmsource.ui.HomeScreen
 import com.example.calmsource.ui.LibraryScreen
 import com.example.calmsource.ui.LiveTvScreen
@@ -60,6 +61,7 @@ import com.example.calmsource.core.model.userLabel
 import kotlinx.coroutines.launch
 
 sealed interface MobileScreen {
+    data object Profiles : MobileScreen
     data object Home : MobileScreen
     data object LiveTv : MobileScreen
     data object Library : MobileScreen
@@ -251,6 +253,9 @@ fun MainNavigation(
                     .padding(innerPadding)
             ) {
                 when (val screen = currentScreen) {
+                    MobileScreen.Profiles -> ProfilesScreen(
+                        onProfileSelected = { currentScreen = MobileScreen.Home }
+                    )
                     MobileScreen.Home -> HomeScreen(
                         onMediaClick = { currentScreen = MobileScreen.Details(it) },
                         onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Home) }
@@ -307,7 +312,7 @@ fun MainNavigation(
                         onMediaClick = { currentScreen = MobileScreen.Details(it) },
                         onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Search) }
                     )
-                    MobileScreen.Settings -> SettingsScreens()
+                    MobileScreen.Settings -> SettingsScreens(onNavigateToProfiles = { currentScreen = MobileScreen.Profiles })
                     is MobileScreen.Details -> DetailsScreen(
                         mediaItem = screen.mediaItem,
                         startPositionMs = screen.startPositionMs,
