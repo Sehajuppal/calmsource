@@ -17,6 +17,7 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "1.1"
+        buildConfigField("String", "RELAY_BASE_URL", "\"\"")
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }
@@ -53,7 +54,7 @@ android {
     buildFeatures {
       compose = true
       aidl = false
-      buildConfig = false
+      buildConfig = true
       shaders = false
     }
 
@@ -138,6 +139,7 @@ dependencies {
   implementation(project(":core:network"))
   implementation(project(":core:parser"))
   implementation(project(":core:playback"))
+  implementation(project(":core:ui"))
   implementation(project(":feature:iptv"))
   implementation(project(":feature:extensions"))
   implementation(project(":feature:debrid"))

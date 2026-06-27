@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import com.example.calmsource.core.ui.theme.LumenTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -187,7 +188,8 @@ class TvMainActivity : ComponentActivity() {
             _pendingDeepLink.value = intent?.dataString
         }
         setContent {
-            val pendingDeepLink by _pendingDeepLink.collectAsState()
+            LumenTheme(isTv = true) {
+                val pendingDeepLink by _pendingDeepLink.collectAsState()
             val appContext = LocalContext.current.applicationContext
             LaunchedEffect(Unit) {
                 val isDebuggable = appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -631,6 +633,7 @@ class TvMainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
             }
         }

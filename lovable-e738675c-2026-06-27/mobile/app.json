@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "CalmSource",
+    "slug": "calmsource",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": {
+      "package": "app.lumen.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#05060A"
+      },
+      "intentFilters": [
+        {
+          "action": "MAIN",
+          "category": ["LAUNCHER", "LEANBACK_LAUNCHER"]
+        }
+      ],
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+    },
+    "ios": {
+      "bundleIdentifier": "app.lumen.mobile",
+      "supportsTablet": true
+    },
+    "splash": {
+      "backgroundColor": "#05060A",
+      "resizeMode": "contain"
+    }
+  }
+}

@@ -3,12 +3,11 @@
     <!-- Block cleartext by default; only allow for specific known hosts -->
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
-        <!-- Relay server (until HTTPS is configured) -->
-        <domain includeSubdomains="true">167.233.92.78</domain>
         <!-- Android emulator host -->
         <domain includeSubdomains="true">10.0.2.2</domain>
-        <!-- Local dev -->
+        <!-- Local dev / local network -->
         <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">local</domain>
         <!-- Xtream IPTV providers (many use HTTP) -->
         <domain includeSubdomains="true">wexart.xyz</domain>
     </domain-config>

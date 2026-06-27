@@ -132,7 +132,9 @@ fun SettingsRootScreen(onNavigate: (SettingsSubScreen) -> Unit) {
             SettingsRow(title = "Stremio Extensions", subtitle = "Add Torrentio, AIOStreams, or any manifest URL", onClick = { onNavigate(SettingsSubScreen.EXTENSIONS) })
             SettingsRow(title = "IPTV Playlists & Services", subtitle = "Add, edit, or configure M3U/XMLTV connections", onClick = { onNavigate(SettingsSubScreen.IPTV) })
             SettingsRow(title = "Debrid Accounts", subtitle = "Optional cached torrent accounts for Stremio addons", onClick = { onNavigate(SettingsSubScreen.DEBRID) })
-            SettingsRow(title = "Ecosystem Sync", subtitle = "Sync credentials and extensions with TV", onClick = { onNavigate(SettingsSubScreen.ECOSYSTEM_SYNC) })
+            if (com.example.calmsource.BuildConfig.RELAY_BASE_URL.isNotBlank()) {
+                SettingsRow(title = "Ecosystem Sync", subtitle = "Sync credentials and extensions with TV", onClick = { onNavigate(SettingsSubScreen.ECOSYSTEM_SYNC) })
+            }
             SettingsRow(title = "Cloud Account (Log In / Register)", subtitle = "Sync settings, extensions, and playlists to the cloud", onClick = { onNavigate(SettingsSubScreen.CLOUD_SYNC) })
         }
 
@@ -2128,7 +2130,9 @@ fun MobileXtreamProviderItem(
 
 suspend fun postSyncPayload(pin: String, payload: String): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
     runCatching {
-        val url = java.net.URL(com.example.calmsource.core.network.BuildConfig.RELAY_API_URL)
+        val baseUrl = com.example.calmsource.BuildConfig.RELAY_BASE_URL
+        val fullUrl = if (baseUrl.endsWith("/")) "${baseUrl}api/relay" else "$baseUrl/api/relay"
+        val url = java.net.URL(fullUrl)
         val conn = url.openConnection() as java.net.HttpURLConnection
         conn.requestMethod = "POST"
         conn.doOutput = true
