@@ -31,6 +31,9 @@ import com.example.calmsource.feature.iptv.EpgNowNext
 import com.example.calmsource.feature.iptv.LiveGuideUiState
 import com.example.calmsource.feature.iptv.LiveGuideViewModel
 import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 
@@ -142,7 +145,11 @@ fun TvLiveTvScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No channels in this category", color = t.colors.mutedForeground, fontSize = 16.sp)
+                    LumenEmptyState(
+                        title = "No channels in this category",
+                        body = "Connect provider playlists to access content.",
+                        icon = androidx.compose.material.icons.Icons.Default.PlayArrow
+                    )
                 }
             } else {
                 LazyVerticalGrid(

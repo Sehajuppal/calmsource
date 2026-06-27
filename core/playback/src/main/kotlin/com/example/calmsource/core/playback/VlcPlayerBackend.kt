@@ -375,8 +375,10 @@ internal class VlcPlayerBackend : PlayerBackend {
                     arrayOf(eventListenerClass)
                 ) { _, method, argsArr ->
                     if (method.name == "onEvent" && argsArr != null && argsArr.size == 1) {
-                        if (prepareGeneration == generation) {
-                            handleVlcEventReflective(argsArr[0], eventClass, source)
+                        synchronized(this@VlcPlayerBackend) {
+                            if (prepareGeneration == generation && mediaPlayer != null) {
+                                handleVlcEventReflective(argsArr[0], eventClass, source)
+                            }
                         }
                     }
                     null

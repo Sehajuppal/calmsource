@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.calmsource.core.database.entity.ProfileEntity
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
@@ -50,7 +51,7 @@ fun ProfilesScreen(
     viewModel: ProfileSelectionViewModel = hiltViewModel()
 ) {
     val t = LocalLumenTokens.current
-    val profiles by viewModel.profiles.collectAsState()
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var editingProfile by remember { mutableStateOf<ProfileEntity?>(null) }

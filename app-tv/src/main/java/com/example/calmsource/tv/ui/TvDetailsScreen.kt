@@ -71,6 +71,8 @@ fun TvDetailsScreen(
     
     var stremioMeta by remember(mediaItem.id) { mutableStateOf<com.example.calmsource.core.model.StremioMeta?>(null) }
     var isLoadingMeta by remember(mediaItem.id) { mutableStateOf(false) }
+    var metadataError by remember(mediaItem.id) { mutableStateOf<String?>(null) }
+    val retryTrigger = remember { mutableStateOf(0) }
     var similarItems by remember(mediaItem.id) {
         mutableStateOf<List<com.example.calmsource.core.discoveryengine.models.RecommendationItem>>(emptyList())
     }
@@ -88,12 +90,15 @@ fun TvDetailsScreen(
         onDispose { DiscoveryEngine.cancelPendingForMedia(mediaItem.id) }
     }
 
-    LaunchedEffect(mediaItem.id, extensionQueryKey) {
+    LaunchedEffect(mediaItem.id, extensionQueryKey, retryTrigger.value) {
         isLoadingMeta = true
+        metadataError = null
         try {
             val metadata = ExtensionRepository.refreshMediaMetadata(mediaItem, activeExtensions)
             currentMediaItem = metadata.mediaItem
             stremioMeta = metadata.primaryMeta
+        } catch (e: Exception) {
+            metadataError = e.message ?: "Failed to load metadata"
         } finally {
             isLoadingMeta = false
         }
@@ -499,33 +504,68 @@ fun TvDetailsScreen(
             .fillMaxSize()
             .background(t.colors.background)
     ) {
-        // TV static backdrop background with vertical gradient scrim
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                onSuccess = { state ->
-                    val drawable = state.result.drawable
-                    if (drawable is android.graphics.drawable.BitmapDrawable) {
-                        val bitmap = drawable.bitmap
-                        Palette.from(bitmap).generate { palette ->
-                            val dominantColor = palette?.getDominantColor(0xFF000000.toInt()) ?: 0xFF000000.toInt()
-                            val r = android.graphics.Color.red(dominantColor) / 255f
-                            val g = android.graphics.Color.green(dominantColor) / 255f
-                            val b = android.graphics.Color.blue(dominantColor) / 255f
-                            backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
-                        }
-                    }
-                }
-            )
+        if (metadataError != null && stremioMeta == null) {
             Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                LumenErrorState(
+                    title = "Failed to load details",
+                    body = metadataError ?: "Unknown error",
+                    onRetry = { retryTrigger.value++ }
+                )
+            }
+        } else if (isLoadingMeta && stremioMeta == null) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(t.scrimGradient())
-            )
-        }
+                    .padding(48.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                LumenSkeleton(modifier = Modifier.width(150.dp).height(36.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(32.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    LumenSkeleton(modifier = Modifier.size(180.dp, 270.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(48.dp))
+                        LumenSkeleton(modifier = Modifier.width(200.dp).height(24.dp))
+                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(100.dp))
+                    }
+                }
+            }
+        } else {
+            // TV static backdrop background with vertical gradient scrim
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { state ->
+                        val drawable = state.result.drawable
+                        if (drawable is android.graphics.drawable.BitmapDrawable) {
+                            val bitmap = drawable.bitmap
+                            Palette.from(bitmap).generate { palette ->
+                                val dominantColor = palette?.getDominantColor(0xFF000000.toInt()) ?: 0xFF000000.toInt()
+                                val r = android.graphics.Color.red(dominantColor) / 255f
+                                val g = android.graphics.Color.green(dominantColor) / 255f
+                                val b = android.graphics.Color.blue(dominantColor) / 255f
+                                backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                            }
+                        }
+                    }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(t.scrimGradient())
+                )
+            }
 
         LazyColumn(
             modifier = Modifier
@@ -948,6 +988,7 @@ fun TvDetailsScreen(
             }
         }
     }
+}
 }
 
 @Composable

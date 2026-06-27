@@ -13,31 +13,45 @@ internal class CustomLoadErrorHandlingPolicy : DefaultLoadErrorHandlingPolicy() 
 
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val exception = loadErrorInfo.exception
-        val isKtorResponseException = exception.javaClass.name == "io.ktor.client.plugins.ResponseException"
-        val statusCode = when {
-            exception is HttpDataSource.InvalidResponseCodeException -> exception.responseCode
-            isKtorResponseException -> {
-                runCatching {
-                    val getResponse = exception.javaClass.getMethod("getResponse")
-                    val response = getResponse.invoke(exception)
-                    val getStatus = response.javaClass.getMethod("getStatus")
-                    val status = getStatus.invoke(response)
-                    val getValue = status.javaClass.getMethod("getValue")
-                    getValue.invoke(status) as Int
-                }.getOrDefault(-1)
-            }
-            else -> {
-                val cause = exception.cause
-                when (cause) {
-                    is HttpDataSource.InvalidResponseCodeException -> cause.responseCode
-                    is ResponseException -> cause.response.status.value
-                    else -> -1
-                }
-            }
-        }
+        val statusCode = extractHttpStatusCode(exception)
         if (statusCode in setOf(400, 401, 403, 404, 405, 410, 451, 500)) {
             return C.TIME_UNSET
         }
         return super.getRetryDelayMsFor(loadErrorInfo)
+    }
+
+    private fun extractHttpStatusCode(exception: java.io.IOException): Int {
+        if (exception is HttpDataSource.InvalidResponseCodeException) {
+            return exception.responseCode
+        }
+        val innerCause = exception.cause
+        if (innerCause is HttpDataSource.InvalidResponseCodeException) {
+            return innerCause.responseCode
+        }
+        if (innerCause is ResponseException) {
+            return innerCause.response.status.value
+        }
+        if (exception.javaClass.name == "io.ktor.client.plugins.ResponseException") {
+            val code = extractKtorStatusCodeReflective(exception)
+            if (code != null) return code
+        }
+        if (innerCause != null && innerCause.javaClass.name == "io.ktor.client.plugins.ResponseException") {
+            val code = extractKtorStatusCodeReflective(innerCause)
+            if (code != null) return code
+        }
+        return -1
+    }
+
+    private fun extractKtorStatusCodeReflective(exception: Throwable): Int? {
+        return try {
+            val responseMethod = exception.javaClass.getMethod("getResponse")
+            val response = responseMethod.invoke(exception)
+            val statusMethod = response.javaClass.getMethod("getStatus")
+            val status = statusMethod.invoke(response)
+            val valueMethod = status.javaClass.getMethod("getValue")
+            valueMethod.invoke(status) as? Int
+        } catch (_: Exception) {
+            null
+        }
     }
 }

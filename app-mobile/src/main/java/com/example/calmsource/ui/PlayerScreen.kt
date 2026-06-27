@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -147,6 +149,7 @@ fun PlayerScreen(
     val showMultipleAudio = remember(audioTracks) { audioTracks.size > 1 }
     val showSubtitlePicker = remember(subtitleTracks) { subtitleTracks.isNotEmpty() }
     var userInteractionTrigger by remember { mutableIntStateOf(0) }
+    val retryTrigger = remember { mutableIntStateOf(0) }
     
     // Double tap skip feedback state
     var showDoubleTapLeftFeedback by remember { mutableStateOf(false) }
@@ -222,7 +225,7 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(currentRequest, lifecycleOwner) {
+    LaunchedEffect(currentRequest, lifecycleOwner, retryTrigger.intValue) {
         com.example.calmsource.feature.iptv.IPTVRepository.cancelBackgroundWork()
         playbackManager.clearError()
         com.example.calmsource.feature.iptv.IPTVRepository.clearPlaybackResolutionError()
@@ -354,7 +357,9 @@ fun PlayerScreen(
                         val r = android.graphics.Color.red(dominantColor) / 255f
                         val g = android.graphics.Color.green(dominantColor) / 255f
                         val b = android.graphics.Color.blue(dominantColor) / 255f
-                        playButtonLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                        Handler(Looper.getMainLooper()).post {
+                            playButtonLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+                        }
                     }
                 }
             }
@@ -577,24 +582,14 @@ fun PlayerScreen(
                     playbackManager.onUserSelectChooseAnother()
                     onBack()
                 },
+                onRetry = { retryTrigger.intValue++ },
                 modifier = Modifier.align(Alignment.Center)
             )
         } else if (!isTransitioning && (uiState.playerState == PlayerState.BUFFERING || uiState.playerState == PlayerState.PREPARING)) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 28.dp, vertical = 22.dp)
-            ) {
-                CircularProgressIndicator(color = t.colors.brand)
-                Text(
-                    text = if (uiState.playerState == PlayerState.PREPARING) "Loading stream..." else "Buffering...",
-                    color = t.colors.foreground,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            LumenBufferingOverlay(
+                isBuffering = true,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
 
         // Controls overlay
@@ -1097,6 +1092,7 @@ fun ErrorOverlay(
     isTerminal: Boolean = false,
     onTryNext: (() -> Unit)?,
     onChooseAnother: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val t = LocalLumenTokens.current
@@ -1110,21 +1106,6 @@ fun ErrorOverlay(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
-            Icon(
-                imageVector = if (isTerminal) Icons.Default.Block else Icons.Default.Warning,
-                contentDescription = "Error",
-                tint = if (isTerminal) t.colors.destructive else Color(0xFFF59E0B),
-                modifier = Modifier.size(if (isTerminal) 72.dp else 64.dp)
-            )
-            
-            Text(
-                text = if (isTerminal) "All Sources Failed" else "Playback Failed",
-                color = t.colors.foreground,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            
             val explanation = when (error) {
                 is PlaybackError.TerminalError -> "Automatic fallback exhausted. All available sources failed to play. Please go back and select a different source manually."
                 is PlaybackError.Network -> "A network connection error occurred. Please check your internet connection."
@@ -1139,26 +1120,13 @@ fun ErrorOverlay(
                 is PlaybackError.Unknown -> "An unknown playback error occurred."
                 else -> error.message
             }
-            
-            Text(
-                text = explanation,
-                color = t.colors.mutedForeground,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
 
-            if (!resolutionError.isNullOrBlank()) {
-                Text(
-                    text = resolutionError,
-                    color = t.colors.mutedForeground,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
+            LumenErrorState(
+                title = if (isTerminal) "All Sources Failed" else "Playback Failed",
+                body = explanation + (if (!resolutionError.isNullOrBlank()) "\n$resolutionError" else ""),
+                onRetry = onRetry,
+                modifier = Modifier.fillMaxWidth()
+            )
             
             if (onTryNext != null && !isTerminal) {
                 LumenPrimaryButton(

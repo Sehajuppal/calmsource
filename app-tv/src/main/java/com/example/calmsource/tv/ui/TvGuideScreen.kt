@@ -33,6 +33,9 @@ import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.AdaptiveButton
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -51,7 +54,11 @@ fun TvGuideScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("No channels available for guide.", color = t.colors.mutedForeground, fontSize = 16.sp)
+            LumenEmptyState(
+                title = "Schedule unavailable",
+                body = "No channels are loaded or match the active filters.",
+                icon = androidx.compose.material.icons.Icons.Default.List
+            )
         }
         return
     }

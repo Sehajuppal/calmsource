@@ -91,18 +91,23 @@ fun DetailsScreen(
         }.getOrDefault(emptyList())
     }
     var isLoadingMeta by remember(mediaItem.id) { mutableStateOf(false) }
+    var metadataError by remember(mediaItem.id) { mutableStateOf<String?>(null) }
+    val retryTrigger = remember { mutableStateOf(0) }
 
     DisposableEffect(mediaItem.id) {
         DiscoveryEngine.enrichItem(mediaItem.toDiscoveryMediaItem())
         onDispose { DiscoveryEngine.cancelPendingForMedia(mediaItem.id) }
     }
 
-    LaunchedEffect(mediaItem.id, extensionQueryKey) {
+    LaunchedEffect(mediaItem.id, extensionQueryKey, retryTrigger.value) {
         isLoadingMeta = true
+        metadataError = null
         try {
             val metadata = ExtensionRepository.refreshMediaMetadata(mediaItem, activeExtensions)
             currentMediaItem = metadata.mediaItem
             stremioMeta = metadata.primaryMeta
+        } catch (e: Exception) {
+            metadataError = e.message ?: "Failed to load metadata"
         } finally {
             isLoadingMeta = false
         }
@@ -460,7 +465,18 @@ fun DetailsScreen(
             .fillMaxSize()
             .background(t.colors.background)
     ) {
-        if (isLoadingMeta && stremioMeta == null) {
+        if (metadataError != null && stremioMeta == null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                LumenErrorState(
+                    title = "Failed to load details",
+                    body = metadataError ?: "Unknown error",
+                    onRetry = { retryTrigger.value++ }
+                )
+            }
+        } else if (isLoadingMeta && stremioMeta == null) {
             // Loading Skeletons
             Column(
                 modifier = Modifier
@@ -468,13 +484,13 @@ fun DetailsScreen(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Skeleton(modifier = Modifier.fillMaxWidth().height(260.dp))
-                Skeleton(modifier = Modifier.width(220.dp).height(32.dp))
+                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(260.dp))
+                LumenSkeleton(modifier = Modifier.width(220.dp).height(32.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Skeleton(modifier = Modifier.width(70.dp).height(24.dp))
-                    Skeleton(modifier = Modifier.width(70.dp).height(24.dp))
+                    LumenSkeleton(modifier = Modifier.width(70.dp).height(24.dp))
+                    LumenSkeleton(modifier = Modifier.width(70.dp).height(24.dp))
                 }
-                Skeleton(modifier = Modifier.fillMaxWidth().height(120.dp))
+                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(120.dp))
             }
         } else {
             // Full-bleed Backdrop Hero with bottom-up gradient scrim

@@ -34,7 +34,11 @@ import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.core.playback.PrefetchCoordinator
 import com.example.calmsource.core.ui.components.TvFocusable
-import com.example.calmsource.core.ui.components.Skeleton
+import com.example.calmsource.core.ui.components.LumenSkeleton
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.LumenErrorState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,6 +48,7 @@ import kotlinx.coroutines.withContext
 fun TvHomeScreen(
     onMediaClick: (MediaItem) -> Unit,
     onChannelClick: (String) -> Unit,
+    onSettingsClick: () -> Unit = {},
     viewModel: TvHomeViewModel = hiltViewModel()
 ) {
     val homeRows by viewModel.homeRows.collectAsState()
@@ -113,7 +118,7 @@ fun TvHomeScreen(
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (homeRows.isEmpty() && isLoading) {
-                // Loading shimmer placeholders (uses repeat loop instead of items to keep key checks green)
+                // Loading shimmer placeholders
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item(key = "skeleton_feed") {
                         repeat(3) {
@@ -122,52 +127,44 @@ fun TvHomeScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 48.dp, vertical = 16.dp)
                             ) {
-                                Skeleton(modifier = Modifier.width(160.dp).height(28.dp))
+                                LumenSkeleton(modifier = Modifier.width(160.dp).height(28.dp))
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     repeat(6) {
-                                        Skeleton(modifier = Modifier.width(140.dp).height(210.dp))
+                                        LumenSkeleton(modifier = Modifier.width(140.dp).height(210.dp))
                                     }
                                 }
                             }
                         }
                     }
                 }
-            } else if (homeRows.isEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(horizontal = 48.dp)
+            } else if (homeRows.isEmpty() && loadError != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = loadError ?: "Discovery is temporarily unavailable. Check your connection or add a catalog in Settings.",
-                        color = t.colors.mutedForeground,
-                        style = MaterialTheme.typography.bodyLarge
+                    LumenErrorState(
+                        title = "Failed to load feed",
+                        body = loadError ?: "Unknown error",
+                        onRetry = { viewModel.retry() }
                     )
-                    if (loadError != null) {
-                        TvFocusable(
-                            onClick = { viewModel.retry() },
-                            modifier = Modifier.width(200.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(t.colors.card)
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "Retry",
-                                    color = t.colors.foreground,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
-                    }
+                }
+            } else if (homeRows.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LumenEmptyState(
+                        title = "Nothing to browse yet",
+                        body = "Connect a catalog provider in settings to begin.",
+                        icon = Icons.Default.Home,
+                        ctaText = "Go to Settings",
+                        onCtaClick = onSettingsClick
+                    )
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(homeRows, key = { "${it.rowType}-${it.title}" }) { row ->
+                    items(homeRows, key = { "${it.rowType}-${it.title}-${it.items.size}-${it.hashCode()}" }) { row ->
                         val uniqueItems = remember(row.items) { row.items.distinctBy { it.id } }
                         if (uniqueItems.isEmpty()) return@items
 

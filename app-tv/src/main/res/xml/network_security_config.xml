@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Block cleartext by default; only allow for specific known hosts -->
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
         <!-- Android emulator host -->
@@ -8,7 +7,5 @@
         <!-- Local dev / local network -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">local</domain>
-        <!-- Xtream IPTV providers (many use HTTP) -->
-        <domain includeSubdomains="true">wexart.xyz</domain>
     </domain-config>
 </network-security-config>

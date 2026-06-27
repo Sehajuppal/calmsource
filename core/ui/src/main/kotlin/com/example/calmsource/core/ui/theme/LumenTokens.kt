@@ -61,6 +61,7 @@ data class LumenMotion(
     val cinematic: Int = 520,
     val springStiffness: Float = 380f,
     val springDamping: Float = 28f,
+    val reducedMotion: Boolean = false,
 )
 
 @Immutable

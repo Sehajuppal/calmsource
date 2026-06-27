@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +36,7 @@ import com.example.calmsource.feature.iptv.XtreamRepository
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.AdaptiveButton
+import com.example.calmsource.core.ui.components.LumenEmptyState
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -261,11 +264,10 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 }
 
                 if (providers.isEmpty()) {
-                    Text(
-                        text = "No IPTV providers configured.",
-                        fontSize = 14.sp,
-                        color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                    LumenEmptyState(
+                        title = "No IPTV providers configured",
+                        body = "Connect an M3U or Xtream API credentials to configure channels.",
+                        icon = androidx.compose.material.icons.Icons.Default.PlayArrow
                     )
                 } else {
                     providers.forEach { provider ->
@@ -384,11 +386,10 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 }
 
                 if (extensions.isEmpty()) {
-                    Text(
-                        text = "No catalog add-ons configured.",
-                        fontSize = 14.sp,
-                        color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                    LumenEmptyState(
+                        title = "No add-ons installed",
+                        body = "Install catalog add-ons to customize your catalog browsing.",
+                        icon = androidx.compose.material.icons.Icons.Default.Settings
                     )
                 } else {
                     extensions.forEach { addon ->
