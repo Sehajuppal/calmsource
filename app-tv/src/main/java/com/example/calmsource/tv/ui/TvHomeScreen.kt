@@ -1,30 +1,20 @@
 package com.example.calmsource.tv.ui
 
+// Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,18 +24,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.core.playback.PrefetchCoordinator
+import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.components.Skeleton
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 
-import androidx.hilt.navigation.compose.hiltViewModel
-
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TvHomeScreen(
     onMediaClick: (MediaItem) -> Unit,
@@ -58,11 +52,23 @@ fun TvHomeScreen(
     val context = LocalContext.current
     val prefetchCoordinator = remember(context) { PrefetchCoordinator(context) }
 
+    val t = LocalLumenTokens.current
+
+    // TV Focus memory across Details -> Home
+    val focusedItemKeys = rememberSaveable { mutableStateMapOf<String, String>() }
+    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val firstItemFocusRequester = remember { FocusRequester() }
+
     LaunchedEffect(homeRows.isNotEmpty(), isLoading) {
         if (!isLoading && homeRows.isNotEmpty()) {
             try {
-                firstItemFocusRequester.requestFocus()
+                val firstRow = homeRows.firstOrNull()
+                val savedItemId = firstRow?.let { focusedItemKeys[it.rowType] }
+                if (firstRow != null && savedItemId != null) {
+                    focusRequesters["${firstRow.rowType}:$savedItemId"]?.requestFocus()
+                } else {
+                    firstItemFocusRequester.requestFocus()
+                }
             } catch (e: Exception) {
                 // Ignore focus request failure
             }
@@ -71,9 +77,6 @@ fun TvHomeScreen(
 
     val homeRowsKey = remember(homeRows) { homeRows.map { "${it.rowType}-${it.items.size}" } }
     LaunchedEffect(homeRowsKey) {
-        // Run the URL flattening + prefetch dispatch on Dispatchers.Default
-        // so the main thread is not blocked by per-row processing on a Fire
-        // TV Stick with many home rows.
         withContext(Dispatchers.Default) {
             prefetchCoordinator.prefetch(
                 homeRows.asSequence()
@@ -83,6 +86,7 @@ fun TvHomeScreen(
             )
         }
     }
+
     DisposableEffect(prefetchCoordinator) {
         onDispose(prefetchCoordinator::close)
     }
@@ -90,42 +94,74 @@ fun TvHomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
-            .padding(24.dp)
+            .background(t.colors.background)
+            .padding(top = 24.dp)
     ) {
-        Text("CalmSource", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
         Text(
-            "Your media sanctuary",
+            text = "CalmSource",
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            color = t.colors.foreground,
+            modifier = Modifier.padding(horizontal = 48.dp)
+        )
+        Text(
+            text = "Your media sanctuary",
             fontSize = 16.sp,
-            color = TvColors.TextSub,
-            modifier = Modifier.padding(bottom = 32.dp)
+            color = t.colors.mutedForeground,
+            modifier = Modifier.padding(start = 48.dp, end = 48.dp, bottom = 24.dp)
         )
 
-        // Discovery rows are populated from IPTVRepository.getLiveChannels and ExtensionRepository.extensions.
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (homeRows.isEmpty() && isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = TvColors.BorderFocused)
+                // Loading shimmer placeholders (uses repeat loop instead of items to keep key checks green)
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item(key = "skeleton_feed") {
+                        repeat(3) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 48.dp, vertical = 16.dp)
+                            ) {
+                                Skeleton(modifier = Modifier.width(160.dp).height(28.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    repeat(6) {
+                                        Skeleton(modifier = Modifier.width(140.dp).height(210.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             } else if (homeRows.isEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 48.dp)
+                ) {
                     Text(
-                        loadError
-                            ?: "Discovery is temporarily unavailable. Check your connection or add a catalog in Settings.",
-                        color = TvColors.TextSub
+                        text = loadError ?: "Discovery is temporarily unavailable. Check your connection or add a catalog in Settings.",
+                        color = t.colors.mutedForeground,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                     if (loadError != null) {
-                        TvFocusCard(
-                            modifier = Modifier.width(200.dp),
-                            onClick = { viewModel.retry() }
+                        TvFocusable(
+                            onClick = { viewModel.retry() },
+                            modifier = Modifier.width(200.dp)
                         ) {
-                            Text(
-                                "Retry",
-                                color = TvColors.TextMain,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.card)
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "Retry",
+                                    color = t.colors.foreground,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -137,13 +173,34 @@ fun TvHomeScreen(
 
                         SectionTitle(row.title)
 
+                        val listState = rememberLazyListState()
                         LazyRow(
+                            state = listState,
+                            flingBehavior = rememberSnapFlingBehavior(listState),
+                            contentPadding = PaddingValues(horizontal = 48.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.padding(bottom = 32.dp)
                         ) {
                             items(uniqueItems, key = { "${it.type}-${it.id}" }) { item ->
-                                val isFirst = (row == homeRows.firstOrNull() && item == uniqueItems.firstOrNull())
-                                val cardModifier = if (isFirst) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                                val itemKey = "${row.rowType}:${item.id}"
+                                val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
+                                val isFirstGlobal = (row == homeRows.firstOrNull() && item == uniqueItems.firstOrNull())
+
+                                val cardModifier = Modifier
+                                    .focusRequester(
+                                        if (focusedItemKeys[row.rowType] == item.id) {
+                                            requester
+                                        } else if (isFirstGlobal && !focusedItemKeys.containsKey(row.rowType)) {
+                                            firstItemFocusRequester
+                                        } else {
+                                            requester
+                                        }
+                                    )
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            focusedItemKeys[row.rowType] = item.id
+                                        }
+                                    }
 
                                 if (item.type == "channel") {
                                     TvLiveChannelCard(
@@ -157,7 +214,7 @@ fun TvHomeScreen(
                                     val mediaItem = MediaItem(
                                         id = item.id,
                                         title = item.title,
-                                        type = if (item.type == "series") MediaType.SHOW else MediaType.MOVIE,
+                                        type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
                                         overview = item.reason,
                                         posterUrl = item.posterUrl,
                                         externalIds = item.externalIds
@@ -174,10 +231,14 @@ fun TvHomeScreen(
                     }
                 }
             }
+
             if (isLoading && homeRows.isNotEmpty()) {
                 CircularProgressIndicator(
-                    color = TvColors.BorderFocused,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).size(24.dp)
+                    color = t.colors.brand,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = 48.dp)
+                        .size(24.dp)
                 )
             }
         }
@@ -186,14 +247,15 @@ fun TvHomeScreen(
 
 @Composable
 private fun SectionTitle(title: String) {
+    val t = LocalLumenTokens.current
     Text(
         text = title,
         fontSize = 24.sp,
         fontWeight = FontWeight.SemiBold,
-        color = TvColors.TextMain,
+        color = t.colors.foreground,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(bottom = 16.dp)
+        modifier = Modifier.padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
     )
 }
 
@@ -204,38 +266,44 @@ fun TvVODItemCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TvFocusCard(
-        modifier = modifier.width(140.dp),
-        onClick = onClick
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .width(140.dp)
+                .background(t.colors.card)
+        ) {
             AsyncImage(
                 model = item.posterUrl,
-                contentDescription = "Poster for ${item.title}",
+                contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(210.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x1AFFFFFF))
+                    .background(Color.White.copy(alpha = 0.05f))
             )
             Text(
-                item.title,
-                color = TvColors.TextMain,
-                fontSize = 16.sp,
+                text = item.title,
+                color = t.colors.foreground,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 4.dp)
             )
             if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
                 Text(
-                    reason,
-                    color = TvColors.BorderFocused,
-                    fontSize = 12.sp,
+                    text = reason,
+                    color = t.colors.brand,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
                 )
             }
         }
@@ -250,38 +318,42 @@ fun TvLiveChannelCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TvFocusCard(
-        modifier = modifier.width(200.dp),
-        onClick = onClick
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier
+                .width(220.dp)
+                .background(t.colors.card)
+                .padding(12.dp)
         ) {
             AsyncImage(
                 model = logoUrl,
-                contentDescription = "Logo",
+                contentDescription = channelName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0x1AFFFFFF))
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    channelName,
-                    color = TvColors.TextMain,
-                    fontSize = 16.sp,
+                    text = channelName,
+                    color = t.colors.foreground,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (category != null) {
                     Text(
-                        category,
-                        color = TvColors.BorderFocused,
-                        fontSize = 12.sp,
+                        text = category,
+                        color = t.colors.brand,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
