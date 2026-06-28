@@ -46,12 +46,11 @@ class TvAuditRegressionTest {
     // --- TV-003: Nav rail label minimum font ---
 
     @Test
-    fun `TV-003 TvNavRailItem label is at least 14sp`() {
-        val source = readSourceFile("../TvMainActivity.kt")
-        // The TvNavRailItem label text should be >= 14sp
-        assertFalse(
-            "TV-003: TvNavRailItem label should not be 11sp (too small for TV)",
-            source.contains("fontSize = 11.sp") && source.contains("TvNavRailItem")
+    fun `TV-003 sidebar navigation label is at least 14sp`() {
+        val source = readSourceFile("OptimizedAppleTvSidebar.kt")
+        assertTrue(
+            "TV-003: OptimizedNavigationItem label should be at least 14sp for TV readability",
+            source.contains("fontSize = 15.sp") && source.contains("OptimizedNavigationItem"),
         )
     }
 
@@ -133,8 +132,11 @@ class TvAuditRegressionTest {
 
     @Test
     fun `TV-019 EPG airing now label is at least 12sp`() {
-        val source = readSourceFile("TvLiveTvScreen.kt") + readSourceFile("TvGuideScreen.kt")
+        val source = readSourceFile("TvLiveTvScreen.kt") +
+            readSourceFile("TvGuideScreen.kt") +
+            readProjectFile("core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/GlassmorphicLiveChannelRow.kt")
         val airingNowIdx = source.indexOf("AIRING NOW")
+        assertTrue("TV-019: EPG AIRING NOW label should exist in live guide UI", airingNowIdx >= 0)
         val nearbySection = source.substring(airingNowIdx, airingNowIdx + 100)
         assertFalse(
             "TV-019: EPG AIRING NOW label should not be 10sp (too small for TV)",

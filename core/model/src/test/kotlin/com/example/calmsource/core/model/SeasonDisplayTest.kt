@@ -20,4 +20,15 @@ class SeasonDisplayTest {
         assertEquals("Season 1", seasonDisplayLabel(1))
         assertEquals("Specials", seasonDisplayLabel(0))
     }
+
+    @Test
+    fun `episode display label prefers title or name`() {
+        val titled = StremioVideo(title = "The Pilot", season = 1, episode = 1)
+        val named = StremioVideo(name = "Named Episode", season = 1, episode = 2)
+        val bare = StremioVideo(season = 1, episode = 6)
+
+        assertEquals("S1E1: The Pilot", titled.episodeDisplayLabel())
+        assertEquals("S1E2: Named Episode", named.episodeDisplayLabel())
+        assertEquals("S1E6: Episode 6", bare.episodeDisplayLabel())
+    }
 }

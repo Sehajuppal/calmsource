@@ -25,7 +25,12 @@ import kotlinx.coroutines.flow.map
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -182,13 +187,6 @@ fun TvPlayerScreen(
         if (uiState.playerState == PlayerState.PLAYING) {
             delay(5000)
             channelSwitchFails = 0
-        }
-    }
-
-    LaunchedEffect(uiState.error) {
-        val error = uiState.error
-        if (error is PlaybackError.TerminalError) {
-            android.widget.Toast.makeText(context, error.message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -384,11 +382,13 @@ fun TvPlayerScreen(
         }
     }
 
+    var showChrome by rememberSaveable { mutableStateOf(true) }
+
     androidx.activity.compose.BackHandler(enabled = true) {
-        if (showChannelSwitcher) {
-            showChannelSwitcher = false
-        } else {
-            onBack()
+        when {
+            showChannelSwitcher -> showChannelSwitcher = false
+            showChrome -> showChrome = false
+            else -> onBack()
         }
     }
 
@@ -441,6 +441,7 @@ fun TvPlayerScreen(
     DisposableEffect(Unit) {
         onDispose {
             mediaSession?.release()
+            mediaSession = null
         }
     }
 
@@ -448,6 +449,22 @@ fun TvPlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(LumenTokens.Color.bg)
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                        if (!showChrome) {
+                            showChrome = true
+                            true
+                        } else {
+                            if (uiState.playerState == PlayerState.PLAYING) playbackManager.pause()
+                            else playbackManager.play()
+                            true
+                        }
+                    }
+                    else -> false
+                }
+            }
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
                     when (event.key) {
@@ -562,6 +579,8 @@ fun TvPlayerScreen(
                 actions = playerChromeActions,
                 isTv = true,
                 modifier = Modifier.fillMaxSize(),
+                chromeVisible = showChrome,
+                onChromeVisibleChange = { showChrome = it },
             )
             if (isLive) {
                 TvFocusable(
@@ -809,6 +828,7 @@ fun TvErrorOverlay(
     }
 }
  
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun TvProgressBar(
     progressState: com.example.calmsource.core.model.PlaybackProgressState,

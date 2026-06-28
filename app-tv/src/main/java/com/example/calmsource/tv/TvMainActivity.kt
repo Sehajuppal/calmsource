@@ -7,9 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import com.example.calmsource.core.ui.theme.*
+import com.example.calmsource.core.ui.components.LumenInlineMessage
 import com.example.calmsource.core.ui.components.PerfMode
 import com.example.calmsource.core.ui.components.ProvidePerfMode
 import android.os.PowerManager
@@ -23,21 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
@@ -58,12 +44,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.PlaybackRequest
 import com.example.calmsource.core.model.PlaybackSource
 import com.example.calmsource.core.model.toMediaItem
 import com.example.calmsource.core.model.CalmSourceDeepLink
 import com.example.calmsource.feature.iptv.IPTVRepository
+import com.example.calmsource.tv.ui.OptimizedAppleTvSidebar
 import com.example.calmsource.tv.ui.TvDetailsScreen
 import com.example.calmsource.tv.ui.TvFocusCard
 import com.example.calmsource.tv.ui.TvHomeScreen
@@ -72,7 +60,7 @@ import com.example.calmsource.tv.ui.TvLiveGuideScreen
 import com.example.calmsource.tv.ui.TvPlayerScreen
 import com.example.calmsource.tv.ui.TvSearchScreen
 import com.example.calmsource.tv.ui.TvSettingsScreens
-import com.example.calmsource.tv.ui.TvBootDestination
+import com.example.calmsource.core.data.BootDestination
 import com.example.calmsource.tv.ui.TvBootViewModel
 import com.example.calmsource.tv.ui.TvOnboardingScreen
 import com.example.calmsource.tv.ui.TvProfileSelectionScreen
@@ -82,6 +70,11 @@ import com.example.calmsource.core.model.userLabel
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 
 sealed interface TvScreen {
     data object ProfileSelection : TvScreen
@@ -224,7 +217,7 @@ class TvMainActivity : ComponentActivity() {
             var isBootRouted by rememberSaveable { mutableStateOf(savedInstanceState != null) }
 
             LaunchedEffect(bootGate.destination) {
-                if (bootGate.destination == TvBootDestination.Loading) {
+                if (bootGate.destination == BootDestination.Loading) {
                     isBootSettled = false
                 } else if (!isBootSettled) {
                     kotlinx.coroutines.delay(150)
@@ -234,6 +227,9 @@ class TvMainActivity : ComponentActivity() {
 
             var activeTab by rememberSaveable { mutableStateOf(0) }
             val tabFocusRequesters = remember { List(5) { FocusRequester() } }
+            var sidebarVisible by rememberSaveable { mutableStateOf(false) }
+            val contentFocusRequester = remember { FocusRequester() }
+            val focusScope = rememberCoroutineScope()
             var currentScreen by rememberSaveable(stateSaver = TvScreenSaver) {
                 mutableStateOf<TvScreen>(TvScreen.Onboarding)
             }
@@ -252,14 +248,21 @@ class TvMainActivity : ComponentActivity() {
                 val redirected = bootViewModel.redirectScreenIfBlocked(currentScreen)
                 if (redirected != currentScreen) {
                     currentScreen = redirected
-                    if (bootGate.destination == TvBootDestination.Onboarding) {
+                    if (bootGate.destination == BootDestination.Login) {
                         isBootRouted = false
                     }
                 }
             }
 
             var searchSeed by remember { mutableStateOf("") }
+            var inlineMessage by remember { mutableStateOf<String?>(null) }
             val tvNavigationScope = rememberCoroutineScope()
+
+            LaunchedEffect(inlineMessage) {
+                inlineMessage ?: return@LaunchedEffect
+                kotlinx.coroutines.delay(6_000)
+                inlineMessage = null
+            }
 
             fun navigateToChannel(channelId: String, parent: TvScreen) {
                 tvNavigationScope.launch {
@@ -270,11 +273,7 @@ class TvMainActivity : ComponentActivity() {
                             parentScreen = parent
                         )
                     } else {
-                        android.widget.Toast.makeText(
-                            this@TvMainActivity,
-                            "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
+                        inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing."
                     }
                 }
             }
@@ -284,6 +283,25 @@ class TvMainActivity : ComponentActivity() {
                 if (screen is TvScreen.Resume) {
                     _pendingDeepLink.value = screen.deepLink
                     currentScreen = screen.parentScreen
+                }
+                val tabForScreen = when (screen) {
+                    TvScreen.Home -> 0
+                    TvScreen.LiveGuide -> 1
+                    TvScreen.Library -> 2
+                    TvScreen.Search -> 3
+                    TvScreen.Settings -> 4
+                    else -> null
+                }
+                if (tabForScreen != null && tabForScreen != activeTab) {
+                    activeTab = tabForScreen
+                }
+                if (screen !is TvScreen.Home &&
+                    screen !is TvScreen.Library &&
+                    screen !is TvScreen.Search &&
+                    screen !is TvScreen.LiveGuide &&
+                    screen !is TvScreen.Settings
+                ) {
+                    sidebarVisible = false
                 }
             }
 
@@ -298,7 +316,7 @@ class TvMainActivity : ComponentActivity() {
             LaunchedEffect(pendingDeepLink, isBootSettled, bootGate.destination) {
                 val link = pendingDeepLink ?: return@LaunchedEffect
                 if (!isBootSettled) return@LaunchedEffect
-                if (bootGate.destination != TvBootDestination.Home) return@LaunchedEffect
+                if (bootGate.destination != BootDestination.Home) return@LaunchedEffect
 
                 when (val route = CalmSourceDeepLink.parse(link)) {
                     is CalmSourceDeepLink.Details -> {
@@ -312,7 +330,7 @@ class TvMainActivity : ComponentActivity() {
                                 parentScreen = TvScreen.Home
                             )
                         } else {
-                            android.widget.Toast.makeText(this@TvMainActivity, "Channel not found", android.widget.Toast.LENGTH_SHORT).show()
+                            inlineMessage = "Channel not found"
                         }
                     }
                     is CalmSourceDeepLink.Search -> {
@@ -360,15 +378,26 @@ class TvMainActivity : ComponentActivity() {
             val syncStageLabel = xtreamProgress?.stage?.userLabel()
                 ?: "Syncing IPTV catalog…"
 
-            BackHandler(enabled = showSyncOverlay) {
-                syncOverlayDismissed = true
-            }
-
             val topLevel = currentScreen is TvScreen.Home ||
                 currentScreen is TvScreen.Library ||
                 currentScreen is TvScreen.Search ||
                 currentScreen is TvScreen.LiveGuide ||
                 currentScreen is TvScreen.Settings
+
+            BackHandler(enabled = showSyncOverlay) {
+                syncOverlayDismissed = true
+            }
+
+            BackHandler(enabled = sidebarVisible && topLevel && !showSyncOverlay) {
+                sidebarVisible = false
+                focusScope.launch {
+                    kotlinx.coroutines.delay(50)
+                    try {
+                        contentFocusRequester.requestFocus()
+                    } catch (_: Exception) {
+                    }
+                }
+            }
 
             if (!isBootSettled || !isBootRouted) {
                 Box(
@@ -378,88 +407,38 @@ class TvMainActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.material3.CircularProgressIndicator(
-                        color = Color(0xFF22C55E)
+                        color = t.colors.brand
                     )
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(t.colors.background)
-                        .then(
-                            if (showSyncOverlay) {
-                                Modifier.focusProperties { canFocus = false }
-                            } else {
-                                Modifier
-                            }
-                        )
-                ) {
-                    if (topLevel) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(LumenTokens.Space.s12)
-                                .background(
-                                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                                        listOf(LumenTokens.Color.glassStrong, Color.Transparent),
-                                    ),
-                                )
-                                .border(
-                                    width = LumenLayout.hairline,
-                                    color = LumenTokens.Color.borderSubtle,
-                                )
-                                .padding(horizontal = LumenTokens.Space.s8, vertical = LumenTokens.Space.s4),
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(LumenTokens.Space.s10)
-                                    .height(LumenTokens.Space.s10)
-                                    .background(t.colors.brand, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    "C",
-                                    color = t.colors.brandForeground,
-                                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Black,
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            TvNavRailItem(Icons.Default.Home, "Home", activeTab == 0, modifier = Modifier.focusRequester(tabFocusRequesters[0])) {
-                                activeTab = 0
-                                currentScreen = TvScreen.Home
-                            }
-                            TvNavRailItem(Icons.Default.LiveTv, "Live", activeTab == 1, modifier = Modifier.focusRequester(tabFocusRequesters[1])) {
-                                activeTab = 1
-                                currentScreen = TvScreen.LiveGuide
-                            }
-                            TvNavRailItem(Icons.Default.Favorite, "Library", activeTab == 2, modifier = Modifier.focusRequester(tabFocusRequesters[2])) {
-                                activeTab = 2
-                                currentScreen = TvScreen.Library
-                            }
-                            TvNavRailItem(Icons.Default.Search, "Search", activeTab == 3, modifier = Modifier.focusRequester(tabFocusRequesters[3])) {
-                                activeTab = 3
-                                currentScreen = TvScreen.Search
-                            }
-                            TvNavRailItem(Icons.Default.Settings, "Setup", activeTab == 4, modifier = Modifier.focusRequester(tabFocusRequesters[4])) {
-                                activeTab = 4
-                                currentScreen = TvScreen.Settings
-                            }
-                        }
-                    }
-
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .focusProperties {
-                                up = tabFocusRequesters[activeTab]
-                            }
+                            .fillMaxSize()
+                            .background(t.colors.background)
+                            .then(
+                                if (showSyncOverlay) {
+                                    Modifier.focusProperties { canFocus = false }
+                                } else {
+                                    Modifier
+                                },
+                            ),
                     ) {
-                        when (val screen = currentScreen) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .focusRequester(contentFocusRequester)
+                                .focusProperties {
+                                    if (topLevel) {
+                                        up = tabFocusRequesters[activeTab]
+                                        if (sidebarVisible) {
+                                            start = tabFocusRequesters[activeTab]
+                                        }
+                                    }
+                                },
+                        ) {
+                            when (val screen = currentScreen) {
                             TvScreen.ProfileSelection -> TvProfileSelectionScreen(
                                 onProfileSelected = {
                                     activeTab = 0
@@ -472,7 +451,24 @@ class TvMainActivity : ComponentActivity() {
                             )
                             TvScreen.Home -> TvHomeScreen(
                                 onMediaClick = { currentScreen = TvScreen.Details(it) },
-                                onChannelClick = { channelId -> navigateToChannel(channelId, TvScreen.Home) }
+                                onResumeClick = { mediaItem, progressMs ->
+                                    currentScreen = TvScreen.Details(mediaItem, progressMs)
+                                },
+                                onChannelClick = { channelId -> navigateToChannel(channelId, TvScreen.Home) },
+                                onSettingsClick = {
+                                    activeTab = 4
+                                    currentScreen = TvScreen.Settings
+                                },
+                                onOpenSidebar = {
+                                    sidebarVisible = true
+                                    focusScope.launch {
+                                        kotlinx.coroutines.delay(80)
+                                        try {
+                                            tabFocusRequesters[activeTab].requestFocus()
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                },
                             )
                             TvScreen.Library -> TvLibraryScreen(
                                 onOpenMedia = { reference, progress ->
@@ -480,17 +476,21 @@ class TvMainActivity : ComponentActivity() {
                                 },
                                 onOpenChannel = { reference ->
                                     reference.sourceId?.let { navigateToChannel(it, TvScreen.Library) }
-                                        ?: android.widget.Toast.makeText(
-                                            this@TvMainActivity,
-                                            "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
+                                        ?: run { inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing." }
                                 },
                                 onSearch = { query ->
                                     searchSeed = query
                                     activeTab = 3
                                     currentScreen = TvScreen.Search
-                                }
+                                },
+                                onBrowse = {
+                                    activeTab = 0
+                                    currentScreen = TvScreen.Home
+                                },
+                                onOpenLive = {
+                                    activeTab = 1
+                                    currentScreen = TvScreen.LiveGuide
+                                },
                             )
                             TvScreen.Search -> TvSearchScreen(
                                 initialQuery = searchSeed,
@@ -513,11 +513,7 @@ class TvMainActivity : ComponentActivity() {
                                                 parentScreen = TvScreen.LiveGuide
                                             )
                                         } else {
-                                            android.widget.Toast.makeText(
-                                                this@TvMainActivity,
-                                                "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
+                                            inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing."
                                         }
                                     }
                                 },
@@ -559,13 +555,109 @@ class TvMainActivity : ComponentActivity() {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     androidx.compose.material3.CircularProgressIndicator(
-                                        color = Color(0xFF22C55E)
+                                        color = t.colors.brand
                                     )
                                 }
                             }
                         }
                     }
-                }
+
+                    if (showSyncBanner) {
+                        val syncing = activeSync!!
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(t.colors.card.copy(alpha = 0.92f))
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = syncStageLabel,
+                                        color = t.colors.foreground,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = "Progress: ${syncing.progressPercent}% — Live channels are ready to browse",
+                                        color = t.colors.mutedForeground,
+                                        fontSize = 13.sp,
+                                    )
+                                }
+                                TvFocusCard(onClick = { syncOverlayDismissed = true }) { isFocused ->
+                                    val bannerTokens = LocalLumenTokens.current
+                                    Text(
+                                        text = "Dismiss",
+                                        color = if (isFocused) bannerTokens.colors.background else bannerTokens.colors.brand,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    inlineMessage?.let { message ->
+                        LumenInlineMessage(
+                            message = message,
+                            onDismiss = { inlineMessage = null },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = LumenTokens.Space.s8, vertical = LumenTokens.Space.s4),
+                        )
+                    }
+                    }
+
+                    if (topLevel) {
+                        OptimizedAppleTvSidebar(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .zIndex(1f),
+                            visible = sidebarVisible,
+                            activeTab = activeTab,
+                            profileName = bootGate.activeProfile?.name ?: "Profile",
+                            profileAvatarUrl = bootGate.activeProfile?.avatarUrl,
+                            tabFocusRequesters = tabFocusRequesters,
+                            onNavigate = { tab ->
+                                activeTab = tab
+                                sidebarVisible = false
+                                currentScreen = when (tab) {
+                                    0 -> TvScreen.Home
+                                    1 -> TvScreen.LiveGuide
+                                    2 -> TvScreen.Library
+                                    3 -> TvScreen.Search
+                                    else -> TvScreen.Settings
+                                }
+                                focusScope.launch {
+                                    kotlinx.coroutines.delay(80)
+                                    try {
+                                        contentFocusRequester.requestFocus()
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            },
+                            onDismiss = {
+                                sidebarVisible = false
+                                focusScope.launch {
+                                    kotlinx.coroutines.delay(50)
+                                    try {
+                                        contentFocusRequester.requestFocus()
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            },
+                            onProfileClick = {
+                                sidebarVisible = false
+                                activeTab = 0
+                                currentScreen = TvScreen.ProfileSelection
+                            },
+                        )
+                    }
 
                 if (showSyncOverlay) {
                     val syncing = activeSync!!
@@ -581,35 +673,35 @@ class TvMainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .focusable()
-                            .background(Color.Black.copy(alpha = 0.9f))
+                            .zIndex(2f)
+                            .background(t.colors.background.copy(alpha = 0.9f))
                             .pointerInput(Unit) {},
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
-                                color = Color(0xFF22C55E)
+                                color = t.colors.brand
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = syncStageLabel,
-                                color = Color.White,
+                                color = t.colors.foreground,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Progress: ${syncing.progressPercent}%",
-                                color = Color.Gray,
+                                color = t.colors.mutedForeground,
                                 fontSize = 16.sp
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Sync continues in the background. Press Back to browse.",
-                                color = Color.LightGray,
+                                color = t.colors.mutedForeground,
                                 fontSize = 14.sp
                             )
                             Spacer(modifier = Modifier.height(20.dp))
@@ -629,103 +721,16 @@ class TvMainActivity : ComponentActivity() {
                     }
                 }
 
-                if (showSyncBanner) {
-                    val syncing = activeSync!!
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF111827).copy(alpha = 0.92f))
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                            .align(Alignment.TopCenter)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = syncStageLabel,
-                                    color = Color.White,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Progress: ${syncing.progressPercent}% — Live channels are ready to browse",
-                                    color = Color.LightGray,
-                                    fontSize = 13.sp
-                                )
-                            }
-                            TvFocusCard(onClick = { syncOverlayDismissed = true }) { isFocused ->
-                                val t = LocalLumenTokens.current
-                                Text(
-                                    text = "Dismiss",
-                                    color = if (isFocused) t.colors.background else Color(0xFF22C55E),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
                 }
             }
             }
-            }
-            }
         }
-
-
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         _pendingDeepLink.value = intent.dataString
-    }
-}
-
-@Composable
-fun TvNavRailItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    isSelected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val t = LocalLumenTokens.current
-    TvFocusCard(
-        onClick = onClick,
-        modifier = modifier,
-    ) { isFocused ->
-        Row(
-            modifier = Modifier
-                .animateContentSize()
-                .background(
-                    color = if (isSelected) t.colors.brand.copy(alpha = 0.16f) else Color.Transparent,
-                    shape = LumenTokens.Shape.pill,
-                )
-                .padding(horizontal = LumenTokens.Space.s4, vertical = LumenTokens.Space.s2),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s3),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = when {
-                    isFocused -> t.colors.foreground
-                    isSelected -> t.colors.brand
-                    else -> t.colors.mutedForeground
-                },
-                modifier = Modifier.width(LumenTokens.Space.s7).height(LumenTokens.Space.s7),
-            )
-            Text(
-                text = label,
-                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isFocused || isSelected) t.colors.foreground else t.colors.mutedForeground,
-                maxLines = 1,
-            )
-        }
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.focusGroup
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +36,6 @@ import coil.compose.AsyncImage
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.models.MediaItem as DiscoveryMediaItem
 import com.example.calmsource.core.model.*
-import com.example.calmsource.core.model.isResourceSupported
 import com.example.calmsource.core.sourceintelligence.models.toRawSourceInput
 import com.example.calmsource.feature.search.SearchEngine
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
@@ -153,7 +153,11 @@ fun TvDetailsScreen(
     val isLoadingSources = streamSearchUiState.isLoading
     val extensionErrors = streamSearchUiState.errors
     val context = LocalContext.current.applicationContext
-    
+
+    LaunchedEffect(mediaItem.id) {
+        com.example.calmsource.core.playback.StreamPrebufferer.preBufferStream(context, "default", mediaItem.id)
+    }
+
     val dbReady by DatabaseProvider.databaseReady.collectAsState()
     val memoryRepository = remember(context, dbReady) {
         if (!dbReady) {
@@ -222,7 +226,7 @@ fun TvDetailsScreen(
                         rawUrl = option.source.url,
                         metadata = PlaybackItemMetadata(
                             title = if (mediaItem.type == MediaType.SHOW && selectedEpisode != null) 
-                                "${currentMediaItem.title} - S${selectedEpisode?.season}E${selectedEpisode?.episode}: ${selectedEpisode?.title}" 
+                                "${currentMediaItem.title} - ${selectedEpisode?.episodeDisplayLabel(selectedEpisode?.season ?: 1)}" 
                                 else currentMediaItem.title,
                             posterUrl = currentMediaItem.posterUrl,
                             backdropUrl = currentMediaItem.backdropUrl,
@@ -273,7 +277,7 @@ fun TvDetailsScreen(
                         rawUrl = opt.source.url,
                         metadata = PlaybackItemMetadata(
                             title = if (mediaItem.type == MediaType.SHOW && selectedEpisode != null) 
-                                "${currentMediaItem.title} - S${selectedEpisode?.season}E${selectedEpisode?.episode}: ${selectedEpisode?.title}" 
+                                "${currentMediaItem.title} - ${selectedEpisode?.episodeDisplayLabel(selectedEpisode?.season ?: 1)}" 
                                 else currentMediaItem.title,
                             posterUrl = currentMediaItem.posterUrl,
                             backdropUrl = currentMediaItem.backdropUrl,
@@ -661,6 +665,12 @@ fun TvDetailsScreen(
                             )
                         }
 
+                        stremioMeta?.genres?.let { genres ->
+                            if (genres.isNotEmpty()) {
+                                GenreLabelRow(genres = genres)
+                            }
+                        }
+
                         Text(
                             text = currentMediaItem.overview ?: stremioMeta?.description ?: "",
                             color = t.colors.mutedForeground,
@@ -695,6 +705,42 @@ fun TvDetailsScreen(
                                             color = controlFg,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = LumenType.size15
+                                        )
+                                    }
+                                }
+                            } else if (isLoadingSources) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(LumenLayout.iconMd),
+                                        color = t.colors.brand,
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Text(
+                                        text = "Finding streams…",
+                                        color = t.colors.mutedForeground,
+                                        fontSize = LumenType.size14,
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm),
+                                ) {
+                                    Text(
+                                        text = "No playable streams found",
+                                        color = t.colors.foreground,
+                                        fontSize = LumenType.size14,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    extensionErrors.take(2).forEach { err ->
+                                        Text(
+                                            text = err,
+                                            color = LumenExtendedColors.errorBright,
+                                            fontSize = LumenType.size12,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     }
                                 }
@@ -774,27 +820,41 @@ fun TvDetailsScreen(
                                     val epId = video.id ?: "${mediaItem.id}:${video.season ?: 1}:${video.episode ?: 1}"
                                     val progress = progressMap[epId]
 
+                                    val episodeImage = video.displayImageUrl(
+                                        currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
+                                    )
+                                    val episodeLabel = video.episodeDisplayLabel(selectedSeason)
+
                                     TvFocusable(
                                         onClick = { selectedEpisode = video },
                                         modifier = Modifier.width(LumenLayout.channelPanelWidth)
                                     ) {
                                         Column {
                                             PosterCard(
-                                                imageUrl = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
+                                                imageUrl = episodeImage,
                                                 orientation = PosterOrientation.Landscape,
                                                 progress = progress,
                                                 onClick = { selectedEpisode = video },
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                             Text(
-                                                text = "Episode ${video.episode}: ${video.title ?: ""}",
+                                                text = episodeLabel,
                                                 color = if (isSelected) t.colors.brand else t.colors.foreground,
                                                 fontSize = LumenType.size13,
                                                 fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
+                                                maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = Modifier.padding(top = LumenLegacySpace.sm2)
                                             )
+                                            video.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+                                                Text(
+                                                    text = overview,
+                                                    color = t.colors.mutedForeground,
+                                                    fontSize = LumenType.size11,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1053,7 +1113,7 @@ fun TvManualSourceItem(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = LumenLegacySpace.sm)
                 ) {
-                    TvSourceBadge(type = option.type)
+                    SourceBadge(kind = option.type.toTvBadgeKind())
                     
                     val extensionName = parsedInfo.sourceExtensionName ?: option.source.sourceExtensionName
                     if (!extensionName.isNullOrBlank()) {
@@ -1184,27 +1244,10 @@ fun TvManualSourceItem(
     }
 }
 
-@Composable
-fun TvSourceBadge(type: SourceType, modifier: Modifier = Modifier) {
-    val t = LocalLumenTokens.current
-    val (label, bg, fg) = when (type) {
-        SourceType.IPTV -> Triple("IPTV", t.colors.brand.copy(alpha = 0.2f), t.colors.brandGlow)
-        SourceType.EXTENSION -> Triple("ADDON", t.colors.muted, t.colors.foreground)
-        SourceType.DEBRID -> Triple("DEBRID", LumenExtendedColors.debridTint, LumenTokens.Color.success)
-    }
-    Box(
-        modifier = modifier
-            .clip(LumenTokens.Shape.md)
-            .background(bg)
-            .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = LumenType.size11,
-            fontWeight = FontWeight.Black
-        )
-    }
+private fun SourceType.toTvBadgeKind(): SourceBadgeKind = when (this) {
+    SourceType.IPTV -> SourceBadgeKind.IPTV
+    SourceType.EXTENSION -> SourceBadgeKind.EXTENSION
+    SourceType.DEBRID -> SourceBadgeKind.DEBRID
 }
 
 private fun MediaItem.toDiscoveryMediaItem(): DiscoveryMediaItem {

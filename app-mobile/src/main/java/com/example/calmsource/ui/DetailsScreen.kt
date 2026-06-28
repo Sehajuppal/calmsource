@@ -97,6 +97,7 @@ fun DetailsScreen(
             }
         }.getOrDefault(emptyList())
     }
+
     var isLoadingMeta by remember(mediaItem.id) { mutableStateOf(false) }
     var metadataError by remember(mediaItem.id) { mutableStateOf<String?>(null) }
     val retryTrigger = remember { mutableStateOf(0) }
@@ -162,7 +163,11 @@ fun DetailsScreen(
     val isLoadingSources = streamSearchUiState.isLoading
     val extensionErrors = streamSearchUiState.errors
     val context = LocalContext.current.applicationContext
-    
+
+    LaunchedEffect(mediaItem.id) {
+        com.example.calmsource.core.playback.StreamPrebufferer.preBufferStream(context, "default", mediaItem.id)
+    }
+
     val dbReady by DatabaseProvider.databaseReady.collectAsState()
     val memoryRepository = remember(context, dbReady) {
         if (!dbReady) {
@@ -600,14 +605,12 @@ fun DetailsScreen(
                             )
                         }
 
-                        // Genres ChipRow
+                        // Genres (read-only labels)
                         stremioMeta?.genres?.let { genres ->
                             if (genres.isNotEmpty()) {
-                                ChipRow(
-                                    items = genres,
-                                    selected = null,
-                                    onSelect = {},
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.lg).offset(x = (-LumenLegacySpace.xxl))
+                                GenreLabelRow(
+                                    genres = genres,
+                                    modifier = Modifier.offset(x = (-LumenLegacySpace.xxl)),
                                 )
                             }
                         }
@@ -642,6 +645,46 @@ fun DetailsScreen(
                                     backdropLuminance = backdropLuminance,
                                     modifier = Modifier.weight(1f)
                                 )
+                            } else if (isLoadingSources) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(LumenLayout.iconMd),
+                                        color = t.colors.brand,
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Text(
+                                        text = "Finding streams…",
+                                        color = t.colors.mutedForeground,
+                                        fontSize = LumenType.size14,
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm),
+                                ) {
+                                    Text(
+                                        text = "No playable streams found",
+                                        color = t.colors.foreground,
+                                        fontSize = LumenType.size14,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    if (extensionErrors.isNotEmpty()) {
+                                        extensionErrors.take(2).forEach { err ->
+                                            Text(
+                                                text = err,
+                                                color = LumenExtendedColors.errorBright,
+                                                fontSize = LumenType.size12,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
                             // Watchlist Toggle
@@ -787,24 +830,27 @@ fun DetailsScreen(
                             title = "More Like This",
                             modifier = Modifier.padding(top = LumenLegacySpace.lg)
                         ) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
-                            ) {
-                                items(similarItems, key = { "similar-${it.id}" }) { item ->
-                                    val similarMedia = MediaItem(
-                                        id = item.id,
-                                        title = item.title,
-                                        type = if (item.type == "series") MediaType.SHOW else MediaType.MOVIE,
-                                        overview = item.reason,
-                                        posterUrl = item.posterUrl,
-                                        externalIds = item.externalIds
-                                    )
-                                    PosterCard(
-                                        imageUrl = similarMedia.posterUrl,
-                                        onClick = { onOpenMedia(similarMedia) },
-                                        modifier = Modifier.width(LumenLayout.epgMinBlockWidth)
-                                    )
+                            LumenHorizontalRowFade {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+                                ) {
+                                    items(similarItems, key = { "similar-${it.id}" }) { item ->
+                                        val similarMedia = MediaItem(
+                                            id = item.id,
+                                            title = item.title,
+                                            type = if (item.type == "series") MediaType.SHOW else MediaType.MOVIE,
+                                            overview = item.reason,
+                                            posterUrl = item.posterUrl,
+                                            externalIds = item.externalIds
+                                        )
+                                        PosterCard(
+                                            imageUrl = similarMedia.posterUrl,
+                                            contentLabel = similarMedia.title,
+                                            onClick = { onOpenMedia(similarMedia) },
+                                            modifier = Modifier.width(LumenLayout.epgMinBlockWidth)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1029,14 +1075,14 @@ private fun EpisodeRow(
             .clickable(onClick = onClick)
     ) {
         PosterCard(
-            imageUrl = backdropUrl,
+            imageUrl = video.displayImageUrl(backdropUrl),
             orientation = PosterOrientation.Landscape,
             progress = progress,
             onClick = onClick,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "E${video.episode}: ${video.title ?: "Episode ${video.episode}"}",
+            text = video.episodeDisplayLabel(video.season ?: 1),
             color = if (isSelected) t.colors.brand else t.colors.foreground,
             fontSize = LumenType.size13,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -1096,7 +1142,7 @@ fun ManualSourceItem(
                 horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SourceBadge(type = option.type)
+                SourceBadge(kind = option.type.toBadgeKind())
                 
                 val parsedInfo = remember(option.source) {
                     StreamParserUtil.smartParseAll(option.source.rawTitle ?: option.source.name, option.source.extensionId)
@@ -1234,27 +1280,10 @@ fun ManualSourceItem(
     }
 }
 
-@Composable
-fun SourceBadge(type: SourceType, modifier: Modifier = Modifier) {
-    val t = LocalLumenTokens.current
-    val (label, bg, fg) = when (type) {
-        SourceType.IPTV -> Triple("IPTV", t.colors.brand.copy(alpha = 0.2f), t.colors.brandGlow)
-        SourceType.EXTENSION -> Triple("ADDON", t.colors.muted, t.colors.foreground)
-        SourceType.DEBRID -> Triple("DEBRID", LumenExtendedColors.debridTint, LumenTokens.Color.success)
-    }
-    Box(
-        modifier = modifier
-            .clip(LumenTokens.Shape.xs)
-            .background(bg)
-            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = LumenType.size10,
-            fontWeight = FontWeight.Black
-        )
-    }
+private fun SourceType.toBadgeKind(): SourceBadgeKind = when (this) {
+    SourceType.IPTV -> SourceBadgeKind.IPTV
+    SourceType.EXTENSION -> SourceBadgeKind.EXTENSION
+    SourceType.DEBRID -> SourceBadgeKind.DEBRID
 }
 
 private fun MediaItem.toDiscoveryMediaItem(): DiscoveryMediaItem {

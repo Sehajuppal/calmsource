@@ -46,6 +46,7 @@ object ExtensionRepository {
     private val productionDemoExtensionHosts = setOf("legal-demo.com", "slowaddon.org", "failedaddon.com")
     private val productionDemoExtensionNames = setOf("Public Domain Movies", "Slow Catalog Addon", "Failed Addon Engine", "Failed Scraper Engine")
     private val discoveryCatalogRefreshMutex = Mutex()
+    private val installMutex = Mutex()
     private val _vaultRestoreErrors = MutableStateFlow<List<String>>(emptyList())
     val vaultRestoreErrors: StateFlow<List<String>> = _vaultRestoreErrors.asStateFlow()
     @Volatile private var cachedHomeCatalogRows: List<RecommendationRow> = emptyList()
@@ -151,7 +152,7 @@ object ExtensionRepository {
                     }
                 }
                 kotlinx.coroutines.coroutineScope {
-                    val loaded = runCatching { dao.getAllExtensions().first() }.getOrDefault(emptyList())
+                    val loaded = runCatching { kotlinx.coroutines.withTimeout(30_000L) { dao.getAllExtensions().first() } }.getOrDefault(emptyList())
                     val current = if (isTest) {
                         loaded
                     } else {
@@ -362,31 +363,33 @@ object ExtensionRepository {
             )
         }
 
-        val existingWithSameId = getExtensions().find { it.id == providerId }
-        if (existingWithSameId != null && existingWithSameId.url != finalUrl) {
-            return@withContext ExtensionInstallResult(
-                isSuccess = false,
-                error = ExtensionError.InvalidManifest(
-                    "An extension with ID '$providerId' is already installed from a different URL. Remove it first or use the existing entry."
-                ),
-                warnings = installWarnings
-            )
-        }
-
-        try {
-            dao.insertExtension(updatedProvider.toEntity())
-            queueDiscoveryCatalogRefresh(updatedProvider)
-            ExtensionInstallResult(
-                isSuccess = true,
-                manifest = manifestToInstall.copy(id = providerId),
-                warnings = installWarnings
-            )
-        } catch (e: Exception) {
-            ExtensionInstallResult(
-                isSuccess = false,
-                error = ExtensionError.Unknown(e.message ?: "Failed to save extension"),
-                warnings = installWarnings
-            )
+        return@withContext installMutex.withLock {
+            val existingWithSameId = getExtensions().find { it.id == providerId }
+            if (existingWithSameId != null && existingWithSameId.url != finalUrl) {
+                ExtensionInstallResult(
+                    isSuccess = false,
+                    error = ExtensionError.InvalidManifest(
+                        "An extension with ID '$providerId' is already installed from a different URL. Remove it first or use the existing entry."
+                    ),
+                    warnings = installWarnings
+                )
+            } else {
+                try {
+                    dao.insertExtension(updatedProvider.toEntity())
+                    queueDiscoveryCatalogRefresh(updatedProvider)
+                    ExtensionInstallResult(
+                        isSuccess = true,
+                        manifest = manifestToInstall.copy(id = providerId),
+                        warnings = installWarnings
+                    )
+                } catch (e: Exception) {
+                    ExtensionInstallResult(
+                        isSuccess = false,
+                        error = ExtensionError.Unknown(e.message ?: "Failed to save extension"),
+                        warnings = installWarnings
+                    )
+                }
+            }
         }
     }
 
@@ -516,6 +519,13 @@ object ExtensionRepository {
             ?: return@withContext ExtensionInstallResult(isSuccess = false, error = ExtensionError.Unknown("Extension manifest unavailable"))
         val configs = getAddonConfigList(manifest)
 
+        if (configs.isEmpty() && configValues.isNotEmpty()) {
+            return@withContext ExtensionInstallResult(
+                isSuccess = false,
+                error = ExtensionError.InvalidManifest("No configurable fields detected in manifest")
+            )
+        }
+
         val newUrl = compileConfigUrl(provider.url, configValues, configs, providerId)
 
         // Recalculate health
@@ -588,21 +598,14 @@ object ExtensionRepository {
     fun updateHealth(id: String, health: ExtensionHealth) {
         runIO {
             val provider = getExtensions().find { it.id == id } ?: return@runIO
-            if (provider.health == ExtensionHealth.DISABLED ||
-                provider.health == ExtensionHealth.NEEDS_CONFIGURATION ||
-                provider.health == ExtensionHealth.INVALID_MANIFEST
-            ) {
-                // Allow recovery to ACTIVE even from sticky states (except DISABLED which is user-controlled)
-                if (health != ExtensionHealth.ACTIVE || provider.health == ExtensionHealth.DISABLED) {
-                    return@runIO
-                }
+            if (provider.health == ExtensionHealth.DISABLED) {
+                if (health != ExtensionHealth.ACTIVE) return@runIO
             }
             val currentHealth = checkAddonHealth(provider)
-            val finalHealth = if (currentHealth == ExtensionHealth.DISABLED ||
-                currentHealth == ExtensionHealth.NEEDS_CONFIGURATION ||
-                currentHealth == ExtensionHealth.INVALID_MANIFEST
-            ) {
-                currentHealth
+            val finalHealth = if (health == ExtensionHealth.ACTIVE && currentHealth == ExtensionHealth.ACTIVE) {
+                ExtensionHealth.ACTIVE
+            } else if (currentHealth == ExtensionHealth.DISABLED) {
+                ExtensionHealth.DISABLED
             } else {
                 health
             }
@@ -677,12 +680,21 @@ object ExtensionRepository {
         ) {
             return cachedHomeCatalogRows
         }
-        val providers = awaitExtensions()
-            .filterNot { provider -> provider.isProductionDemoExtension() }
-        val rows = refreshDiscoveryCatalogs(providers).rows
-        cachedHomeCatalogRows = rows
-        cachedHomeCatalogRefreshMs = System.currentTimeMillis()
-        return rows
+        return discoveryCatalogRefreshMutex.withLock {
+            val recheck = System.currentTimeMillis()
+            if (!forceRefresh &&
+                cachedHomeCatalogRows.isNotEmpty() &&
+                recheck - cachedHomeCatalogRefreshMs < CATALOG_HOME_TTL_MS
+            ) {
+                return@withLock cachedHomeCatalogRows
+            }
+            val providers = awaitExtensions()
+                .filterNot { provider -> provider.isProductionDemoExtension() }
+            val rows = refreshDiscoveryCatalogs(providers).rows
+            cachedHomeCatalogRows = rows
+            cachedHomeCatalogRefreshMs = System.currentTimeMillis()
+            rows
+        }
     }
 
     suspend fun refreshDefaultDiscoveryHomeRows(): List<RecommendationRow> {
@@ -800,17 +812,21 @@ object ExtensionRepository {
         if (addonVideos == null) return null
         if (backendVideos == null) return addonVideos
         val backendVideoMap = backendVideos.associateBy { it.id }
+        val backendBySeasonEpisode = backendVideos.associateBy { "${it.season}:${it.episode}" }
         return addonVideos.map { addonVideo ->
             val match = backendVideoMap[addonVideo.id]
-            val skipTimes = match?.skipTimes
-            if (skipTimes != null) {
+                ?: backendBySeasonEpisode["${addonVideo.season}:${addonVideo.episode}"]
+            if (match != null) {
                 addonVideo.copy(
-                    skipTimes = skipTimes.map { skip ->
+                    title = match.title?.takeIf { it.isNotBlank() } ?: addonVideo.resolvedTitle(),
+                    overview = match.overview?.takeIf { it.isNotBlank() } ?: addonVideo.overview,
+                    thumbnail = match.thumbnail?.takeIf { it.isNotBlank() } ?: addonVideo.thumbnail,
+                    skipTimes = match.skipTimes?.map { skip ->
                         StremioSkipTime(
                             interval = StremioSkipInterval(skip.interval.start_time, skip.interval.end_time),
                             skipType = skip.skip_type
                         )
-                    }
+                    } ?: addonVideo.skipTimes,
                 )
             } else {
                 addonVideo
@@ -868,6 +884,7 @@ object ExtensionRepository {
         // Emit initial resolved state
         send(ExtensionMediaResolution(resolvedMediaItem, emptyList(), requestIds))
 
+        kotlinx.coroutines.withTimeout(2 * EXTENSION_REQUEST_TIMEOUT_MS) {
         supervisorScope {
             streamProviders.map { provider ->
                 launch(Dispatchers.IO) {
@@ -957,6 +974,7 @@ object ExtensionRepository {
                     ))
                 }
             }
+        }
         }
         // All providers launched; the channelFlow stays open until all children finish.
     }
@@ -1200,6 +1218,8 @@ object ExtensionRepository {
                     ),
                     subtitle = if (item.type == "series") "Series" else "Movie",
                     posterUrl = item.meta.poster ?: item.meta.logo,
+                    backdropUrl = item.meta.background,
+                    genres = item.meta.genres.orEmpty(),
                     source = provider.id,
                     externalIds = item.meta.toExternalIds()
                 )

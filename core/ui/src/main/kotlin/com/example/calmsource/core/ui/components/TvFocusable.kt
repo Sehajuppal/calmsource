@@ -19,6 +19,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
@@ -32,6 +37,7 @@ fun TvFocusable(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     cornerRadius: Dp = LumenTokens.Radius.lg,
+    showFocusRing: Boolean = true,
     onFocused: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -66,14 +72,14 @@ fun TvFocusable(
                 scaleY = scale
                 translationY = lift.toPx()
             }
-            .shadow(if (focused) LumenElevation.xl else LumenElevation.md, shape, clip = false)
+            .shadow(if (focused && showFocusRing) LumenElevation.xl else LumenElevation.md, shape, clip = false)
             .drawBehind {
-                if (glowAlpha > 0f) {
+                if (showFocusRing && glowAlpha > 0f) {
                     val glowRadiusPx = LumenTokens.Focus.ringGlow.toPx()
-                    val color = t.colors.focusHalo.copy(alpha = t.colors.focusHalo.alpha * glowAlpha)
+                    val ringColor = t.colors.brand.copy(alpha = glowAlpha)
                     val cornerRadiusPx = cornerRadius.toPx()
                     drawRoundRect(
-                        color = color.copy(alpha = color.alpha * 0.22f),
+                        color = ringColor.copy(alpha = ringColor.alpha * 0.18f),
                         topLeft = androidx.compose.ui.geometry.Offset(-glowRadiusPx / 2f, -glowRadiusPx / 2f),
                         size = androidx.compose.ui.geometry.Size(
                             width = size.width + glowRadiusPx,
@@ -83,7 +89,7 @@ fun TvFocusable(
                         style = Stroke(width = glowRadiusPx),
                     )
                     drawRoundRect(
-                        color = color,
+                        color = ringColor,
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx),
                         style = Stroke(width = LumenTokens.Focus.ringStroke.toPx()),
                     )
@@ -91,7 +97,17 @@ fun TvFocusable(
             }
             .clip(shape)
             .onFocusChanged { if (it.isFocused) onFocused?.invoke() }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .onKeyEvent { event ->
+                if (!focused || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (event.key) {
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                        onClick()
+                        true
+                    }
+                    else -> false
+                }
+            },
     ) { content() }
 }

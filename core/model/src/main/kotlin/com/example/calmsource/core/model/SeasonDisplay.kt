@@ -8,18 +8,18 @@ fun List<StremioVideo>.displayableEpisodes(): List<StremioVideo> {
                 season >= 0 &&
                 (
                     !video.id.isNullOrBlank() ||
-                        !video.title.isNullOrBlank() ||
+                        !video.resolvedTitle().isNullOrBlank() ||
                         (video.episode ?: 0) > 0
                     )
         }
         .distinctBy { video ->
             video.id?.takeIf { it.isNotBlank() }
-                ?: "${video.season}:${video.episode}:${video.title.orEmpty().trim().lowercase()}"
+                ?: "${video.season}:${video.episode}:${video.resolvedTitle().orEmpty().trim().lowercase()}"
         }
         .sortedWith(
             compareBy<StremioVideo> { it.season ?: Int.MAX_VALUE }
                 .thenBy { it.episode ?: Int.MAX_VALUE }
-                .thenBy { it.title.orEmpty() }
+                .thenBy { it.resolvedTitle().orEmpty() }
         )
         .toList()
 }

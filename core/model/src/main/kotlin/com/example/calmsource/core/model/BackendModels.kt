@@ -42,6 +42,7 @@ data class BackendVideo(
     val episode: Int? = null,
     val released: String? = null,
     val overview: String? = null,
+    val thumbnail: String? = null,
     val skipTimes: List<BackendSkipTime>? = null
 )
 

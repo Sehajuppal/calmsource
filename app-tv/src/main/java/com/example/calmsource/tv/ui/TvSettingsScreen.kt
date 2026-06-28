@@ -1,6 +1,8 @@
 package com.example.calmsource.tv.ui
 
 import com.example.calmsource.core.ui.theme.*
+import com.example.calmsource.core.ui.components.ProviderHealthVisual
+import com.example.calmsource.core.ui.components.providerHealthColor
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -126,6 +128,57 @@ fun TvSettingsScreens(
     var isInstallingAddon by remember { mutableStateOf(false) }
 
     var showProviderTypeSelect by remember { mutableStateOf(false) }
+
+    fun saveM3uProvider() {
+        val url = m3uUrl.trim()
+        if (url.isEmpty()) {
+            m3uError = "Playlist URL is required"
+            return
+        }
+        val name = m3uName.trim().ifBlank { "M3U Playlist" }
+        coroutineScope.launch {
+            val editProv = m3uEditProvider
+            try {
+                if (editProv != null) {
+                    IPTVRepository.updateM3uProvider(editProv.id, name, url)
+                    showM3uDialog = false
+                } else {
+                    val provider = IPTVRepository.addM3uProvider(name, url)
+                    showM3uDialog = false
+                    IPTVRepository.syncPlaylistFromUrl(provider.id)
+                }
+            } catch (e: Exception) {
+                m3uError = e.localizedMessage ?: "Failed to save provider"
+            }
+        }
+    }
+
+    fun saveXtreamProvider() {
+        val server = xtreamServer.trim()
+        val user = xtreamUsername.trim()
+        val pass = xtreamPassword.trim()
+        if (server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+            xtreamError = "Server URL, username, and password are required"
+            return
+        }
+        val name = xtreamName.trim().ifBlank { "Xtream TV" }
+        coroutineScope.launch {
+            val editProv = xtreamEditProvider
+            val res = if (editProv != null) {
+                IPTVRepository.updateXtreamProvider(editProv.id, name, server, user, pass)
+            } else {
+                IPTVRepository.addXtreamProvider(name, server, user, pass)
+            }
+            if (res.isSuccess) {
+                showXtreamDialog = false
+                if (editProv == null) {
+                    IPTVRepository.startXtreamProviderSync(res.getOrThrow().id)
+                }
+            } else {
+                xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -420,11 +473,12 @@ fun TvSettingsScreens(
                                                 .size(LumenTokens.Radius.sm)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (!provider.isEnabled) Color.Gray
-                                                    else when (provider.health) {
-                                                        ProviderHealth.HEALTHY -> Color.Green
-                                                        ProviderHealth.SLOW -> Color.Yellow
-                                                        ProviderHealth.FAILED -> Color.Red
+                                                    if (!provider.isEnabled) {
+                                                        providerHealthColor(ProviderHealthVisual.DISABLED)
+                                                    } else when (provider.health) {
+                                                        ProviderHealth.HEALTHY -> providerHealthColor(ProviderHealthVisual.HEALTHY)
+                                                        ProviderHealth.SLOW -> providerHealthColor(ProviderHealthVisual.SLOW)
+                                                        ProviderHealth.FAILED -> providerHealthColor(ProviderHealthVisual.FAILED)
                                                     }
                                                 )
                                         )
@@ -619,7 +673,7 @@ fun TvSettingsScreens(
                     TvTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
-                        placeholder = { Text("Name", color = t.colors.mutedForeground) },
+                        placeholder = { Text("Name (optional)", color = t.colors.mutedForeground) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -633,6 +687,7 @@ fun TvSettingsScreens(
                         onValueChange = { m3uUrl = it },
                         placeholder = { Text("Playlist URL", color = t.colors.mutedForeground) },
                         singleLine = true,
+                        onSearchAction = { saveM3uProvider() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { isUrlFocused = it.isFocused }
@@ -650,26 +705,7 @@ fun TvSettingsScreens(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TvFocusable(
-                            onClick = {
-                                val name = m3uName.trim()
-                                val url = m3uUrl.trim()
-                                if (name.isEmpty() || url.isEmpty()) {
-                                    m3uError = "Please fill in all fields"
-                                    return@TvFocusable
-                                }
-                                coroutineScope.launch {
-                                    val editProv = m3uEditProvider
-                                    if (editProv != null) {
-                                        IPTVRepository.deleteProvider(editProv.id)
-                                    }
-                                    try {
-                                        IPTVRepository.addM3uProvider(name, url)
-                                        showM3uDialog = false
-                                    } catch (e: Exception) {
-                                        m3uError = e.localizedMessage ?: "Failed to save provider"
-                                    }
-                                }
-                            },
+                            onClick = { saveM3uProvider() },
                             modifier = Modifier.weight(1f),
                             cornerRadius = LumenLegacySpace.sm2
                         ) {
@@ -727,7 +763,7 @@ fun TvSettingsScreens(
                     TvTextField(
                         value = xtreamName,
                         onValueChange = { xtreamName = it },
-                        placeholder = { Text("Name", color = t.colors.mutedForeground) },
+                        placeholder = { Text("Name (optional)", color = t.colors.mutedForeground) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -765,6 +801,7 @@ fun TvSettingsScreens(
                         onValueChange = { xtreamPassword = it },
                         placeholder = { Text("Password", color = t.colors.mutedForeground) },
                         singleLine = true,
+                        onSearchAction = { saveXtreamProvider() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { isPassFocused = it.isFocused }
@@ -782,28 +819,7 @@ fun TvSettingsScreens(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TvFocusable(
-                            onClick = {
-                                val name = xtreamName.trim()
-                                val server = xtreamServer.trim()
-                                val user = xtreamUsername.trim()
-                                val pass = xtreamPassword.trim()
-                                if (name.isEmpty() || server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-                                    xtreamError = "Please fill in all fields"
-                                    return@TvFocusable
-                                }
-                                coroutineScope.launch {
-                                    val editProv = xtreamEditProvider
-                                    if (editProv != null) {
-                                        IPTVRepository.deleteProvider(editProv.id)
-                                    }
-                                    val res = IPTVRepository.addXtreamProvider(name, server, user, pass)
-                                    if (res.isSuccess) {
-                                        showXtreamDialog = false
-                                    } else {
-                                        xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
-                                    }
-                                }
-                            },
+                            onClick = { saveXtreamProvider() },
                             modifier = Modifier.weight(1f),
                             cornerRadius = LumenLegacySpace.sm2
                         ) {

@@ -68,7 +68,15 @@ import androidx.compose.ui.unit.dp
 import com.example.calmsource.core.ui.components.GlassSurface
 import com.example.calmsource.core.ui.theme.LumenTokens
 import com.example.calmsource.core.ui.theme.LumenType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import kotlinx.coroutines.delay
+import com.example.calmsource.core.ui.components.TvFocusable
 
 data class TrackOption(val id: String, val label: String, val language: String? = null, val selected: Boolean = false)
 data class QualityOption(val id: String, val label: String, val heightPx: Int? = null, val bitrateKbps: Int? = null, val selected: Boolean = false)
@@ -108,23 +116,65 @@ fun PlayerChrome(
     actions: PlayerActions,
     isTv: Boolean,
     modifier: Modifier = Modifier,
+    chromeVisible: Boolean? = null,
+    onChromeVisibleChange: ((Boolean) -> Unit)? = null,
 ) {
-    var visible by rememberSaveable { mutableStateOf(true) }
+    var internalVisible by rememberSaveable { mutableStateOf(true) }
+    val visibleControlled = chromeVisible != null
+    val visible = chromeVisible ?: internalVisible
+    fun setVisible(value: Boolean) {
+        if (!visibleControlled) internalVisible = value
+        onChromeVisibleChange?.invoke(value)
+    }
     var sheet by remember { mutableStateOf(Sheet.None) }
     var lastInteractAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    val playPauseFocusRequester = remember { FocusRequester() }
 
     // Auto-hide after 3s; never hide while a sheet is open or while buffering.
-    LaunchedEffect(lastInteractAt, sheet, state.isBuffering, state.isPlaying) {
-        if (!state.isPlaying || sheet != Sheet.None || state.isBuffering) return@LaunchedEffect
+    LaunchedEffect(lastInteractAt, sheet, state.isBuffering, state.isPlaying, visible) {
+        if (!isTv || !visible || !state.isPlaying || sheet != Sheet.None || state.isBuffering) return@LaunchedEffect
         delay(3_000)
-        if (System.currentTimeMillis() - lastInteractAt >= 2_900) visible = false
+        if (System.currentTimeMillis() - lastInteractAt >= 2_900) setVisible(false)
     }
 
-    fun touch() { visible = true; lastInteractAt = System.currentTimeMillis() }
+    LaunchedEffect(visible, isTv) {
+        if (isTv && visible) {
+            delay(80)
+            try {
+                playPauseFocusRequester.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun touch() {
+        setVisible(true)
+        lastInteractAt = System.currentTimeMillis()
+    }
 
     Box(
         modifier
             .fillMaxSize()
+            .then(
+                if (isTv) {
+                    Modifier.onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                                if (!visible) {
+                                    touch()
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                            else -> false
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { touch() },
@@ -152,7 +202,14 @@ fun PlayerChrome(
         }
 
         AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
-            ChromeLayer(state, actions, isTv, openSheet = { s -> sheet = s; touch() })
+            ChromeLayer(
+                state = state,
+                actions = actions,
+                isTv = isTv,
+                openSheet = { s -> sheet = s; touch() },
+                playPauseFocusRequester = playPauseFocusRequester,
+                onInteract = { touch() },
+            )
         }
 
         when (sheet) {
@@ -184,9 +241,11 @@ private fun ChromeLayer(
     actions: PlayerActions,
     isTv: Boolean,
     openSheet: (Sheet) -> Unit,
+    playPauseFocusRequester: FocusRequester,
+    onInteract: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        // Top bar — title + close.
+        // Top bar — title
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = LumenTokens.Shape.md,
@@ -207,18 +266,42 @@ private fun ChromeLayer(
         // Bottom controls.
         GlassSurface(modifier = Modifier.fillMaxWidth(), shape = LumenTokens.Shape.md, strong = true) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Scrubber(state = state, onSeek = actions.onSeekTo)
+                Scrubber(state = state, onSeek = { actions.onSeekTo(it); onInteract() })
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (state.hasPrev) IconButton(onClick = actions.onPrev) { Icon(Icons.Default.SkipPrevious, null, tint = LumenTokens.Color.textPrimary) }
-                    IconButton(onClick = actions.onPlayPause) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (state.hasPrev) {
+                        PlayerControlButton(
+                            isTv = isTv,
+                            label = "Previous",
+                            onClick = { actions.onPrev(); onInteract() },
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, null, tint = LumenTokens.Color.textPrimary)
+                        }
+                    }
+                    PlayerControlButton(
+                        isTv = isTv,
+                        label = if (state.isPlaying) "Pause" else "Play",
+                        onClick = { actions.onPlayPause(); onInteract() },
+                        modifier = if (isTv) Modifier.focusRequester(playPauseFocusRequester) else Modifier,
+                    ) {
                         Icon(
                             if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (state.isPlaying) "Pause" else "Play",
                             tint = LumenTokens.Color.textPrimary,
                         )
                     }
-                    if (state.hasNext) IconButton(onClick = actions.onNext) { Icon(Icons.Default.SkipNext, null, tint = LumenTokens.Color.textPrimary) }
+                    if (state.hasNext) {
+                        PlayerControlButton(
+                            isTv = isTv,
+                            label = "Next",
+                            onClick = { actions.onNext(); onInteract() },
+                        ) {
+                            Icon(Icons.Default.SkipNext, null, tint = LumenTokens.Color.textPrimary)
+                        }
+                    }
                     Spacer(Modifier.weight(1f))
                     Text(
                         text = "${fmtTime(state.positionMs)} / ${fmtTime(state.durationMs)}",
@@ -226,11 +309,60 @@ private fun ChromeLayer(
                         color = LumenTokens.Color.textSecondary,
                     )
                     Spacer(Modifier.width(12.dp))
-                    if (state.audioTracks.isNotEmpty()) IconButton(onClick = { openSheet(Sheet.Audio) }) { Icon(Icons.Default.GraphicEq, "Audio", tint = LumenTokens.Color.textPrimary) }
-                    if (state.subtitleTracks.isNotEmpty()) IconButton(onClick = { openSheet(Sheet.Subtitle) }) { Icon(Icons.Default.ClosedCaption, "Subtitles", tint = LumenTokens.Color.textPrimary) }
-                    if (state.qualityOptions.isNotEmpty()) IconButton(onClick = { openSheet(Sheet.Quality) }) { Icon(Icons.Default.HighQuality, "Quality", tint = LumenTokens.Color.textPrimary) }
+                    if (state.audioTracks.isNotEmpty()) {
+                        PlayerControlButton(
+                            isTv = isTv,
+                            label = "Audio",
+                            onClick = { openSheet(Sheet.Audio) },
+                        ) {
+                            Icon(Icons.Default.GraphicEq, "Audio", tint = LumenTokens.Color.textPrimary)
+                        }
+                    }
+                    if (state.subtitleTracks.isNotEmpty()) {
+                        PlayerControlButton(
+                            isTv = isTv,
+                            label = "Subtitles",
+                            onClick = { openSheet(Sheet.Subtitle) },
+                        ) {
+                            Icon(Icons.Default.ClosedCaption, "Subtitles", tint = LumenTokens.Color.textPrimary)
+                        }
+                    }
+                    if (state.qualityOptions.isNotEmpty()) {
+                        PlayerControlButton(
+                            isTv = isTv,
+                            label = "Quality",
+                            onClick = { openSheet(Sheet.Quality) },
+                        ) {
+                            Icon(Icons.Default.HighQuality, "Quality", tint = LumenTokens.Color.textPrimary)
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlayerControlButton(
+    isTv: Boolean,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (isTv) {
+        TvFocusable(
+            onClick = onClick,
+            modifier = modifier,
+            cornerRadius = LumenTokens.Radius.md,
+        ) {
+            Box(modifier = Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
+                content()
+            }
+        }
+    } else {
+        IconButton(onClick = onClick, modifier = modifier) {
+            content()
         }
     }
 }

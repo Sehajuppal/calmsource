@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +45,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.material3.LocalTextStyle
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.theme.LumenTokens
 import com.example.calmsource.core.ui.theme.surface
 
 
@@ -194,10 +198,15 @@ fun TvTextField(
                                 keyboardController?.show()
                                 true
                             } else if (onSearchAction != null) {
+                                isEditing = false
+                                keyboardController?.hide()
                                 onSearchAction()
                                 true
                             } else {
-                                false
+                                isEditing = false
+                                keyboardController?.hide()
+                                focusManager.moveFocus(FocusDirection.Down)
+                                true
                             }
                         }
                         android.view.KeyEvent.KEYCODE_BACK,
@@ -246,5 +255,63 @@ fun TvTextField(
                     }
                 } else false
             }
+    )
+}
+
+/**
+ * Primary TV call-to-action pill (hero "View details", etc.).
+ * Uses brand fill at rest and inverts on focus — no extra focus ring stroke.
+ */
+@Composable
+fun TvCtaButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable ((focused: Boolean) -> Unit)? = null,
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier.onFocusChanged {
+            isFocused = it.isFocused
+        },
+        cornerRadius = LumenTokens.Radius.pill,
+        showFocusRing = false,
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(LumenTokens.Shape.pill)
+                .background(if (isFocused) t.colors.foreground else t.colors.surface.copy(alpha = 0.9f))
+                .padding(horizontal = LumenTokens.Space.s7, vertical = LumenTokens.Space.s5),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s4),
+        ) {
+            icon?.invoke(isFocused)
+            Text(
+                text = text,
+                color = if (isFocused) t.colors.background else t.colors.brandForeground,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+/** Default hero CTA with info icon — used by regression tests. */
+@Composable
+fun TvHeroDetailsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val t = LocalLumenTokens.current
+    TvCtaButton(
+        text = "View details",
+        onClick = onClick,
+        modifier = modifier,
+        icon = { focused ->
+            Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                tint = if (focused) t.colors.background else t.colors.brandForeground,
+            )
+        },
     )
 }

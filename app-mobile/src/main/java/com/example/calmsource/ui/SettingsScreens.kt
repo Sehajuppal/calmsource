@@ -43,6 +43,9 @@ import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.AdaptiveButton
 import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.LumenInlineMessage
+import com.example.calmsource.core.ui.components.ProviderHealthVisual
+import com.example.calmsource.core.ui.components.providerHealthColor
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -109,25 +112,81 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     var addonToConfigure by remember { mutableStateOf<ExtensionProvider?>(null) }
 
     val vaultRestoreErrors by ExtensionRepository.vaultRestoreErrors.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    var inlineMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(vaultRestoreErrors) {
-        vaultRestoreErrors.firstOrNull()?.let { error ->
-            snackbarHostState.showSnackbar("Extension restore failed: $error")
-        }
+        inlineMessage = vaultRestoreErrors.firstOrNull()?.let { "Extension restore failed: $it" }
     }
 
     var showProviderTypeSelect by remember { mutableStateOf(false) }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = t.colors.background
-    ) { padding ->
+    fun saveM3uProvider() {
+        val url = m3uUrl.trim()
+        if (url.isEmpty()) {
+            m3uError = "Playlist URL is required"
+            return
+        }
+        val name = m3uName.trim().ifBlank { "M3U Playlist" }
+        coroutineScope.launch {
+            val editProv = m3uEditProvider
+            try {
+                if (editProv != null) {
+                    IPTVRepository.updateM3uProvider(editProv.id, name, url)
+                    showM3uDialog = false
+                } else {
+                    val provider = IPTVRepository.addM3uProvider(name, url)
+                    showM3uDialog = false
+                    IPTVRepository.syncPlaylistFromUrl(provider.id)
+                }
+            } catch (e: Exception) {
+                m3uError = e.localizedMessage ?: "Failed to save provider"
+            }
+        }
+    }
+
+    fun saveXtreamProvider() {
+        val server = xtreamServer.trim()
+        val user = xtreamUsername.trim()
+        val pass = xtreamPassword.trim()
+        if (server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+            xtreamError = "Server URL, username, and password are required"
+            return
+        }
+        val name = xtreamName.trim().ifBlank { "Xtream TV" }
+        coroutineScope.launch {
+            val editProv = xtreamEditProvider
+            val res = if (editProv != null) {
+                IPTVRepository.updateXtreamProvider(editProv.id, name, server, user, pass)
+            } else {
+                IPTVRepository.addXtreamProvider(name, server, user, pass)
+            }
+            if (res.isSuccess) {
+                showXtreamDialog = false
+                if (editProv == null) {
+                    IPTVRepository.startXtreamProviderSync(res.getOrThrow().id)
+                }
+            } else {
+                xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(padding)
+    ) {
+        inlineMessage?.let { message ->
+            LumenInlineMessage(
+                message = message,
+                onDismiss = { inlineMessage = null },
+                modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
+            )
+        }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(t.colors.background)
             .padding(LumenLegacySpace.lg)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
@@ -313,11 +372,12 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                         .size(LumenLegacySpace.sm2)
                                         .clip(CircleShape)
                                         .background(
-                                            if (!provider.isEnabled) Color.Gray
-                                            else when (provider.health) {
-                                                ProviderHealth.HEALTHY -> Color.Green
-                                                ProviderHealth.SLOW -> Color.Yellow
-                                                ProviderHealth.FAILED -> Color.Red
+                                            if (!provider.isEnabled) {
+                                                providerHealthColor(ProviderHealthVisual.DISABLED)
+                                            } else when (provider.health) {
+                                                ProviderHealth.HEALTHY -> providerHealthColor(ProviderHealthVisual.HEALTHY)
+                                                ProviderHealth.SLOW -> providerHealthColor(ProviderHealthVisual.SLOW)
+                                                ProviderHealth.FAILED -> providerHealthColor(ProviderHealthVisual.FAILED)
                                             }
                                         )
                                 )
@@ -629,7 +689,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     OutlinedTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
-                        label = { Text("Name") },
+                        label = { Text("Name (optional)") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
                     )
@@ -647,26 +707,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        val name = m3uName.trim()
-                        val url = m3uUrl.trim()
-                        if (name.isEmpty() || url.isEmpty()) {
-                            m3uError = "Please fill in all fields"
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            val editProv = m3uEditProvider
-                            if (editProv != null) {
-                                IPTVRepository.deleteProvider(editProv.id)
-                            }
-                            try {
-                                IPTVRepository.addM3uProvider(name, url)
-                                showM3uDialog = false
-                            } catch (e: Exception) {
-                                m3uError = e.localizedMessage ?: "Failed to save provider"
-                            }
-                        }
-                    },
+                    onClick = { saveM3uProvider() },
                     colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
                 ) {
                     Text("Save")
@@ -691,7 +732,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     OutlinedTextField(
                         value = xtreamName,
                         onValueChange = { xtreamName = it },
-                        label = { Text("Name") },
+                        label = { Text("Name (optional)") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
                     )
@@ -723,28 +764,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        val name = xtreamName.trim()
-                        val server = xtreamServer.trim()
-                        val user = xtreamUsername.trim()
-                        val pass = xtreamPassword.trim()
-                        if (name.isEmpty() || server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-                            xtreamError = "Please fill in all fields"
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            val editProv = xtreamEditProvider
-                            if (editProv != null) {
-                                IPTVRepository.deleteProvider(editProv.id)
-                            }
-                            val res = IPTVRepository.addXtreamProvider(name, server, user, pass)
-                            if (res.isSuccess) {
-                                showXtreamDialog = false
-                            } else {
-                                xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
-                            }
-                        }
-                    },
+                    onClick = { saveXtreamProvider() },
                     colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
                 ) {
                     Text("Save")

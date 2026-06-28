@@ -109,12 +109,30 @@ data class StremioSkipInterval(
 data class StremioVideo(
     val id: String? = null,
     val title: String? = null,
+    @SerialName("name")
+    val name: String? = null,
     val season: Int? = null,
     val episode: Int? = null,
     val released: String? = null,
     val overview: String? = null,
+    val thumbnail: String? = null,
     val skipTimes: List<StremioSkipTime>? = null
 )
+
+fun StremioVideo.resolvedTitle(): String? =
+    title?.trim()?.takeIf { it.isNotBlank() }
+        ?: name?.trim()?.takeIf { it.isNotBlank() }
+
+fun StremioVideo.episodeDisplayLabel(seasonFallback: Int = 1): String {
+    val seasonNum = season ?: seasonFallback
+    val episodeNum = episode
+    val code = if (episodeNum != null) "S${seasonNum}E$episodeNum" else "S$seasonNum"
+    val episodeName = resolvedTitle() ?: episodeNum?.let { "Episode $it" } ?: "Episode"
+    return "$code: $episodeName"
+}
+
+fun StremioVideo.displayImageUrl(fallback: String? = null): String? =
+    thumbnail?.takeIf { it.isNotBlank() } ?: fallback
 
 @Serializable
 data class StremioMetaResponse(
