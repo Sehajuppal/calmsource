@@ -3,7 +3,6 @@
  *
  * Contains reusable composable building blocks and the color palette used
  * across all mobile screens:
- * - [AppColors] — Color palette and gradient definitions for the dark theme
  * - [GlassCard] — Glassmorphism-styled card with gradient background and border
  * - [SourceBadge] — Colored badge showing source type (IPTV / Extension / Debrid)
  * - [ResolutionBadge] — Badge displaying video resolution (4K, 1080P, etc.)
@@ -29,35 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.calmsource.core.model.SourceType
+import com.example.calmsource.core.ui.theme.*
 
 
-/**
- * Color palette and gradient definitions for the CalmSource mobile dark theme.
- *
- * All color tokens follow a dark-mode-first approach with purple accent colors.
- * [GlassGradient] and [PrimaryGradient] are pre-built [Brush] instances for
- * use in card backgrounds and call-to-action buttons respectively.
- */
-object AppColors {
-    val Background = Color(0xFF0F0E17)
-    val Surface = Color(0x1F2A283E)
-    val Border = Color(0x3D8B5CF6)
-    val Primary = Color(0xFF8B5CF6)
-    val Secondary = Color(0xFFD946EF)
-    val TextMain = Color(0xFFFFFEFE)
-    val TextSub = Color(0xFFA7A9BE)
 
-    val GlassGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0x332A283E),
-            Color(0x1A0F0E17)
-        )
-    )
-    
-    val PrimaryGradient = Brush.horizontalGradient(
-        colors = listOf(Primary, Secondary)
-    )
-}
 
 /**
  * Glassmorphism-styled card container with a gradient background and border.
@@ -75,10 +49,11 @@ fun GlassCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val t = LocalLumenTokens.current
     var cardModifier = modifier
         .clip(RoundedCornerShape(16.dp))
-        .background(AppColors.GlassGradient)
-        .border(1.dp, AppColors.Border, RoundedCornerShape(16.dp))
+        .background(Brush.verticalGradient(listOf(t.colors.surface.copy(alpha = 0.6f), t.colors.background.copy(alpha = 0.9f))))
+        .border(1.dp, t.colors.border, RoundedCornerShape(16.dp))
 
     if (onClick != null) {
         cardModifier = cardModifier.clickable { onClick() }
@@ -137,6 +112,7 @@ fun SourceBadge(type: SourceType) {
  */
 @Composable
 fun ResolutionBadge(resolution: String) {
+    val t = LocalLumenTokens.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
@@ -146,7 +122,7 @@ fun ResolutionBadge(resolution: String) {
     ) {
         Text(
             text = resolution.uppercase(),
-            color = AppColors.TextMain,
+            color = t.colors.foreground,
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium
         )
@@ -156,7 +132,7 @@ fun ResolutionBadge(resolution: String) {
 /**
  * Full-width gradient call-to-action button used for primary actions.
  *
- * Uses [AppColors.PrimaryGradient] (purple → magenta) as the background
+ * Uses the brand gradient (purple → magenta) as the background
  * with bold white text. Commonly used for "Play Best Match" actions.
  *
  * @param text Button label text.
@@ -169,6 +145,7 @@ fun PremiumButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalLumenTokens.current
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
@@ -180,12 +157,12 @@ fun PremiumButton(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(AppColors.PrimaryGradient, RoundedCornerShape(12.dp)),
+                .background(Brush.horizontalGradient(listOf(t.colors.brand, t.colors.brandGlow)), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = text,
-                color = AppColors.TextMain,
+                color = t.colors.foreground,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )

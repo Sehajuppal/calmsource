@@ -1,8 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,7 +62,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.GlassSurface
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.ChipRow
@@ -137,8 +134,7 @@ fun SearchScreen(
     ) {
         Text(
             text = "Search",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
+            style = LumenType.H1.toTextStyle(),
             color = t.colors.foreground,
             modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
         )
@@ -245,7 +241,7 @@ fun SearchScreen(
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
                         text = "Suggested Genres",
-                        fontSize = 13.sp,
+                        fontSize = LumenType.size13,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
                         modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
@@ -273,10 +269,10 @@ fun SearchScreen(
                         item(key = "header-titles") {
                             Text(
                                 text = "TITLES · ${titlesGroup.size}",
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
-                                letterSpacing = 1.6.sp,
+                                letterSpacing = LumenType.line1_6,
                                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
                             )
                         }
@@ -302,10 +298,10 @@ fun SearchScreen(
                         item(key = "header-channels") {
                             Text(
                                 text = "LIVE CHANNELS · ${channelsGroup.size}",
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
-                                letterSpacing = 1.6.sp,
+                                letterSpacing = LumenType.line1_6,
                                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
                             )
                         }
@@ -438,7 +434,7 @@ fun DiscoverySearchResultItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = result.title,
-                    fontSize = 15.sp,
+                    fontSize = LumenType.size15,
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground,
                     maxLines = 1,
@@ -457,7 +453,7 @@ fun DiscoverySearchResultItem(
                 
                 Text(
                     text = meta,
-                    fontSize = 11.5.sp,
+                    fontSize = LumenType.size11_5,
                     fontWeight = FontWeight.SemiBold,
                     color = t.colors.mutedForeground.copy(alpha = 0.8f),
                     maxLines = 1,
@@ -467,7 +463,7 @@ fun DiscoverySearchResultItem(
 
                 Text(
                     text = result.subtitle ?: "",
-                    fontSize = 12.5.sp,
+                    fontSize = LumenType.size12_5,
                     color = t.colors.mutedForeground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

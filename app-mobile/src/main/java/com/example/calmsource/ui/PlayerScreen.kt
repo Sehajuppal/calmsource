@@ -1,9 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import android.os.Handler
 import android.os.Looper
@@ -86,8 +83,6 @@ import com.example.calmsource.feature.player.PlayerChrome
 import com.example.calmsource.feature.player.PlayerActions
 import com.example.calmsource.feature.player.buildPlayerChromeState
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
-import com.example.calmsource.core.ui.theme.glassSurface
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -482,7 +477,7 @@ fun PlayerScreen(
                     .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("◀◀ 10s", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("◀◀ 10s", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = LumenType.size20)
             }
         }
         if (showDoubleTapRightFeedback) {
@@ -494,7 +489,7 @@ fun PlayerScreen(
                     .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("10s ▶▶", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("10s ▶▶", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = LumenType.size20)
             }
         }
 

@@ -1,10 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenProfileColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.compose.BackHandler
@@ -35,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.calmsource.core.database.entity.ProfileEntity
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 
 @Composable
 fun TvProfileSelectionScreen(
@@ -81,7 +76,7 @@ fun TvProfileSelectionScreen(
         ) {
             Text(
                 text = "Who's watching?",
-                fontSize = 40.sp,
+                fontSize = LumenType.size40,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 maxLines = 1,
@@ -91,7 +86,7 @@ fun TvProfileSelectionScreen(
 
             Text(
                 text = "Select a profile or add a new one to start",
-                fontSize = 16.sp,
+                fontSize = LumenType.size16,
                 color = t.colors.mutedForeground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -105,7 +100,7 @@ fun TvProfileSelectionScreen(
                 Text(
                     text = "Open Setup",
                     color = if (isFocused) t.colors.foreground else t.colors.brand,
-                    fontSize = 16.sp,
+                    fontSize = LumenType.size16,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = LumenLegacySpace.xl, vertical = LumenLegacySpace.sm2)
                 )
@@ -225,7 +220,7 @@ fun TvProfileAvatarCard(
                 Text(
                     text = initials,
                     color = LumenTokens.Color.textPrimary,
-                    fontSize = 36.sp,
+                    fontSize = LumenType.size36,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -236,7 +231,7 @@ fun TvProfileAvatarCard(
         Text(
             text = name,
             color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
-            fontSize = 18.sp,
+            fontSize = LumenType.size18,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -287,7 +282,7 @@ fun TvAddProfileCard(
             Text(
                 text = "+",
                 color = t.colors.foreground,
-                fontSize = 44.sp,
+                fontSize = LumenType.size44,
                 fontWeight = FontWeight.Light,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -297,7 +292,7 @@ fun TvAddProfileCard(
         Text(
             text = "Add Profile",
             color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
-            fontSize = 18.sp,
+            fontSize = LumenType.size18,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -345,7 +340,7 @@ fun TvProfileCreationDialog(
         ) {
             Text(
                 text = "Create Profile",
-                fontSize = 24.sp,
+                fontSize = LumenType.size24,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 maxLines = 1,
@@ -387,7 +382,7 @@ fun TvProfileCreationDialog(
                 Text(
                     text = errorText!!,
                     color = t.colors.destructive,
-                    fontSize = 14.sp,
+                    fontSize = LumenType.size14,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = LumenLegacySpace.sm2, bottom = LumenLegacySpace.xs),
@@ -413,7 +408,7 @@ fun TvProfileCreationDialog(
                         text = "Cancel",
                         color = if (isFocused) t.colors.background else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = LumenType.size16,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
@@ -438,7 +433,7 @@ fun TvProfileCreationDialog(
                         text = "Create",
                         color = if (isFocused) t.colors.background else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = LumenType.size16,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,

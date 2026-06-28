@@ -7,7 +7,25 @@ plugins {
   alias(libs.plugins.kotlin.jvm) apply false
   alias(libs.plugins.hilt.android) apply false
   alias(libs.plugins.ksp) apply false
-    alias(libs.plugins.google.gms.google.services) apply false
-    alias(libs.plugins.google.firebase.crashlytics) apply false
-    id("io.gitlab.arturbosch.detekt") version "1.23.7" apply false
+  alias(libs.plugins.google.gms.google.services) apply false
+  alias(libs.plugins.google.firebase.crashlytics) apply false
+  id("io.gitlab.arturbosch.detekt") version "1.23.7" apply false
+}
+
+subprojects {
+    if (name != "detekt-rules") {
+        apply(plugin = "io.gitlab.arturbosch.detekt")
+
+        dependencies {
+            add("detektPlugins", project(":detekt-rules"))
+        }
+
+        extensions.configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+            toolVersion = "1.23.7"
+            config.from(files("${rootProject.projectDir}/config/detekt.yml"))
+            buildUponDefaultConfig = false
+            allRules = false
+            parallel = true
+        }
+    }
 }

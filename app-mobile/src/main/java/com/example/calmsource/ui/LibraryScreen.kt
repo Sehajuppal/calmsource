@@ -1,7 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,6 +46,7 @@ fun LibraryScreen(
     onOpenChannel: (UserMemoryReference) -> Unit,
     onSearch: (String) -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val context = LocalContext.current.applicationContext
     // Gate Room access on databaseReady so we never build the database on the main thread before
     // the deferred warmup completes; use the in-memory fallback until the DB has been built on IO.
@@ -77,21 +77,20 @@ fun LibraryScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(t.colors.background)
             .padding(horizontal = LumenLegacySpace.lg),
         verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)
     ) {
         item {
             Text(
                 text = "Library",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = AppColors.TextMain,
+                style = LumenType.H1.toTextStyle(),
+                color = t.colors.foreground,
                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
             )
             Text(
                 text = "Your saved and recently watched items",
-                color = AppColors.TextSub,
+                color = t.colors.mutedForeground,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
         }
@@ -222,6 +221,7 @@ private fun LibrarySectionHeader(
     hasItems: Boolean,
     onClear: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -229,13 +229,13 @@ private fun LibrarySectionHeader(
     ) {
         Text(
             text = title,
-            color = AppColors.TextMain,
-            fontSize = 20.sp,
+            color = t.colors.foreground,
+            fontSize = LumenType.size20,
             fontWeight = FontWeight.SemiBold
         )
         if (hasItems) {
             TextButton(onClick = onClear) {
-                Text("Clear", color = AppColors.Primary)
+                Text("Clear", color = t.colors.brand)
             }
         }
     }
@@ -249,6 +249,7 @@ private fun MemoryRow(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick
@@ -260,7 +261,7 @@ private fun MemoryRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = reference.title,
-                    color = AppColors.TextMain,
+                    color = t.colors.foreground,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -268,8 +269,8 @@ private fun MemoryRow(
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         text = subtitle,
-                        color = AppColors.TextSub,
-                        fontSize = 12.sp,
+                        color = t.colors.mutedForeground,
+                        fontSize = LumenType.size12,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -277,7 +278,7 @@ private fun MemoryRow(
                 if (progress != null) {
                     LinearProgressIndicator(
                         progress = { progress },
-                        color = AppColors.Primary,
+                        color = t.colors.brand,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = LumenLegacySpace.sm2)
@@ -288,7 +289,7 @@ private fun MemoryRow(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Remove ${reference.title}",
-                    tint = AppColors.TextSub
+                    tint = t.colors.mutedForeground
                 )
             }
         }
@@ -301,6 +302,7 @@ private fun SearchHistoryRow(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -308,18 +310,19 @@ private fun SearchHistoryRow(
             .padding(vertical = LumenTokens.Radius.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(query, color = AppColors.TextMain, modifier = Modifier.weight(1f))
+        Text(query, color = t.colors.foreground, modifier = Modifier.weight(1f))
         IconButton(onClick = onRemove) {
-            Icon(Icons.Default.Delete, contentDescription = "Remove search", tint = AppColors.TextSub)
+            Icon(Icons.Default.Delete, contentDescription = "Remove search", tint = t.colors.mutedForeground)
         }
     }
 }
 
 @Composable
 private fun EmptyLibraryRow(message: String) {
+    val t = LocalLumenTokens.current
     Text(
         text = message,
-        color = AppColors.TextSub,
+        color = t.colors.mutedForeground,
         modifier = Modifier.padding(bottom = LumenLegacySpace.md)
     )
 }

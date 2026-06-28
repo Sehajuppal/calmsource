@@ -1,22 +1,9 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,8 +36,9 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
-    val providerRows by ProviderManager.getProviderStatus().collectAsState(initial = emptyList())
+    val t = LocalLumenTokens.current
     val coroutineScope = rememberCoroutineScope()
+    val providerRows by ProviderManager.getProviderStatus().collectAsState(initial = emptyList())
     val sortedRows = providerRows.sortedWith(compareBy<ProviderStatusRow> { it.priority }.thenBy { it.name })
     val privacyTypes = remember {
         listOf(
@@ -76,139 +64,154 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
         enrichmentEnabled = DiscoveryEngine.getProviderEnrichmentSettings(privacyTypes.toSet())
     }
 
-    LazyColumn(
+    Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
-            .padding(LumenLegacySpace.xxl),
-        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+            .background(t.colors.background)
+            .padding(LumenLegacySpace.xxl)
     ) {
-        item {
-            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenLegacySpace.lg)) {
-                Text(text = "< Back", color = TvColors.TextMain)
-            }
-        }
-        item {
-            Text(
-                text = "Discovery Providers",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = TvColors.TextMain
-            )
-            Text(
-                text = "Provider enrichment is cache-first and never replaces playback selection.",
-                color = TvColors.TextSub,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = LumenLegacySpace.xs)
-            )
-        }
-
-        item {
-            Text("Privacy", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-        item {
-            TvProviderToggleRow(
-                title = "Local-only mode",
-                subtitle = "Use local cache and local packs only",
-                enabled = localOnlyMode,
-                onToggle = {
-                    val next = !localOnlyMode
-                    localOnlyMode = next
-                    coroutineScope.launch { DiscoveryEngine.setLocalOnlyMode(next) }
-                }
-            )
-        }
-        itemsIndexed(privacyTypes, key = { _, type -> type.name }) { _, type ->
-            val enabled = enrichmentEnabled[type] != false
-            TvProviderToggleRow(
-                title = tvProviderTypeLabel(type),
-                subtitle = "Allow this enrichment category",
-                enabled = enabled,
-                onToggle = {
-                    val next = !enabled
-                    enrichmentEnabled = enrichmentEnabled + (type to next)
-                    coroutineScope.launch { DiscoveryEngine.setProviderEnrichmentAllowed(type, next) }
-                }
-            )
-        }
-
-        item {
-            Text("Search", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = LumenLegacySpace.sm2))
-        }
-        item {
-            TvProviderToggleRow(
-                title = "Typo-Tolerant Search",
-                subtitle = "Match results even when the query has small spelling mistakes",
-                enabled = fuzzySearch,
-                onToggle = {
-                    val next = !fuzzySearch
-                    fuzzySearch = next
-                    com.example.calmsource.core.discoveryengine.database.DiscoverySearchFeatureFlags
-                        .setEnabledBestEffort(context, next)
-                }
-            )
-        }
-
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = LumenLegacySpace.sm2)) {
-                Text("Providers", color = TvColors.BorderFocused, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(LumenLegacySpace.md))
-                Text("${sortedRows.size}", color = TvColors.TextSub, fontSize = 14.sp)
-            }
-        }
-        if (sortedRows.isEmpty()) {
+        LazyColumn(
+            modifier = Modifier
+                .weight(0.45f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+        ) {
             item {
-                Text("No Stremio discovery providers registered yet.", color = TvColors.TextSub, fontSize = 14.sp)
+                TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenLegacySpace.sm2)) {
+                    Text(text = "< Back", color = t.colors.foreground)
+                }
             }
-        } else {
-            itemsIndexed(sortedRows, key = { _, row -> row.providerId }) { index, row ->
-                TvDiscoveryProviderItem(
-                    row = row,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < sortedRows.lastIndex,
+            item {
+                Text(
+                    text = "Discovery Providers",
+                    fontSize = LumenType.size28,
+                    fontWeight = FontWeight.Bold,
+                    color = t.colors.foreground
+                )
+                Text(
+                    text = "Configure search providers and data privacy",
+                    color = t.colors.mutedForeground,
+                    fontSize = LumenType.size12,
+                    modifier = Modifier.padding(bottom = LumenLegacySpace.md)
+                )
+            }
+
+            item {
+                Text("Privacy", color = t.colors.brand, fontSize = LumenType.size18, fontWeight = FontWeight.Bold)
+            }
+            item {
+                TvProviderToggleRow(
+                    title = "Local-only mode",
+                    subtitle = "Use local cache and local packs only",
+                    enabled = localOnlyMode,
                     onToggle = {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            ProviderManager.setProviderEnabled(row.providerId, !row.isEnabled)
-                        }
-                    },
-                    onMove = { direction ->
-                        coroutineScope.launch(Dispatchers.IO) {
-                            tvReorderProviders(sortedRows, row.providerId, direction)
-                        }
-                    },
-                    onFailures = {
-                        coroutineScope.launch {
-                            val failures = withContext(Dispatchers.IO) {
-                                ProviderManager.getTelemetryStore()
-                                    ?.getFailuresForProvider(row.providerId, 25)
-                                    .orEmpty()
-                            }
-                            failuresDialog = row.name to failures
-                        }
+                        val next = !localOnlyMode
+                        localOnlyMode = next
+                        coroutineScope.launch { DiscoveryEngine.setLocalOnlyMode(next) }
+                    }
+                )
+            }
+            itemsIndexed(privacyTypes, key = { _, type -> type.name }) { _, type ->
+                val enabled = enrichmentEnabled[type] != false
+                TvProviderToggleRow(
+                    title = tvProviderTypeLabel(type),
+                    subtitle = "Allow this enrichment category",
+                    enabled = enabled,
+                    onToggle = {
+                        val next = !enabled
+                        enrichmentEnabled = enrichmentEnabled + (type to next)
+                        coroutineScope.launch { DiscoveryEngine.setProviderEnrichmentAllowed(type, next) }
+                    }
+                )
+            }
+
+            item {
+                Text("Search", color = t.colors.brand, fontSize = LumenType.size18, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = LumenLegacySpace.sm2))
+            }
+            item {
+                TvProviderToggleRow(
+                    title = "Typo-Tolerant Search",
+                    subtitle = "Match results even when the query has small spelling mistakes",
+                    enabled = fuzzySearch,
+                    onToggle = {
+                        val next = !fuzzySearch
+                        fuzzySearch = next
+                        com.example.calmsource.core.discoveryengine.database.DiscoverySearchFeatureFlags
+                            .setEnabledBestEffort(context, next)
                     }
                 )
             }
         }
 
-        item {
-            TvFocusCard(
-                onClick = {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        ProviderManager.clearProviderCache()
-                        withContext(Dispatchers.Main) {
-                            statusMessage = "Provider cache cleared"
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().padding(top = LumenLegacySpace.sm2)
-            ) { isFocused ->
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text("Clear Provider Cache", color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(if (isFocused) "Press OK" else "Clear", color = TvColors.BorderFocused, fontSize = 13.sp)
+        Spacer(modifier = Modifier.width(LumenLegacySpace.xxl))
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(0.55f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+        ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Providers", color = t.colors.brand, fontSize = LumenType.size18, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(LumenLegacySpace.md))
+                    Text("${sortedRows.size}", color = t.colors.mutedForeground, fontSize = LumenType.size14)
                 }
             }
-            statusMessage?.let { message ->
-                Text(message, color = TvColors.TextSub, fontSize = 13.sp, modifier = Modifier.padding(top = LumenLegacySpace.sm2))
+            if (sortedRows.isEmpty()) {
+                item {
+                    Text("No Stremio discovery providers registered yet.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                }
+            } else {
+                itemsIndexed(sortedRows, key = { _, row -> row.providerId }) { index, row ->
+                    TvDiscoveryProviderItem(
+                        row = row,
+                        canMoveUp = index > 0,
+                        canMoveDown = index < sortedRows.lastIndex,
+                        onToggle = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                ProviderManager.setProviderEnabled(row.providerId, !row.isEnabled)
+                            }
+                        },
+                        onMove = { direction ->
+                            coroutineScope.launch(Dispatchers.IO) {
+                                tvReorderProviders(sortedRows, row.providerId, direction)
+                            }
+                        },
+                        onFailures = {
+                            coroutineScope.launch {
+                                val failures = withContext(Dispatchers.IO) {
+                                    ProviderManager.getTelemetryStore()
+                                        ?.getFailuresForProvider(row.providerId, 25)
+                                        .orEmpty()
+                                }
+                                failuresDialog = row.name to failures
+                            }
+                        }
+                    )
+                }
+            }
+
+            item {
+                TvFocusCard(
+                    onClick = {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            ProviderManager.clearProviderCache()
+                            withContext(Dispatchers.Main) {
+                                statusMessage = "Provider cache cleared"
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(top = LumenLegacySpace.sm2)
+                ) { isFocused ->
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Clear Provider Cache", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
+                        Text(if (isFocused) "Press OK" else "Clear", color = t.colors.brand, fontSize = LumenType.size13)
+                    }
+                }
+                statusMessage?.let { message ->
+                    Text(message, color = t.colors.mutedForeground, fontSize = LumenType.size13, modifier = Modifier.padding(top = LumenLegacySpace.sm2))
+                }
             }
         }
     }
@@ -225,6 +228,7 @@ private fun TvProviderToggleRow(
     enabled: Boolean,
     onToggle: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     TvFocusCard(
         onClick = onToggle,
         modifier = Modifier.fillMaxWidth()
@@ -235,12 +239,12 @@ private fun TvProviderToggleRow(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = if (isFocused) TvColors.TextMain else TvColors.TextSub, fontSize = 12.sp)
+                Text(title, color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
+                Text(subtitle, color = if (isFocused) t.colors.foreground else t.colors.mutedForeground, fontSize = LumenType.size12)
             }
             Text(
                 text = if (enabled) "Enabled" else "Disabled",
-                color = if (enabled) TvColors.BorderFocused else TvColors.TextSub,
+                color = if (enabled) t.colors.brand else t.colors.mutedForeground,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -256,6 +260,7 @@ private fun TvDiscoveryProviderItem(
     onMove: (Int) -> Unit,
     onFailures: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val healthColor = when {
         row.failureCount >= 5 -> LumenExtendedColors.errorBright
         row.failureCount > 0 -> LumenTokens.Color.warning
@@ -273,32 +278,32 @@ private fun TvDiscoveryProviderItem(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(row.name, color = TvColors.TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(row.name, color = t.colors.foreground, fontSize = LumenType.size18, fontWeight = FontWeight.Bold)
                     Text(
                         "${row.kind.name.replace("_", " ")} | Priority ${row.priority}",
-                        color = if (isFocused) TvColors.TextMain else TvColors.TextSub,
-                        fontSize = 12.sp
+                        color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
+                        fontSize = LumenType.size12
                     )
                     Text(
                         row.capabilities.sortedBy { it.name }.joinToString("  |  ") { tvProviderTypeShortLabel(it) },
-                        color = TvColors.TextSub,
-                        fontSize = 12.sp,
+                        color = t.colors.mutedForeground,
+                        fontSize = LumenType.size12,
                         modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         if (row.isEnabled) "Enabled" else "Disabled",
-                        color = if (row.isEnabled) TvColors.BorderFocused else TvColors.TextSub,
+                        color = if (row.isEnabled) t.colors.brand else t.colors.mutedForeground,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         "Reliability ${(row.reliabilityScore * 100).toInt()}%",
                         color = healthColor,
-                        fontSize = 12.sp,
+                        fontSize = LumenType.size12,
                         modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     )
-                    Text("${row.failureCount} failures", color = TvColors.TextSub, fontSize = 12.sp)
+                    Text("${row.failureCount} failures", color = t.colors.mutedForeground, fontSize = LumenType.size12)
                 }
             }
         }
@@ -309,7 +314,7 @@ private fun TvDiscoveryProviderItem(
                 modifier = Modifier.weight(1f)
             ) { isFocused ->
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Move Up", color = if (canMoveUp && isFocused) TvColors.TextMain else TvColors.TextSub)
+                    Text("Move Up", color = if (canMoveUp && isFocused) t.colors.foreground else t.colors.mutedForeground)
                 }
             }
             TvFocusCard(
@@ -317,7 +322,7 @@ private fun TvDiscoveryProviderItem(
                 modifier = Modifier.weight(1f)
             ) { isFocused ->
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Move Down", color = if (canMoveDown && isFocused) TvColors.TextMain else TvColors.TextSub)
+                    Text("Move Down", color = if (canMoveDown && isFocused) t.colors.foreground else t.colors.mutedForeground)
                 }
             }
             TvFocusCard(
@@ -325,7 +330,7 @@ private fun TvDiscoveryProviderItem(
                 modifier = Modifier.weight(1f)
             ) { isFocused ->
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Failures", color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused)
+                    Text("Failures", color = if (isFocused) t.colors.foreground else t.colors.brand)
                 }
             }
         }
@@ -338,31 +343,32 @@ private fun TvProviderFailuresDialog(
     failures: List<FailureLogEntry>,
     onDismiss: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val formatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .width(LumenLayout.heroHeightLg)
-                .background(TvColors.Surface, LumenTokens.Shape.md)
+                .background(t.colors.surface, LumenTokens.Shape.md)
                 .padding(LumenLegacySpace.xxl)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
-                Text("Provider Failures", color = TvColors.TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(providerName, color = TvColors.BorderFocused, fontSize = 15.sp)
+                Text("Provider Failures", color = t.colors.foreground, fontSize = LumenType.size22, fontWeight = FontWeight.Bold)
+                Text(providerName, color = t.colors.brand, fontSize = LumenType.size15)
                 if (failures.isEmpty()) {
-                    Text("No recent failures.", color = TvColors.TextSub, fontSize = 14.sp)
+                    Text("No recent failures.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
                 } else {
                     failures.take(8).forEach { failure ->
                         Column {
-                            Text(failure.errorCode, color = TvColors.TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Text(formatter.format(Date(failure.occurredAt)), color = TvColors.TextSub, fontSize = 12.sp)
-                            failure.message?.let { Text(it, color = TvColors.TextSub, fontSize = 12.sp) }
+                            Text(failure.errorCode, color = t.colors.foreground, fontSize = LumenType.size15, fontWeight = FontWeight.Bold)
+                            Text(formatter.format(Date(failure.occurredAt)), color = t.colors.mutedForeground, fontSize = LumenType.size12)
+                            failure.message?.let { Text(it, color = t.colors.mutedForeground, fontSize = LumenType.size12) }
                         }
                     }
                 }
                 TvFocusCard(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { isFocused ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("Done", color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused)
+                        Text("Done", color = if (isFocused) t.colors.foreground else t.colors.brand)
                     }
                 }
             }

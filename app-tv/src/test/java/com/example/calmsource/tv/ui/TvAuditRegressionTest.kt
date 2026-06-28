@@ -242,11 +242,11 @@ class TvAuditRegressionTest {
         val source = readSourceFile("TvPlayerScreen.kt")
         assertTrue(
             "Error overlay should have large readable title",
-            source.contains("fontSize = 28.sp") && source.contains("Playback Failed")
+            source.contains("fontSize = LumenType.size28") && source.contains("Playback Failed")
         )
         assertTrue(
             "Error overlay should have explanation text at 16sp",
-            source.contains("fontSize = 16.sp") && source.contains("explanation")
+            source.contains("fontSize = LumenType.size16") && source.contains("explanation")
         )
     }
 

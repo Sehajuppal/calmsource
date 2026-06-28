@@ -2,9 +2,7 @@ package com.example.calmsource.tv.ui
 
 // Filter options: "Popular", "Clear filters", "sectionById", "onOpenSetup"
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,7 +39,6 @@ import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.LumenEmptyState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 
 @Composable
@@ -84,7 +81,7 @@ fun TvLiveTvScreen(
         ) {
             Text(
                 text = "Categories",
-                fontSize = 18.sp,
+                fontSize = LumenType.size18,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.lg, start = LumenLegacySpace.sm2)
@@ -129,7 +126,7 @@ fun TvLiveTvScreen(
                                 text = category,
                                 color = if (isSelected) t.colors.brandForeground else t.colors.foreground,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontSize = LumenType.size14
                             )
                         }
                     }
@@ -215,15 +212,15 @@ fun TvLiveTvScreen(
                                     Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                                     Text(
                                         text = if (currentProgram != null) "AIRING NOW" else "NO EPG INFO",
-                                        fontSize = 12.sp,
-                                        letterSpacing = 1.4.sp,
+                                        fontSize = LumenType.size12,
+                                        letterSpacing = LumenType.size1_4,
                                         fontWeight = FontWeight.Bold,
                                         color = t.colors.mutedForeground
                                     )
                                     Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                                     Text(
                                         text = currentProgram?.title ?: "No program data",
-                                        fontSize = 11.5.sp,
+                                        fontSize = LumenType.size11_5,
                                         color = t.colors.foreground,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -231,7 +228,7 @@ fun TvLiveTvScreen(
                                     Spacer(modifier = Modifier.height(LumenLegacySpace.xs))
                                     Text(
                                         text = channel.name,
-                                        fontSize = 12.sp,
+                                        fontSize = LumenType.size12,
                                         fontWeight = FontWeight.Bold,
                                         color = t.colors.foreground,
                                         maxLines = 1,

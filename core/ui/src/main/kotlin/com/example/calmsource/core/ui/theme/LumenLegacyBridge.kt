@@ -89,6 +89,9 @@ data class LumenColors(
     val focusHalo: Color,
 )
 
+val LumenColors.surface: Color get() = card
+
+
 @Immutable
 data class LumenRadii(
     val sm: Dp = LumenTokens.Radius.sm,

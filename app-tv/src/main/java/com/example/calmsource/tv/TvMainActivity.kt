@@ -8,7 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import com.example.calmsource.core.ui.theme.LumenTheme
+import com.example.calmsource.core.ui.theme.*
 import com.example.calmsource.core.ui.components.PerfMode
 import com.example.calmsource.core.ui.components.ProvidePerfMode
 import android.os.PowerManager
@@ -51,7 +51,6 @@ import com.example.calmsource.core.model.PlaybackSource
 import com.example.calmsource.core.model.toMediaItem
 import com.example.calmsource.core.model.CalmSourceDeepLink
 import com.example.calmsource.feature.iptv.IPTVRepository
-import com.example.calmsource.tv.ui.TvColors
 import com.example.calmsource.tv.ui.TvDetailsScreen
 import com.example.calmsource.tv.ui.TvFocusCard
 import com.example.calmsource.tv.ui.TvHomeScreen
@@ -195,6 +194,7 @@ class TvMainActivity : ComponentActivity() {
             val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
             ProvidePerfMode(perfMode) {
             LumenTheme(isTv = true) {
+                val t = LocalLumenTokens.current
                 val pendingDeepLink by _pendingDeepLink.collectAsState()
             val appContext = LocalContext.current.applicationContext
             LaunchedEffect(Unit) {
@@ -361,7 +361,7 @@ class TvMainActivity : ComponentActivity() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(TvColors.Background),
+                        .background(t.colors.background),
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.material3.CircularProgressIndicator(
@@ -373,7 +373,7 @@ class TvMainActivity : ComponentActivity() {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(TvColors.Background)
+                        .background(t.colors.background)
                         .then(
                             if (showSyncOverlay) {
                                 Modifier.focusProperties { canFocus = false }
@@ -387,14 +387,14 @@ class TvMainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .width(110.dp)
                                 .fillMaxHeight()
-                                .background(TvColors.Surface)
+                                .background(t.colors.surface)
                                 .padding(vertical = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 "CS",
-                                color = TvColors.BorderFocused,
+                                color = LocalLumenTokens.current.colors.brand,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -590,7 +590,7 @@ class TvMainActivity : ComponentActivity() {
                             ) { isFocused ->
                                 Text(
                                     text = "Browse now",
-                                    color = if (isFocused) TvColors.Background else Color.White,
+                                    color = if (isFocused) t.colors.background else Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
@@ -628,9 +628,10 @@ class TvMainActivity : ComponentActivity() {
                                 )
                             }
                             TvFocusCard(onClick = { syncOverlayDismissed = true }) { isFocused ->
+                                val t = LocalLumenTokens.current
                                 Text(
                                     text = "Dismiss",
-                                    color = if (isFocused) TvColors.Background else Color(0xFF22C55E),
+                                    color = if (isFocused) t.colors.background else Color(0xFF22C55E),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
@@ -657,12 +658,13 @@ class TvMainActivity : ComponentActivity() {
 
 @Composable
 fun TvNavRailItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val t = LocalLumenTokens.current
     TvFocusCard(onClick = onClick, modifier = modifier.width(88.dp)) { isFocused ->
         Text(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected || isFocused) TvColors.BorderFocused else TvColors.TextSub,
+            color = if (isSelected || isFocused) t.colors.brand else t.colors.mutedForeground,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }

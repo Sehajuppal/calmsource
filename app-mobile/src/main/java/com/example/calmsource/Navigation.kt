@@ -46,7 +46,7 @@ import com.example.calmsource.core.model.PlaybackSource
 import com.example.calmsource.core.model.toMediaItem
 import com.example.calmsource.core.model.CalmSourceDeepLink
 import com.example.calmsource.feature.iptv.IPTVRepository
-import com.example.calmsource.ui.AppColors
+import com.example.calmsource.core.ui.theme.*
 import com.example.calmsource.ui.DetailsScreen
 import com.example.calmsource.ui.ProfilesScreen
 import com.example.calmsource.ui.HomeScreen
@@ -91,6 +91,7 @@ fun MainNavigation(
     initialScreen: MobileScreen? = null,
     onScreenChanged: (MobileScreen) -> Unit = {}
 ) {
+    val t = LocalLumenTokens.current
     var activeTab by rememberSaveable { mutableStateOf(0) }
 
     var currentScreen by remember {
@@ -209,8 +210,8 @@ fun MainNavigation(
             bottomBar = {
                 if (isTopLevel) {
                     NavigationBar(
-                        containerColor = AppColors.Surface,
-                        contentColor = AppColors.Primary
+                        containerColor = t.colors.surface,
+                        contentColor = t.colors.brand
                     ) {
                         NavigationBarItem(
                             selected = activeTab == 0,
@@ -245,7 +246,7 @@ fun MainNavigation(
                     }
                 }
             },
-            containerColor = AppColors.Background
+            containerColor = t.colors.background
         ) { innerPadding ->
             Box(
                 modifier = Modifier

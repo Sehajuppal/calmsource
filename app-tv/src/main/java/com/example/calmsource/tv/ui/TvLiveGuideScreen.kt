@@ -1,7 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +27,6 @@ import com.example.calmsource.feature.iptv.LiveGuideViewModel
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.AdaptiveButton
 import kotlinx.coroutines.isActive
@@ -80,7 +78,7 @@ fun TvLiveGuideScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(color = t.colors.brand)
                 Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
-                Text("Syncing Live TV...", color = t.colors.mutedForeground, fontSize = 16.sp)
+                Text("Syncing Live TV...", color = t.colors.mutedForeground, fontSize = LumenType.size16)
             }
         }
         return
@@ -95,11 +93,11 @@ fun TvLiveGuideScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
-                Text("Sync finished with warnings", color = t.colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Sync finished with warnings", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
                 Text(
                     text = uiState.syncWarnings.joinToString("\n"),
                     color = t.colors.mutedForeground,
-                    fontSize = 14.sp
+                    fontSize = LumenType.size14
                 )
                 var isSetupButtonFocused by remember { mutableStateOf(false) }
                 TvFocusable(
@@ -126,11 +124,11 @@ fun TvLiveGuideScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
-                Text("No live channels yet.", color = t.colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("No live channels yet.", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
                 Text(
                     text = "Connect an M3U or Xtream provider to build your Live TV guide.",
                     color = t.colors.mutedForeground,
-                    fontSize = 14.sp
+                    fontSize = LumenType.size14
                 )
                 var isSetupButtonFocused by remember { mutableStateOf(false) }
                 TvFocusable(
@@ -209,7 +207,7 @@ fun TvLiveGuideScreen(
                         text = "Channels",
                         color = if (activeSection == "channels") t.colors.brandForeground else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = LumenType.size14
                     )
                 }
             }
@@ -233,7 +231,7 @@ fun TvLiveGuideScreen(
                         text = "Guide (EPG)",
                         color = if (activeSection == "guide") t.colors.brandForeground else t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = LumenType.size14
                     )
                 }
             }
@@ -251,7 +249,7 @@ fun TvLiveGuideScreen(
                         .background(if (isSetupFocused) t.colors.muted else Color.Transparent)
                         .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                 ) {
-                    Text("Setup ⚙", color = t.colors.foreground, fontSize = 14.sp)
+                    Text("Setup ⚙", color = t.colors.foreground, fontSize = LumenType.size14)
                 }
             }
         }

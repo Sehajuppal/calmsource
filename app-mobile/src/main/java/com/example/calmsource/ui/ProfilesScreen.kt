@@ -1,9 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenProfileColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -38,7 +35,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.calmsource.core.database.entity.ProfileEntity
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 
 private val GRADIENTS = listOf(
     Brush.linearGradient(listOf(LumenProfileColors.indigo, LumenProfileColors.fuchsia)),
@@ -97,10 +93,10 @@ fun ProfilesScreen(
                 )
                 Text(
                     text = "CALMSOURCE",
-                    fontSize = 11.sp,
+                    fontSize = LumenType.size11,
                     fontWeight = FontWeight.Bold,
                     color = t.colors.mutedForeground,
-                    letterSpacing = 2.sp
+                    letterSpacing = LumenType.line2
                 )
             }
 
@@ -108,7 +104,7 @@ fun ProfilesScreen(
 
             Text(
                 text = "Who's watching?",
-                fontSize = 32.sp,
+                fontSize = LumenType.size32,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 textAlign = TextAlign.Center
@@ -118,7 +114,7 @@ fun ProfilesScreen(
 
             Text(
                 text = if (editing) "Tap a profile to edit or delete it." else "Choose a profile to continue your story.",
-                fontSize = 14.sp,
+                fontSize = LumenType.size14,
                 color = t.colors.mutedForeground,
                 textAlign = TextAlign.Center
             )
@@ -183,9 +179,9 @@ fun ProfilesScreen(
                     )
                     Text(
                         text = if (editing) "Done" else "Manage Profiles",
-                        fontSize = 13.sp,
+                        fontSize = LumenType.size13,
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.sp
+                        letterSpacing = LumenType.line1
                     )
                 }
             }
@@ -282,7 +278,7 @@ fun ProfileCard(
                 Text(
                     text = initials,
                     color = LumenTokens.Color.textPrimary,
-                    fontSize = 32.sp,
+                    fontSize = LumenType.size32,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -309,7 +305,7 @@ fun ProfileCard(
         Text(
             text = profile.name,
             color = t.colors.foreground,
-            fontSize = 14.sp,
+            fontSize = LumenType.size14,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,
@@ -341,7 +337,7 @@ fun AddProfileCard(
             Text(
                 text = "+",
                 color = t.colors.mutedForeground,
-                fontSize = 36.sp,
+                fontSize = LumenType.size36,
                 fontWeight = FontWeight.Light
             )
         }
@@ -351,7 +347,7 @@ fun AddProfileCard(
         Text(
             text = "Add Profile",
             color = t.colors.mutedForeground,
-            fontSize = 14.sp,
+            fontSize = LumenType.size14,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )
@@ -460,7 +456,7 @@ fun EditProfileDialog(
 
                 Text(
                     text = "Choose Portrait Color",
-                    fontSize = 14.sp,
+                    fontSize = LumenType.size14,
                     color = t.colors.mutedForeground,
                     fontWeight = FontWeight.Medium
                 )

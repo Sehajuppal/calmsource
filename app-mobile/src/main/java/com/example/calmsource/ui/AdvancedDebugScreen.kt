@@ -1,7 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,6 +39,7 @@ import com.example.calmsource.core.playback.diagnostics.PlaybackDiagnosticsRecor
 
 @Composable
 fun AdvancedDebugScreen(onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     val coreDb by CoreDatabaseRuntimeStatus.state.collectAsState()
     val discoveryDb by DiscoveryDatabaseRuntimeStatus.state.collectAsState()
     val resources by ResourceGovernor.snapshot.collectAsState()
@@ -57,7 +57,7 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(t.colors.background)
             .padding(LumenLegacySpace.lg)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
@@ -119,7 +119,7 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
             )
             Text(
                 text = "Enable fuzzy search fallback",
-                color = AppColors.TextMain,
+                color = t.colors.foreground,
                 style = MaterialTheme.typography.bodyLarge
             )
         }
@@ -150,9 +150,10 @@ private fun DebugSection(
     title: String,
     rows: List<Pair<String, String>>
 ) {
+    val t = LocalLumenTokens.current
     Text(
         text = title,
-        color = AppColors.Primary,
+        color = t.colors.brand,
         style = MaterialTheme.typography.titleMedium
     )
     rows.forEach { (label, value) ->
@@ -160,8 +161,8 @@ private fun DebugSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, color = AppColors.TextSub)
-            Text(value, color = AppColors.TextMain)
+            Text(label, color = t.colors.mutedForeground)
+            Text(value, color = t.colors.foreground)
         }
     }
 }

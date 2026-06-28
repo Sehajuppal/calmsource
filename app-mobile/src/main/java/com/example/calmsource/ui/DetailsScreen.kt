@@ -1,9 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -59,7 +56,6 @@ import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.*
 
 @Composable
 fun DetailsScreen(
@@ -559,8 +555,7 @@ fun DetailsScreen(
                         } else {
                             Text(
                                 text = currentMediaItem.title,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = LumenType.H1.toTextStyle(),
                                 color = t.colors.foreground,
                                 modifier = Modifier.padding(vertical = LumenLegacySpace.md)
                             )
@@ -668,9 +663,9 @@ fun DetailsScreen(
                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = LumenLegacySpace.sm2)) {
                             Text(
                                 text = overviewText,
-                                fontSize = 14.sp,
+                                fontSize = LumenType.size14,
                                 color = t.colors.mutedForeground,
-                                lineHeight = 20.sp,
+                                lineHeight = LumenType.size20,
                                 maxLines = if (isExpanded) Int.MAX_VALUE else 3,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -678,7 +673,7 @@ fun DetailsScreen(
                                 Text(
                                     text = if (isExpanded) "Show Less" else "Read More",
                                     color = t.colors.brand,
-                                    fontSize = 14.sp,
+                                    fontSize = LumenType.size14,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .clickable { isExpanded = !isExpanded }
@@ -700,7 +695,7 @@ fun DetailsScreen(
                             ) {
                                 Text(
                                     text = "Seasons",
-                                    fontSize = 18.sp,
+                                    fontSize = LumenType.size18,
                                     fontWeight = FontWeight.Bold,
                                     color = t.colors.foreground,
                                     modifier = Modifier.padding(bottom = LumenLegacySpace.md)
@@ -737,7 +732,7 @@ fun DetailsScreen(
                             ) {
                                 Text(
                                     text = "Episodes",
-                                    fontSize = 18.sp,
+                                    fontSize = LumenType.size18,
                                     fontWeight = FontWeight.Bold,
                                     color = t.colors.foreground,
                                     modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.md)
@@ -773,10 +768,10 @@ fun DetailsScreen(
                         val langs = subtitlesList.map { it.lang }.distinct().joinToString(", ")
                         Text(
                             text = "Subtitles: $langs",
-                            fontSize = 13.sp,
-                            color = LumenExtendedColors.statusHealthy,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
+                                    fontSize = LumenType.size13,
+                                    color = LumenExtendedColors.statusHealthy,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                         )
                     }
                 }
@@ -816,7 +811,7 @@ fun DetailsScreen(
                 item(key = "alternative_options_header") {
                     Text(
                         text = "Alternative Watch Options",
-                        fontSize = 18.sp,
+                        fontSize = LumenType.size18,
                         fontWeight = FontWeight.SemiBold,
                         color = t.colors.foreground,
                         modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, top = LumenLegacySpace.xl, bottom = LumenLegacySpace.md)
@@ -893,7 +888,7 @@ fun DetailsScreen(
                     ) {
                         Text(
                             text = "Advanced - Manual Sources (${sortedOptions.size})",
-                            fontSize = 16.sp,
+                            fontSize = LumenType.size16,
                             fontWeight = FontWeight.Bold,
                             color = t.colors.foreground,
                             modifier = Modifier.weight(1f)
@@ -918,7 +913,7 @@ fun DetailsScreen(
                             Text(
                                 text = "Show Raw Details",
                                 color = t.colors.foreground,
-                                fontSize = 14.sp,
+                                fontSize = LumenType.size14,
                                 fontWeight = FontWeight.Medium
                             )
                             Switch(
@@ -939,7 +934,7 @@ fun DetailsScreen(
                             Text(
                                 text = "Sort Strategy:",
                                 color = t.colors.mutedForeground,
-                                fontSize = 12.sp,
+                                fontSize = LumenType.size12,
                                 fontWeight = FontWeight.Bold
                             )
                             Box(
@@ -952,7 +947,7 @@ fun DetailsScreen(
                                 Text(
                                     text = "Best Match",
                                     color = if (sortingPreference == SortingPreference.BEST_MATCH) t.colors.brandForeground else t.colors.mutedForeground,
-                                    fontSize = 11.sp,
+                                    fontSize = LumenType.size11,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -966,7 +961,7 @@ fun DetailsScreen(
                                 Text(
                                     text = "Highest Quality",
                                     color = if (sortingPreference == SortingPreference.HIGHEST_QUALITY) t.colors.brandForeground else t.colors.mutedForeground,
-                                    fontSize = 11.sp,
+                                    fontSize = LumenType.size11,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -1008,7 +1003,7 @@ private fun MetaChip(
     ) {
         Text(
             text = text,
-            fontSize = 11.sp,
+            fontSize = LumenType.size11,
             fontWeight = FontWeight.Bold,
             color = color
         )
@@ -1039,7 +1034,7 @@ private fun EpisodeRow(
         Text(
             text = "E${video.episode}: ${video.title ?: "Episode ${video.episode}"}",
             color = if (isSelected) t.colors.brand else t.colors.foreground,
-            fontSize = 13.sp,
+            fontSize = LumenType.size13,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1070,7 +1065,7 @@ fun ManualSourceItem(
         ) {
             Text(
                 text = if (showRawDetails) com.example.calmsource.core.network.UrlRedactor.redactFilename(option.source.name) else result.displayLabel.primaryLabel,
-                fontSize = 14.sp,
+                fontSize = LumenType.size14,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 maxLines = 2,
@@ -1079,7 +1074,7 @@ fun ManualSourceItem(
             if (showRawDetails) {
                 Text(
                     text = com.example.calmsource.core.network.UrlRedactor.redactUrl(option.source.url),
-                    fontSize = 11.sp,
+                    fontSize = LumenType.size11,
                     color = t.colors.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1087,7 +1082,7 @@ fun ManualSourceItem(
             } else if (result.displayLabel.secondaryLabel.isNotEmpty()) {
                 Text(
                     text = result.displayLabel.secondaryLabel,
-                    fontSize = 12.sp,
+                    fontSize = LumenType.size12,
                     color = t.colors.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1114,7 +1109,7 @@ fun ManualSourceItem(
                         Text(
                             text = extensionName,
                             color = t.colors.brandGlow,
-                            fontSize = 10.sp,
+                            fontSize = LumenType.size10,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1131,7 +1126,7 @@ fun ManualSourceItem(
                     Text(
                         text = "[$quality] [$sizeStr]",
                         color = t.colors.foreground,
-                        fontSize = 10.sp,
+                        fontSize = LumenType.size10,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1147,7 +1142,7 @@ fun ManualSourceItem(
                         Text(
                             text = "[$hdrBadge]",
                             color = LumenExtendedColors.ratingGold,
-                            fontSize = 10.sp,
+                            fontSize = LumenType.size10,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1164,7 +1159,7 @@ fun ManualSourceItem(
                         Text(
                             text = "[$codecBadge]",
                             color = LumenExtendedColors.cyan,
-                            fontSize = 10.sp,
+                            fontSize = LumenType.size10,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1181,7 +1176,7 @@ fun ManualSourceItem(
                         Text(
                             text = "[$audioBadge]",
                             color = LumenExtendedColors.violet,
-                            fontSize = 10.sp,
+                            fontSize = LumenType.size10,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1197,7 +1192,7 @@ fun ManualSourceItem(
                 Text(
                     text = labelText,
                     color = labelColor,
-                    fontSize = 11.sp,
+                    fontSize = LumenType.size11,
                     fontWeight = FontWeight.Bold
                 )
                 
@@ -1205,7 +1200,7 @@ fun ManualSourceItem(
                 if (parsedSeeds != null) {
                     Text(
                         text = "Seeds: $parsedSeeds",
-                        fontSize = 11.sp,
+                        fontSize = LumenType.size11,
                         color = LumenTokens.Color.success
                     )
                 }
@@ -1216,7 +1211,7 @@ fun ManualSourceItem(
             ) {
                 Text(
                     text = "Score: $score",
-                    fontSize = 11.sp,
+                    fontSize = LumenType.size11,
                     color = t.colors.brand,
                     fontWeight = FontWeight.Bold
                 )
@@ -1226,9 +1221,9 @@ fun ManualSourceItem(
                     horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                     modifier = Modifier.fillMaxWidth().padding(top = LumenLegacySpace.xs)
                 ) {
-                    Text(text = "Failures: ${health.failureCount}", fontSize = 10.sp, color = t.colors.mutedForeground)
-                    Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 10.sp, color = t.colors.mutedForeground)
-                    Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = 10.sp, color = t.colors.mutedForeground)
+                    Text(text = "Failures: ${health.failureCount}", fontSize = LumenType.size10, color = t.colors.mutedForeground)
+                    Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = LumenType.size10, color = t.colors.mutedForeground)
+                    Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = LumenType.size10, color = t.colors.mutedForeground)
                 }
             }
         }
@@ -1252,7 +1247,7 @@ fun SourceBadge(type: SourceType, modifier: Modifier = Modifier) {
         Text(
             text = label,
             color = fg,
-            fontSize = 10.sp,
+            fontSize = LumenType.size10,
             fontWeight = FontWeight.Black
         )
     }

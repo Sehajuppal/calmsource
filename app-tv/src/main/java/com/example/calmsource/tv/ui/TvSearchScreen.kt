@@ -1,8 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -48,7 +46,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.RowSection
 import com.example.calmsource.core.ui.components.PosterCard
@@ -128,7 +125,7 @@ fun TvSearchScreen(
     ) {
         Text(
             text = "Search",
-            fontSize = 38.sp,
+            fontSize = LumenType.size38,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
             modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
@@ -197,7 +194,7 @@ fun TvSearchScreen(
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
                         text = "Suggested Genres",
-                        fontSize = 14.sp,
+                        fontSize = LumenType.size14,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
                         modifier = Modifier.padding(bottom = LumenLegacySpace.sm2),
@@ -227,7 +224,7 @@ fun TvSearchScreen(
                                     Text(
                                         text = label,
                                         color = t.colors.foreground,
-                                        fontSize = 14.sp,
+                                        fontSize = LumenType.size14,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier
                                             .background(t.colors.card)
@@ -247,7 +244,7 @@ fun TvSearchScreen(
                         Text(
                             text = "Enter a search term to find movies, shows, and channels.",
                             color = t.colors.mutedForeground,
-                            fontSize = 16.sp
+                            fontSize = LumenType.size16
                         )
                     }
                 }

@@ -19,7 +19,7 @@ class ForbiddenScreenDpLiteral(config: Config) : Rule(config) {
     override val issue = Issue(
         id = "ForbiddenScreenDpLiteral",
         severity = Severity.CodeSmell,
-        description = "Use LumenTokens instead of raw .dp in screen files (allow 0.dp, 1.dp).",
+        description = "Use LumenTokens instead of raw .dp in screen files.",
         debt = Debt.FIVE_MINS,
     )
 
@@ -33,11 +33,47 @@ class ForbiddenScreenDpLiteral(config: Config) : Rule(config) {
 
     override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
         super.visitDotQualifiedExpression(expression)
-        if (expression.parent?.parent is org.jetbrains.kotlin.psi.KtImportDirective) return
-        val text = expression.text
-        if (!text.matches(Regex("""^-?\d+(\.\d+)?\.dp$"""))) return
-        if (text == "0.dp" || text == "1.dp") return
-        report(CodeSmell(issue, Entity.from(expression), "Replace $text with LumenTokens"))
+        var parent = expression.parent
+        while (parent != null) {
+            if (parent is org.jetbrains.kotlin.psi.KtImportDirective) return
+            parent = parent.parent
+        }
+        if (expression.selectorExpression?.text == "dp") {
+            val text = expression.text
+            val allowed = listOf("0.dp", "1.dp", "0f.dp", "1f.dp", "0.0.dp", "1.0.dp", "0.0f.dp", "1.0f.dp")
+            if (text !in allowed) {
+                report(CodeSmell(issue, Entity.from(expression), "Replace $text with LumenTokens"))
+            }
+        }
+    }
+}
+
+class ForbiddenScreenSpLiteral(config: Config) : Rule(config) {
+    override val issue = Issue(
+        id = "ForbiddenScreenSpLiteral",
+        severity = Severity.CodeSmell,
+        description = "Use LumenTokens or LumenType instead of raw .sp in screen files.",
+        debt = Debt.FIVE_MINS,
+    )
+
+    private val screenFile = Regex("""(Screen|Section)\.kt$""")
+
+    override fun visitKtFile(file: KtFile) {
+        if (file.name == "LumenTokens.generated.kt" || file.name == "GlassSurface.kt") return
+        if (!screenFile.containsMatchIn(file.name)) return
+        super.visitKtFile(file)
+    }
+
+    override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
+        super.visitDotQualifiedExpression(expression)
+        var parent = expression.parent
+        while (parent != null) {
+            if (parent is org.jetbrains.kotlin.psi.KtImportDirective) return
+            parent = parent.parent
+        }
+        if (expression.selectorExpression?.text == "sp") {
+            report(CodeSmell(issue, Entity.from(expression), "Replace ${expression.text} with LumenTokens or LumenType"))
+        }
     }
 }
 
@@ -61,7 +97,7 @@ class ForbiddenScreenColorLiteral(config: Config) : Rule(config) {
         super.visitCallExpression(expression)
         if (expression.calleeExpression?.text == "Color") {
             val arg = expression.valueArguments.firstOrNull()?.getArgumentExpression()?.text.orEmpty()
-            if (arg.contains("0x")) {
+            if (arg.contains("0x", ignoreCase = true)) {
                 report(CodeSmell(issue, Entity.from(expression), "Use LumenTokens.Color"))
             }
         }
@@ -123,6 +159,7 @@ class LumenTokenRuleSetProvider : RuleSetProvider {
         ruleSetId,
         listOf(
             ForbiddenScreenDpLiteral(config),
+            ForbiddenScreenSpLiteral(config),
             ForbiddenScreenColorLiteral(config),
             ForbiddenScreenMaterialColors(config),
             ForbiddenScreenRoundedCornerShape(config),

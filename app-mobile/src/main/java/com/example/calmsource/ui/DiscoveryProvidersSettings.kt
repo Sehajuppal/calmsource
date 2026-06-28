@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
+import com.example.calmsource.core.ui.theme.*
 import com.example.calmsource.core.discoveryengine.providers.FailureLogEntry
 import com.example.calmsource.core.discoveryengine.providers.ProviderManager
 import com.example.calmsource.core.discoveryengine.providers.ProviderStatusRow
@@ -58,6 +59,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun DiscoveryProvidersScreen(onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     val providerRows by ProviderManager.getProviderStatus().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
     val sortedRows = providerRows.sortedWith(compareBy<ProviderStatusRow> { it.priority }.thenBy { it.name })
@@ -70,7 +72,7 @@ fun DiscoveryProvidersScreen(onBack: () -> Unit) {
             ProviderType.AVAILABILITY
         )
     }
-    var localOnlyMode by remember { mutableStateOf(ProviderManager.isLocalOnlyMode()) }
+    var localOnlyMode by remember { mutableStateOf(false) }
     var enrichmentEnabled by remember {
         mutableStateOf(privacyTypes.associateWith { ProviderManager.isEnrichmentAllowed(it) })
     }
@@ -85,17 +87,17 @@ fun DiscoveryProvidersScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(t.colors.background)
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         SubScreenHeader(title = "Discovery Providers", onBack = onBack)
 
-        Text("Privacy", style = MaterialTheme.typography.titleMedium, color = AppColors.Primary)
+        Text("Privacy", style = MaterialTheme.typography.titleMedium, color = t.colors.brand)
         Spacer(modifier = Modifier.height(8.dp))
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
+            colors = CardDefaults.cardColors(containerColor = t.colors.surface)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 PreferenceSwitchRow("Local-only mode", localOnlyMode) { enabled ->
@@ -112,17 +114,17 @@ fun DiscoveryProvidersScreen(onBack: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Providers", style = MaterialTheme.typography.titleMedium, color = AppColors.Primary)
+        Text("Providers", style = MaterialTheme.typography.titleMedium, color = t.colors.brand)
         Spacer(modifier = Modifier.height(8.dp))
 
         if (sortedRows.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
+                colors = CardDefaults.cardColors(containerColor = t.colors.surface)
             ) {
                 Text(
                     text = "No Stremio discovery providers registered yet.",
-                    color = AppColors.TextSub,
+                    color = t.colors.mutedForeground,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -167,7 +169,7 @@ fun DiscoveryProvidersScreen(onBack: () -> Unit) {
                     }
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
+            colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand),
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -177,7 +179,7 @@ fun DiscoveryProvidersScreen(onBack: () -> Unit) {
 
         statusMessage?.let { message ->
             Spacer(modifier = Modifier.height(8.dp))
-            Text(message, color = AppColors.TextSub, fontSize = 12.sp)
+            Text(message, color = t.colors.mutedForeground, fontSize = 12.sp)
         }
     }
 
@@ -199,6 +201,7 @@ private fun DiscoveryProviderRow(
     onMove: (Int) -> Unit,
     onFailures: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val healthColor = when {
         row.failureCount >= 5 -> Color(0xFFEF4444)
         row.failureCount > 0 -> Color(0xFFF59E0B)
@@ -206,15 +209,15 @@ private fun DiscoveryProviderRow(
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
+        colors = CardDefaults.cardColors(containerColor = t.colors.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(row.name, color = AppColors.TextMain, fontWeight = FontWeight.Bold)
+                    Text(row.name, color = t.colors.foreground, fontWeight = FontWeight.Bold)
                     Text(
                         text = "${row.kind.name.replace("_", " ")}  |  Priority ${row.priority}",
-                        color = AppColors.TextSub,
+                        color = t.colors.mutedForeground,
                         fontSize = 12.sp
                     )
                 }
@@ -230,7 +233,7 @@ private fun DiscoveryProviderRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${row.failureCount} failures",
-                    color = AppColors.TextSub,
+                    color = t.colors.mutedForeground,
                     fontSize = 12.sp
                 )
             }
@@ -238,23 +241,23 @@ private fun DiscoveryProviderRow(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = row.capabilities.sortedBy { it.name }.joinToString("  |  ") { providerTypeShortLabel(it) },
-                color = AppColors.TextSub,
+                color = t.colors.mutedForeground,
                 fontSize = 12.sp
             )
 
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Move up", tint = AppColors.TextMain)
+                    Icon(Icons.Default.ArrowUpward, contentDescription = "Move up", tint = t.colors.foreground)
                 }
                 IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = "Move down", tint = AppColors.TextMain)
+                    Icon(Icons.Default.ArrowDownward, contentDescription = "Move down", tint = t.colors.foreground)
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(onClick = onFailures) {
-                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = t.colors.brand, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("View failures", color = AppColors.Primary)
+                    Text("View failures", color = t.colors.brand)
                 }
             }
         }
@@ -267,27 +270,28 @@ private fun ProviderFailuresDialog(
     failures: List<FailureLogEntry>,
     onDismiss: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val formatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Provider Failures", color = AppColors.Primary) },
+        title = { Text("Provider Failures", color = t.colors.brand) },
         text = {
             Column {
-                Text(providerName, color = AppColors.TextMain, fontWeight = FontWeight.Bold)
+                Text(providerName, color = t.colors.foreground, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 if (failures.isEmpty()) {
-                    Text("No recent failures.", color = AppColors.TextSub)
+                    Text("No recent failures.", color = t.colors.mutedForeground)
                 } else {
                     failures.take(8).forEach { failure ->
                         Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                            Text(failure.errorCode, color = AppColors.TextMain, fontWeight = FontWeight.SemiBold)
+                            Text(failure.errorCode, color = t.colors.foreground, fontWeight = FontWeight.SemiBold)
                             Text(
                                 formatter.format(Date(failure.occurredAt)),
-                                color = AppColors.TextSub,
+                                color = t.colors.mutedForeground,
                                 fontSize = 12.sp
                             )
                             failure.message?.let {
-                                Text(it, color = AppColors.TextSub, fontSize = 12.sp)
+                                Text(it, color = t.colors.mutedForeground, fontSize = 12.sp)
                             }
                         }
                     }
@@ -296,10 +300,10 @@ private fun ProviderFailuresDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done", color = AppColors.Primary)
+                Text("Done", color = t.colors.brand)
             }
         },
-        containerColor = AppColors.Surface
+        containerColor = t.colors.surface
     )
 }
 

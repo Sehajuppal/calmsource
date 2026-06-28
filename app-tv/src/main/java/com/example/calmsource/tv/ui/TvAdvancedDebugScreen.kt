@@ -1,7 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +34,7 @@ import com.example.calmsource.core.playback.diagnostics.PlaybackDiagnosticsRecor
 
 @Composable
 fun TvAdvancedDebugScreen(onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     val coreDb by CoreDatabaseRuntimeStatus.state.collectAsState()
     val discoveryDb by DiscoveryDatabaseRuntimeStatus.state.collectAsState()
     val resources by ResourceGovernor.snapshot.collectAsState()
@@ -53,15 +53,15 @@ fun TvAdvancedDebugScreen(onBack: () -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(LumenLegacySpace.xxl),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
             Text(
                 text = "Advanced Debug",
-                color = TvColors.TextMain,
-                fontSize = 38.sp,
+                color = t.colors.foreground,
+                fontSize = LumenType.size38,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -156,13 +156,14 @@ private fun TvDebugSection(
     title: String,
     rows: List<Pair<String, String>>
 ) {
+    val t = LocalLumenTokens.current
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm)
     ) {
-        Text(title, color = TvColors.BorderFocused, fontWeight = FontWeight.Bold)
+        Text(title, color = t.colors.brand, fontWeight = FontWeight.Bold)
         rows.forEach { (label, value) ->
-            Text("$label: $value", color = TvColors.TextSub, fontSize = 14.sp)
+            Text("$label: $value", color = t.colors.mutedForeground, fontSize = LumenType.size14)
         }
     }
 }

@@ -1,0 +1,43 @@
+# Screen-by-Screen Audit Matrix
+
+This appendix is the full screen audit referenced by [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). Debt is classified as:
+
+- **P0** — blocks a world-class feel (legacy colour/focus system, broken accessibility, or missing critical UI).
+- **P1** — significant visual gap but does not break the design system (static hero, missing glass, raw typography).
+- **P2** — nice-to-have polish (debug screens, motion refinement).
+
+| Screen | Platform | Current primitives | Debt | Reference pattern | Files to touch |
+|--------|----------|-------------------|------|-------------------|----------------|
+| **Home** | Mobile | `Hero`, `GlassTabBar`, `ChipRow`, `PosterCard`, `RowSection`, `LumenSkeleton`, `LumenEmptyState`, `LumenErrorState`, `AsyncImage` | P1 | Netflix edge-to-edge hero + Apple TV poster rows | `app-mobile/src/main/java/com/example/calmsource/ui/HomeScreen.kt`, `core/ui/src/main/kotlin/.../components/Hero.kt`, `core/ui/src/main/kotlin/.../components/PosterCard.kt`, `core/ui/src/main/kotlin/.../components/RowSection.kt` |
+| **Details** | Mobile | `LazyColumn`, `LazyRow`, `AsyncImage`, `AdaptiveButton`, `LumenGhostButton`, `LumenCard`, `AlertDialog`, `Switch`, `Palette` | P1 | Netflix theatrical details page | `app-mobile/src/main/java/com/example/calmsource/ui/DetailsScreen.kt`, `core/ui/src/main/kotlin/.../components/Buttons.kt` |
+| **Player** | Mobile | `AndroidView` (ExoPlayer), `PlayerChrome`, `ModalBottomSheet`, `GlassSurface`, `AnimatedVisibility` | P1 | Netflix/Apple TV theatrical chrome | `app-mobile/src/main/java/com/example/calmsource/ui/PlayerScreen.kt`, `feature/player/src/main/kotlin/.../PlayerChrome.kt`, `feature/player/src/main/kotlin/.../PlayerChromeBindings.kt` |
+| **Search** | Mobile | `GlassSurface`, `TextField`, `LumenCard`, `LumenSkeleton`, `LumenEmptyState`, `ChipRow`, `AsyncImage` | P1 | Netflix search-as-you-type grid | `app-mobile/src/main/java/com/example/calmsource/ui/SearchScreen.kt`, `core/ui/src/main/kotlin/.../components/GlassSurface.kt` |
+| **Guide** | Mobile | `EpgGrid`, `LumenEmptyState`, `LumenCard` | P1 | Apple TV programme guide | `app-mobile/src/main/java/com/example/calmsource/ui/GuideScreen.kt`, `feature/epg/src/main/kotlin/.../EpgGrid.kt` |
+| **Live TV** | Mobile | `GlassTabBar`, `ChipRow`, `LazyVerticalGrid`, `LazyRow`, `LumenCard`, `LumenSkeleton`, `LumenErrorState`, `AsyncImage` | P1 | Netflix live channel grid | `app-mobile/src/main/java/com/example/calmsource/ui/LiveTvScreen.kt` |
+| **Library** | Mobile | Legacy `AppColors`, `GlassCard` (fake glass), `LinearProgressIndicator`, `IconButton`, `TextButton` | P0 | Netflix “My List” + continue-watching row | `app-mobile/src/main/java/com/example/calmsource/ui/LibraryScreen.kt`, `app-mobile/src/main/java/com/example/calmsource/ui/UiComponents.kt` |
+| **Settings** | Mobile | `LumenCard`, `AdaptiveButton`, `OutlinedTextField`, `AlertDialog`, `Switch`, `Button` | P1 | Apple TV settings side sheet | `app-mobile/src/main/java/com/example/calmsource/ui/SettingsScreens.kt` |
+| **Profiles** | Mobile | `LazyVerticalGrid`, `OutlinedTextField`, `AlertDialog`, `AsyncImage`, `animateFloatAsState` | P1 | Netflix profile gate | `app-mobile/src/main/java/com/example/calmsource/ui/ProfilesScreen.kt` |
+| **Cloud Auth** | Mobile | `Card`, `GlassCard`, `OutlinedTextField`, `OutlinedButton`, `CircularProgressIndicator` | P1 | Apple TV centered cinematic modal | `app-mobile/src/main/java/com/example/calmsource/ui/CloudAuthScreen.kt` |
+| **Discovery Providers** | Mobile | `Card`, `Switch`, `Button`, `IconButton`, `AlertDialog`, legacy `AppColors` | P1 | Settings toggle list | `app-mobile/src/main/java/com/example/calmsource/ui/DiscoveryProvidersSettings.kt` |
+| **Advanced Debug** | Mobile | `Column`, `Checkbox`, `Button`, legacy `AppColors` | P2 | Debug utility | `app-mobile/src/main/java/com/example/calmsource/ui/AdvancedDebugScreen.kt` |
+| **Navigation shell** | Mobile | `Scaffold`, `NavigationBar`, `MaterialTheme`, raw `Color` literals | P1 | Netflix mobile bottom nav / Apple TV icon rail | `app-mobile/src/main/java/com/example/calmsource/Navigation.kt`, `app-mobile/src/main/java/com/example/calmsource/MainActivity.kt` |
+| **TV Home** | TV | `LazyColumn`, `LazyRow`, `TvFocusable`, `TvFocusScope`, `rememberTvFocusMemory`, `LumenSkeleton`, `LumenErrorState`, `LumenEmptyState` | P0/P1 | Apple TV Top Shelf + Netflix poster rows | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvHomeScreen.kt`, `core/ui/src/main/kotlin/.../tv/TvTopShelf.kt`, `core/ui/src/main/kotlin/.../tv/TvPosterRow.kt` |
+| **TV Details** | TV | `LazyColumn`, `LazyRow`, `PosterCard`, `AsyncImage`, `TvFocusable`, `Palette`, `LumenSkeleton` | P1 | Netflix theatrical details | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvDetailsScreen.kt` |
+| **TV Player** | TV | `AndroidView` (ExoPlayer), `PlayerChrome`, `TvFocusable`, `LumenBufferingOverlay`, `AnimatedVisibility` | P1 | Apple TV player chrome | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvPlayerScreen.kt`, `feature/player/src/main/kotlin/.../PlayerChrome.kt` |
+| **TV Search** | TV | `LazyColumn`, `LazyRow`, `TvFocusable`, `TvFocusScope`, `PosterCard`, `LumenSkeleton`, `LumenEmptyState` | P1 | Netflix search grid | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvSearchScreen.kt` |
+| **TV Guide / Live Guide** | TV | `EpgGrid`, `LumenCard`, `AdaptiveButton`, `LumenEmptyState`, `rememberScrollState` | P1 | Apple TV programme guide | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvGuideScreen.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvLiveGuideScreen.kt`, `feature/epg/src/main/kotlin/.../EpgGrid.kt` |
+| **TV Live TV** | TV | `LazyColumn`, `LazyVerticalGrid`, `TvFocusable`, `LumenCard`, `LumenEmptyState`, `AsyncImage` | P1 | Netflix live channel grid | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvLiveTvScreen.kt` |
+| **TV Library** | TV | `TvFocusCard` (legacy), `TvColors`, `LazyColumn`, progress bars, text-only rows | P0 | Netflix continue-watching row | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvLibraryScreen.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvUiComponents.kt` |
+| **TV Settings + sections** | TV | `LumenCard`, `Switch`, `TvFocusable`, `TvFocusCard`, `TvColors` (sections), `AlertDialog`, `OutlinedTextField`, `Button` | P0/P1 | Apple TV settings side sheet | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvSettingsScreen.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvIptvSettingsSection.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvExtensionSettingsSection.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvDebridSettingsSection.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvDiscoveryProvidersSettingsSection.kt`, `app-tv/src/main/java/com/example/calmsource/tv/ui/TvPrioritiesSettingsSection.kt` |
+| **TV Profile Selection** | TV | `LazyRow`, `Dialog`, `AsyncImage`, `TvFocusCard` (legacy), `animateFloatAsState` | P1 | Netflix profile gate | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvProfileSelectionScreen.kt` |
+| **TV Onboarding** | TV | `TvColors`, `tv-material3.Button`, `Image` (QR), `CircularProgressIndicator` | P0/P1 | Apple TV benefit-driven onboarding pager | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvOnboardingScreen.kt` |
+| **TV Advanced Debug** | TV | `TvColors`, `TvFocusCard`, `LazyColumn` | P2 | Debug utility | `app-tv/src/main/java/com/example/calmsource/tv/ui/TvAdvancedDebugScreen.kt` |
+| **TV Main Activity / Nav rail** | TV | `TvColors`, `TvFocusCard`, text-only `Column` nav rail | P0 | Apple TV icon rail | `app-tv/src/main/java/com/example/calmsource/tv/TvMainActivity.kt`, `core/ui/src/main/kotlin/.../tv/TvIconNavRail.kt` |
+
+## Key debt clusters
+
+1. **Legacy colour focus:** `LibraryScreen`, `CloudAuthScreen`, `DiscoveryProvidersSettings`, `UiComponents` (mobile); `TvLibraryScreen`, `TvOnboardingScreen`, `TvAdvancedDebugScreen`, `TvMainActivity`, all `Tv*SettingsSection`, `TvUiComponents` (TV).
+2. **Raw literals:** `DetailsScreen` / `TvDetailsScreen`, `SettingsScreens` / `TvSettingsScreen`, and the TV settings sections contain the highest raw `dp`/`sp`/`Color(0x…)` counts.
+3. **No glass/blur:** `PlayerScreen` and `SearchScreen` use `GlassSurface` on mobile; no TV screen uses it.
+4. **No Top Shelf / cinematic hero:** `TvHomeScreen` and `HomeScreen` both need hero-level investment.
+5. **Inconsistent TV focus:** `TvHomeScreen`, `TvDetailsScreen`, `TvPlayerScreen`, `TvSearchScreen`, `TvGuideScreen`, `TvLiveTvScreen`, `TvLiveGuideScreen` use `TvFocusable`; every other TV screen uses `TvFocusCard`.

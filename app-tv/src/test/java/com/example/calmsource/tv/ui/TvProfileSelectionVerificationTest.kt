@@ -62,7 +62,7 @@ class TvProfileSelectionVerificationTest {
         // 2. Glowing white border mapping (3.dp white border)
         assertTrue(
             "TvProfileAvatarCard should draw a 3.dp border when focused",
-            source.contains("width = if (isFocused) 3.dp else 0.dp")
+            source.contains("width = if (isFocused) LumenExtendedColors.focusRingWidth else 0.dp")
         )
         assertTrue(
             "TvProfileAvatarCard border color should be Color.White when focused",
@@ -80,7 +80,7 @@ class TvProfileSelectionVerificationTest {
         )
         assertTrue(
             "TvAddProfileCard border width should be 3.dp when focused",
-            source.contains("width = if (isFocused) 3.dp else 0.dp")
+            source.contains("width = if (isFocused) LumenExtendedColors.focusRingWidth else 0.dp")
         )
         assertTrue(
             "TvAddProfileCard border color should be Color.White when focused",

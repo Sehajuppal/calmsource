@@ -1,9 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -42,7 +39,6 @@ import com.example.calmsource.core.playback.FrameRateMatchingPreferences
 import com.example.calmsource.core.playback.StreamRacePreferences
 import com.example.calmsource.core.playback.TunnelingMode
 import com.example.calmsource.core.playback.TunnelingPreferences
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.LumenEmptyState
@@ -144,7 +140,7 @@ fun TvSettingsScreens(
         ) {
             Text(
                 text = "Settings",
-                fontSize = 32.sp,
+                fontSize = LumenType.size32,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
@@ -192,7 +188,7 @@ fun TvSettingsScreens(
         ) {
             when (activeSection) {
                 TvSettingsSection.Profile -> {
-                    Text("Profile Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text("Profile Settings", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     LumenCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -223,13 +219,13 @@ fun TvSettingsScreens(
                                 Column {
                                     Text(
                                         text = activeProfile?.name ?: "Default Profile",
-                                        fontSize = 20.sp,
+                                        fontSize = LumenType.size20,
                                         fontWeight = FontWeight.Bold,
                                         color = t.colors.foreground
                                     )
                                     Text(
                                         text = "Active User Profile",
-                                        fontSize = 13.sp,
+                                        fontSize = LumenType.size13,
                                         color = t.colors.mutedForeground
                                     )
                                 }
@@ -238,7 +234,7 @@ fun TvSettingsScreens(
                                 Text(
                                     text = "Switch Profile",
                                     color = t.colors.foreground,
-                                    fontSize = 14.sp,
+                                    fontSize = LumenType.size14,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .background(t.colors.muted)
@@ -250,7 +246,7 @@ fun TvSettingsScreens(
                 }
 
                 TvSettingsSection.Playback -> {
-                    Text("Playback preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text("Playback preferences", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
@@ -364,7 +360,7 @@ fun TvSettingsScreens(
                                 TunnelingPreferences.setModeBestEffort(context, tunnelingMode)
                             }
                         ) {
-                            Text(tunnelingMode.name, color = t.colors.brand, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(tunnelingMode.name, color = t.colors.brand, fontWeight = FontWeight.Bold, fontSize = LumenType.size14)
                         }
                     }
                 }
@@ -375,12 +371,12 @@ fun TvSettingsScreens(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("IPTV playlists", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                        Text("IPTV playlists", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                         TvFocusable(onClick = { showProviderTypeSelect = true }, cornerRadius = LumenLegacySpace.sm2) {
                             Text(
                                 text = "Add provider",
                                 color = t.colors.foreground,
-                                fontSize = 14.sp,
+                                fontSize = LumenType.size14,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
@@ -430,10 +426,10 @@ fun TvSettingsScreens(
                                                 )
                                         )
                                         Column {
-                                            Text(provider.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                            Text(provider.name, fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                                             Text(
                                                 text = if (provider.type == IPTVProviderType.XTREAM) "Xtream API" else "M3U Playlist",
-                                                fontSize = 12.sp,
+                                                fontSize = LumenType.size12,
                                                 color = t.colors.mutedForeground
                                             )
                                         }
@@ -485,7 +481,7 @@ fun TvSettingsScreens(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Add-on catalogs", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                        Text("Add-on catalogs", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                         TvFocusable(
                             onClick = {
                                 addonUrl = ""
@@ -498,7 +494,7 @@ fun TvSettingsScreens(
                             Text(
                                 text = "Add from URL",
                                 color = t.colors.foreground,
-                                fontSize = 14.sp,
+                                fontSize = LumenType.size14,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
@@ -548,9 +544,9 @@ fun TvSettingsScreens(
                                                 .background(healthColor)
                                         )
                                         Column {
-                                            Text(addon.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                            Text(addon.name, fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                                             addon.manifest?.description?.let { desc ->
-                                                Text(desc, fontSize = 12.sp, color = t.colors.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(desc, fontSize = LumenType.size12, color = t.colors.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             }
                                         }
                                     }
@@ -568,7 +564,7 @@ fun TvSettingsScreens(
                                             Text(
                                                 text = if (addon.isEnabled) "Disable" else "Enable",
                                                 color = t.colors.foreground,
-                                                fontSize = 12.sp,
+                                                fontSize = LumenType.size12,
                                                 modifier = Modifier.padding(horizontal = LumenTokens.Radius.md, vertical = LumenLegacySpace.sm)
                                             )
                                         }
@@ -589,7 +585,7 @@ fun TvSettingsScreens(
                 }
 
                 TvSettingsSection.About -> {
-                    Text("About", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text("About", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
@@ -623,7 +619,7 @@ fun TvSettingsScreens(
                             Text(
                                 text = "Device Pairing",
                                 color = t.colors.foreground,
-                                fontSize = 14.sp,
+                                fontSize = LumenType.size14,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
@@ -638,205 +634,390 @@ fun TvSettingsScreens(
 
     // IPTV Type Select Dialog
     if (showProviderTypeSelect) {
-        AlertDialog(
-            onDismissRequest = { showProviderTypeSelect = false },
-            title = { Text("Add IPTV Provider", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = { Text("Select M3U playlist format or Xtream credentials format.", color = t.colors.mutedForeground) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showProviderTypeSelect = false
-                    m3uEditProvider = null
-                    m3uName = ""
-                    m3uUrl = ""
-                    m3uError = null
-                    showM3uDialog = true
-                }) {
-                    Text("M3U Playlist", color = t.colors.brand, fontWeight = FontWeight.Bold)
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showProviderTypeSelect = false }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width400)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                    Text("Add IPTV Provider", color = t.colors.foreground, fontSize = LumenType.size20, fontWeight = FontWeight.Bold)
+                    Text("Select M3U playlist format or Xtream credentials format.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+                    
+                    TvFocusable(
+                        onClick = {
+                            showProviderTypeSelect = false
+                            m3uEditProvider = null
+                            m3uName = ""
+                            m3uUrl = ""
+                            m3uError = null
+                            showM3uDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = LumenLegacySpace.sm2
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(t.colors.muted)
+                                .padding(LumenLegacySpace.md),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = LumenType.size14)
+                        }
+                    }
+
+                    TvFocusable(
+                        onClick = {
+                            showProviderTypeSelect = false
+                            xtreamEditProvider = null
+                            xtreamName = ""
+                            xtreamServer = ""
+                            xtreamUsername = ""
+                            xtreamPassword = ""
+                            xtreamError = null
+                            showXtreamDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = LumenLegacySpace.sm2
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(t.colors.muted)
+                                .padding(LumenLegacySpace.md),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Xtream API", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = LumenType.size14)
+                        }
+                    }
+
+                    TvFocusable(
+                        onClick = { showProviderTypeSelect = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = LumenLegacySpace.sm2
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(LumenLegacySpace.md),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Cancel", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showProviderTypeSelect = false
-                    xtreamEditProvider = null
-                    xtreamName = ""
-                    xtreamServer = ""
-                    xtreamUsername = ""
-                    xtreamPassword = ""
-                    xtreamError = null
-                    showXtreamDialog = true
-                }) {
-                    Text("Xtream API", color = t.colors.brand, fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 
     // M3U Playlist Form Dialog
     if (showM3uDialog) {
-        AlertDialog(
-            onDismissRequest = { showM3uDialog = false },
-            title = { Text(if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showM3uDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width480)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
-                    OutlinedTextField(
+                    Text(
+                        text = if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist",
+                        color = t.colors.foreground,
+                        fontSize = LumenType.size20,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    var isNameFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
-                        label = { Text("Name") },
+                        placeholder = { Text("Name", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isNameFocused = it.isFocused }
+                            .border(if (isNameFocused) LumenLegacySpace.xxs else 1.dp, if (isNameFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
-                    OutlinedTextField(
+
+                    var isUrlFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = m3uUrl,
                         onValueChange = { m3uUrl = it },
-                        label = { Text("Playlist URL") },
+                        placeholder = { Text("Playlist URL", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isUrlFocused = it.isFocused }
+                            .border(if (isUrlFocused) LumenLegacySpace.xxs else 1.dp, if (isUrlFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
+
                     m3uError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = Color.Red, fontSize = LumenType.size12)
+                    }
+
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TvFocusable(
+                            onClick = {
+                                val name = m3uName.trim()
+                                val url = m3uUrl.trim()
+                                if (name.isEmpty() || url.isEmpty()) {
+                                    m3uError = "Please fill in all fields"
+                                    return@TvFocusable
+                                }
+                                coroutineScope.launch {
+                                    val editProv = m3uEditProvider
+                                    if (editProv != null) {
+                                        IPTVRepository.deleteProvider(editProv.id)
+                                    }
+                                    try {
+                                        IPTVRepository.addM3uProvider(name, url)
+                                        showM3uDialog = false
+                                    } catch (e: Exception) {
+                                        m3uError = e.localizedMessage ?: "Failed to save provider"
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.brand)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Save", color = t.colors.brandForeground, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TvFocusable(
+                            onClick = { showM3uDialog = false },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.muted)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", color = t.colors.foreground)
+                            }
+                        }
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val name = m3uName.trim()
-                        val url = m3uUrl.trim()
-                        if (name.isEmpty() || url.isEmpty()) {
-                            m3uError = "Please fill in all fields"
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            val editProv = m3uEditProvider
-                            if (editProv != null) {
-                                IPTVRepository.deleteProvider(editProv.id)
-                            }
-                            try {
-                                IPTVRepository.addM3uProvider(name, url)
-                                showM3uDialog = false
-                            } catch (e: Exception) {
-                                m3uError = e.localizedMessage ?: "Failed to save provider"
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showM3uDialog = false }) {
-                    Text("Cancel", color = t.colors.foreground)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 
     // Xtream Form Dialog
     if (showXtreamDialog) {
-        AlertDialog(
-            onDismissRequest = { showXtreamDialog = false },
-            title = { Text(if (xtreamEditProvider != null) "Edit Xtream API" else "Add Xtream API", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
-                    OutlinedTextField(
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showXtreamDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width480)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                    Text(
+                        text = if (xtreamEditProvider != null) "Edit Xtream API" else "Add Xtream API",
+                        color = t.colors.foreground,
+                        fontSize = LumenType.size20,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    var isNameFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = xtreamName,
                         onValueChange = { xtreamName = it },
-                        label = { Text("Name") },
+                        placeholder = { Text("Name", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isNameFocused = it.isFocused }
+                            .border(if (isNameFocused) LumenLegacySpace.xxs else 1.dp, if (isNameFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
-                    OutlinedTextField(
+
+                    var isServerFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = xtreamServer,
                         onValueChange = { xtreamServer = it },
-                        label = { Text("Server URL") },
+                        placeholder = { Text("Server URL", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isServerFocused = it.isFocused }
+                            .border(if (isServerFocused) LumenLegacySpace.xxs else 1.dp, if (isServerFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
-                    OutlinedTextField(
+
+                    var isUserFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = xtreamUsername,
                         onValueChange = { xtreamUsername = it },
-                        label = { Text("Username") },
+                        placeholder = { Text("Username", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isUserFocused = it.isFocused }
+                            .border(if (isUserFocused) LumenLegacySpace.xxs else 1.dp, if (isUserFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
-                    OutlinedTextField(
+
+                    var isPassFocused by remember { mutableStateOf(false) }
+                    TvTextField(
                         value = xtreamPassword,
                         onValueChange = { xtreamPassword = it },
-                        label = { Text("Password") },
+                        placeholder = { Text("Password", color = t.colors.mutedForeground) },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { isPassFocused = it.isFocused }
+                            .border(if (isPassFocused) LumenLegacySpace.xxs else 1.dp, if (isPassFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                     )
+
                     xtreamError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = Color.Red, fontSize = LumenType.size12)
+                    }
+
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TvFocusable(
+                            onClick = {
+                                val name = xtreamName.trim()
+                                val server = xtreamServer.trim()
+                                val user = xtreamUsername.trim()
+                                val pass = xtreamPassword.trim()
+                                if (name.isEmpty() || server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+                                    xtreamError = "Please fill in all fields"
+                                    return@TvFocusable
+                                }
+                                coroutineScope.launch {
+                                    val editProv = xtreamEditProvider
+                                    if (editProv != null) {
+                                        IPTVRepository.deleteProvider(editProv.id)
+                                    }
+                                    val res = IPTVRepository.addXtreamProvider(name, server, user, pass)
+                                    if (res.isSuccess) {
+                                        showXtreamDialog = false
+                                    } else {
+                                        xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.brand)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Save", color = t.colors.brandForeground, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TvFocusable(
+                            onClick = { showXtreamDialog = false },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.muted)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", color = t.colors.foreground)
+                            }
+                        }
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val name = xtreamName.trim()
-                        val server = xtreamServer.trim()
-                        val user = xtreamUsername.trim()
-                        val pass = xtreamPassword.trim()
-                        if (name.isEmpty() || server.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-                            xtreamError = "Please fill in all fields"
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            val editProv = xtreamEditProvider
-                            if (editProv != null) {
-                                IPTVRepository.deleteProvider(editProv.id)
-                            }
-                            val res = IPTVRepository.addXtreamProvider(name, server, user, pass)
-                            if (res.isSuccess) {
-                                showXtreamDialog = false
-                            } else {
-                                xtreamError = res.exceptionOrNull()?.localizedMessage ?: "Failed to connect Xtream"
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showXtreamDialog = false }) {
-                    Text("Cancel", color = t.colors.foreground)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 
     // IPTV Delete Dialog
     if (providerToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { providerToDelete = null },
-            title = { Text("Delete IPTV Provider", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete '${providerToDelete?.name}'? This will remove all associated channels.", color = t.colors.mutedForeground) },
-            confirmButton = {
-                TextButton(onClick = {
-                    providerToDelete?.let { provider ->
-                        coroutineScope.launch {
-                            IPTVRepository.deleteProvider(provider.id)
-                            providerToDelete = null
+        androidx.compose.ui.window.Dialog(onDismissRequest = { providerToDelete = null }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width400)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                    Text("Delete IPTV Provider", color = t.colors.foreground, fontSize = LumenType.size20, fontWeight = FontWeight.Bold)
+                    Text("Are you sure you want to delete '${providerToDelete?.name}'? This will remove all associated channels.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TvFocusable(
+                            onClick = {
+                                providerToDelete?.let { provider ->
+                                    coroutineScope.launch {
+                                        IPTVRepository.deleteProvider(provider.id)
+                                        providerToDelete = null
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Red)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TvFocusable(
+                            onClick = { providerToDelete = null },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.muted)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", color = t.colors.foreground)
+                            }
                         }
                     }
-                }) {
-                    Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { providerToDelete = null }) {
-                    Text("Cancel", color = t.colors.foreground)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 
     // Catalog Add-on Installation Dialog
@@ -871,94 +1052,167 @@ fun TvSettingsScreens(
             }
         }
 
-        AlertDialog(
-            onDismissRequest = { showAddonDialog = false },
-            title = { Text("Add Catalog Add-on URL", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showAddonDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width480)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                    Text("Add Catalog Add-on URL", color = t.colors.foreground, fontSize = LumenType.size20, fontWeight = FontWeight.Bold)
+
                     if (previewManifest != null) {
                         val manifest = previewManifest!!
                         Text("Add-on found: ${manifest.name}", color = t.colors.foreground, fontWeight = FontWeight.Bold)
-                        Text(manifest.description ?: "No description provided.", color = t.colors.mutedForeground, fontSize = 12.sp)
+                        Text(manifest.description ?: "No description provided.", color = t.colors.mutedForeground, fontSize = LumenType.size12)
                     } else {
-                        OutlinedTextField(
+                        var isUrlFocused by remember { mutableStateOf(false) }
+                        TvTextField(
                             value = addonUrl,
                             onValueChange = { addonUrl = it },
-                            label = { Text("Manifest URL") },
+                            placeholder = { Text("Manifest URL", color = t.colors.mutedForeground) },
                             singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { isUrlFocused = it.isFocused }
+                                .border(if (isUrlFocused) LumenLegacySpace.xxs else 1.dp, if (isUrlFocused) t.colors.brand else t.colors.border, LumenTokens.Shape.xs)
                         )
                         if (isPreviewingAddon) {
                             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = t.colors.brand)
                         }
                     }
+
                     addonValidationError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = Color.Red, fontSize = LumenType.size12)
+                    }
+
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TvFocusable(
+                            onClick = {
+                                val manifest = previewManifest
+                                if (manifest != null) {
+                                    if (isInstallingAddon) return@TvFocusable
+                                    isInstallingAddon = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val result = ExtensionRepository.confirmInstall(manifest, addonUrl.trim(), emptyList())
+                                            if (result.isSuccess) {
+                                                showAddonDialog = false
+                                            } else {
+                                                addonValidationError = result.error?.message ?: "Install failed"
+                                            }
+                                        } catch (e: Exception) {
+                                            addonValidationError = e.localizedMessage ?: "Install failed"
+                                        } finally {
+                                            isInstallingAddon = false
+                                        }
+                                    }
+                                } else {
+                                    previewUrl(addonUrl)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.brand)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(if (previewManifest != null) "Install" else "Preview", color = t.colors.brandForeground, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TvFocusable(
+                            onClick = { showAddonDialog = false },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.muted)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", color = t.colors.foreground)
+                            }
+                        }
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val manifest = previewManifest
-                        if (manifest != null) {
-                            if (isInstallingAddon) return@Button
-                            isInstallingAddon = true
-                            coroutineScope.launch {
-                                try {
-                                    val result = ExtensionRepository.confirmInstall(manifest, addonUrl.trim(), emptyList())
-                                    if (result.isSuccess) {
-                                        showAddonDialog = false
-                                    } else {
-                                        addonValidationError = result.error?.message ?: "Install failed"
-                                    }
-                                } catch (e: Exception) {
-                                    addonValidationError = e.localizedMessage ?: "Install failed"
-                                } finally {
-                                    isInstallingAddon = false
-                                }
-                            }
-                        } else {
-                            previewUrl(addonUrl)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
-                ) {
-                    Text(if (previewManifest != null) "Install" else "Preview")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddonDialog = false }) {
-                    Text("Cancel", color = t.colors.foreground)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 
     // Catalog Add-on Deletion Dialog
     if (addonToRemove != null) {
-        AlertDialog(
-            onDismissRequest = { addonToRemove = null },
-            title = { Text("Remove Add-on", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to remove '${addonToRemove?.name}'?", color = t.colors.mutedForeground) },
-            confirmButton = {
-                TextButton(onClick = {
-                    addonToRemove?.let { addon ->
-                        ExtensionRepository.removeExtension(addon.id)
-                        addonToRemove = null
+        androidx.compose.ui.window.Dialog(onDismissRequest = { addonToRemove = null }) {
+            Box(
+                modifier = Modifier
+                    .width(LumenLayout.width400)
+                    .background(t.colors.card, LumenTokens.Shape.md)
+                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
+                    .padding(LumenLegacySpace.xxl)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                    Text("Remove Add-on", color = t.colors.foreground, fontSize = LumenType.size20, fontWeight = FontWeight.Bold)
+                    Text("Are you sure you want to remove '${addonToRemove?.name}'?", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TvFocusable(
+                            onClick = {
+                                addonToRemove?.let { addon ->
+                                    ExtensionRepository.removeExtension(addon.id)
+                                    addonToRemove = null
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Red)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TvFocusable(
+                            onClick = { addonToRemove = null },
+                            modifier = Modifier.weight(1f),
+                            cornerRadius = LumenLegacySpace.sm2
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(t.colors.muted)
+                                    .padding(vertical = LumenLegacySpace.md),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", color = t.colors.foreground)
+                            }
+                        }
                     }
-                }) {
-                    Text("Remove", color = Color.Red, fontWeight = FontWeight.Bold)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { addonToRemove = null }) {
-                    Text("Cancel", color = t.colors.foreground)
-                }
-            },
-            containerColor = t.colors.card
-        )
+            }
+        }
     }
 }
 
@@ -987,7 +1241,7 @@ fun TvLeftNavItem(
             Text(
                 text = title,
                 color = if (isSelected) t.colors.brand else t.colors.foreground,
-                fontSize = 16.sp,
+                fontSize = LumenType.size16,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
         }
@@ -1017,9 +1271,9 @@ fun TvSettingsInteractiveRow(
                 .padding(LumenLegacySpace.lg)
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                Text(title, fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                 if (description.isNotEmpty()) {
-                    Text(description, fontSize = 12.sp, color = t.colors.mutedForeground, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
+                    Text(description, fontSize = LumenType.size12, color = t.colors.mutedForeground, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
                 }
             }
             actionContent()
@@ -1040,8 +1294,8 @@ fun TvSettingsAboutRow(
             .background(t.colors.card, LumenTokens.Shape.sm)
             .padding(LumenLegacySpace.lg)
     ) {
-        Text(label, fontSize = 16.sp, color = t.colors.mutedForeground)
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+        Text(label, fontSize = LumenType.size16, color = t.colors.mutedForeground)
+        Text(value, fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
     }
 }
 
@@ -1052,6 +1306,7 @@ fun TvSettingsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalLumenTokens.current
     TvFocusCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth()
@@ -1062,10 +1317,10 @@ fun TvSettingsRow(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column {
-                Text(text = title, color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(text = description, color = if (isFocused) TvColors.TextMain else TvColors.TextSub, fontSize = 12.sp, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
+                Text(text = title, color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
+                Text(text = description, color = if (isFocused) t.colors.foreground else t.colors.mutedForeground, fontSize = LumenType.size12, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
             }
-            Text(text = "Open →", color = TvColors.BorderFocused, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(text = "Open →", color = t.colors.brand, fontSize = LumenType.size13, fontWeight = FontWeight.Bold)
         }
     }
 }

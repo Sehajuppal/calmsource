@@ -1,8 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,7 +39,6 @@ import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.model.toUserMemoryReference
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.ChipRow
 import com.example.calmsource.core.ui.components.GlassTabBar
@@ -323,7 +320,7 @@ private fun ChannelsGridContent(
                 Text(
                     text = "No channels match this category.",
                     color = t.colors.mutedForeground,
-                    fontSize = 14.sp
+                    fontSize = LumenType.size14
                 )
             }
         } else {
@@ -379,8 +376,8 @@ private fun ChannelsGridContent(
 
                             Text(
                                 text = if (currentProgram != null) "NOW PLAYING" else "NO EPG DATA",
-                                fontSize = 10.5.sp,
-                                letterSpacing = 1.6.sp,
+                                fontSize = LumenType.size10_5,
+                                letterSpacing = LumenType.line1_6,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground
                             )
@@ -389,7 +386,7 @@ private fun ChannelsGridContent(
 
                             Text(
                                 text = currentProgram?.title ?: "No Information",
-                                fontSize = 12.sp,
+                                fontSize = LumenType.size12,
                                 fontWeight = FontWeight.SemiBold,
                                 color = t.colors.foreground,
                                 maxLines = 1,
@@ -400,7 +397,7 @@ private fun ChannelsGridContent(
 
                             Text(
                                 text = channel.name,
-                                fontSize = 13.sp,
+                                fontSize = LumenType.size13,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.foreground,
                                 maxLines = 1,

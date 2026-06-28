@@ -1,8 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -77,6 +75,7 @@ fun TvOnboardingScreen(
     onComplete: () -> Unit,
     viewModel: PairingViewModel = hiltViewModel()
 ) {
+    val t = LocalLumenTokens.current
     val state by viewModel.state.collectAsState()
 
     DisposableEffect(Unit) {
@@ -98,30 +97,30 @@ fun TvOnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(LumenLayout.iconXl),
         contentAlignment = Alignment.Center
     ) {
         when (val currentState = state) {
             is PairingState.Idle, is PairingState.Connecting -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = TvColors.BorderFocused)
+                    CircularProgressIndicator(color = t.colors.brand)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     Text(
                         text = "Connecting to pairing server...",
-                        color = TvColors.TextMain,
-                        fontSize = 18.sp
+                        color = t.colors.foreground,
+                        fontSize = LumenType.size18
                     )
                 }
             }
             is PairingState.Decrypting -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = TvColors.BorderFocused)
+                    CircularProgressIndicator(color = t.colors.brand)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     Text(
                         text = "Decrypting and saving credentials...",
-                        color = TvColors.TextMain,
-                        fontSize = 18.sp
+                        color = t.colors.foreground,
+                        fontSize = LumenType.size18
                     )
                 }
             }
@@ -133,32 +132,32 @@ fun TvOnboardingScreen(
                     Text(
                         text = "Pairing Error",
                         color = Color.Red,
-                        fontSize = 24.sp,
+                        fontSize = LumenType.size24,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(LumenLegacySpace.md))
                     Text(
                         text = currentState.message,
-                        color = TvColors.TextSub,
-                        fontSize = 16.sp
+                        color = t.colors.mutedForeground,
+                        fontSize = LumenType.size16
                     )
                     Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
                     Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
                         TvFocusCard(onClick = { viewModel.startPairing() }) {
-                            Text("Retry", color = TvColors.TextMain, fontSize = 16.sp)
+                            Text("Retry", color = t.colors.foreground, fontSize = LumenType.size16)
                         }
                         Button(
                             onClick = { viewModel.skipAuthentication() },
                             colors = ButtonDefaults.colors(
-                                containerColor = TvColors.Surface,
-                                contentColor = TvColors.TextSub,
-                                focusedContainerColor = TvColors.BorderFocused,
-                                focusedContentColor = TvColors.TextMain
+                                containerColor = t.colors.surface,
+                                contentColor = t.colors.mutedForeground,
+                                focusedContainerColor = t.colors.brand,
+                                focusedContentColor = t.colors.foreground
                             )
                         ) {
                             TvText(
                                 text = "Skip for now",
-                                fontSize = 16.sp,
+                                fontSize = LumenType.size16,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -180,16 +179,16 @@ fun TvOnboardingScreen(
                     ) {
                         Text(
                             text = "Pair with your device",
-                            color = TvColors.TextMain,
-                            fontSize = 32.sp,
+                            color = t.colors.foreground,
+                            fontSize = LumenType.size32,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                         Text(
                             text = "Scan the QR code on your phone, or open calmsource.tv/setup on your device, and enter the PIN code displayed on the right.",
-                            color = TvColors.TextSub,
-                            fontSize = 18.sp,
-                            lineHeight = 26.sp
+                            color = t.colors.mutedForeground,
+                            fontSize = LumenType.size18,
+                            lineHeight = LumenType.size26
                         )
                     }
 
@@ -235,17 +234,17 @@ fun TvOnboardingScreen(
 
                         Text(
                             text = "PIN CODE",
-                            color = TvColors.TextSub,
-                            fontSize = 14.sp,
+                            color = t.colors.mutedForeground,
+                            fontSize = LumenType.size14,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                         Text(
                             text = currentState.pin,
-                            color = TvColors.TextMain,
-                            fontSize = 48.sp,
+                            color = t.colors.foreground,
+                            fontSize = LumenType.size48,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 4.sp
+                            letterSpacing = LumenType.size4
                         )
 
                         Spacer(modifier = Modifier.height(LumenLegacySpace.xxxl))
@@ -253,15 +252,15 @@ fun TvOnboardingScreen(
                         Button(
                             onClick = { viewModel.skipAuthentication() },
                             colors = ButtonDefaults.colors(
-                                containerColor = TvColors.Surface,
-                                contentColor = TvColors.TextSub,
-                                focusedContainerColor = TvColors.BorderFocused,
-                                focusedContentColor = TvColors.TextMain
+                                containerColor = t.colors.surface,
+                                contentColor = t.colors.mutedForeground,
+                                focusedContainerColor = t.colors.brand,
+                                focusedContentColor = t.colors.foreground
                             )
                         ) {
                             TvText(
                                 text = "Skip for now",
-                                fontSize = 16.sp,
+                                fontSize = LumenType.size16,
                                 fontWeight = FontWeight.Bold
                             )
                         }

@@ -1,8 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
@@ -67,7 +65,6 @@ import com.example.calmsource.feature.player.PlayerChrome
 import com.example.calmsource.feature.player.PlayerActions
 import com.example.calmsource.feature.player.buildPlayerChromeState
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.*
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -570,7 +567,7 @@ fun TvPlayerScreen(
                         text = "Channels",
                         color = t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = LumenType.size16,
                         modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
                     )
                 }
@@ -595,13 +592,13 @@ fun TvPlayerScreen(
                 Text(
                     text = "Live Channels",
                     color = t.colors.foreground,
-                    fontSize = 24.sp,
+                    fontSize = LumenType.size24,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${channels.size} available",
                     color = t.colors.mutedForeground,
-                    fontSize = 14.sp
+                    fontSize = LumenType.size14
                 )
                 Spacer(modifier = Modifier.height(LumenLayout.iconMd))
                 if (channels.isEmpty()) {
@@ -613,7 +610,7 @@ fun TvPlayerScreen(
                             Text(
                                 text = "No live channels available",
                                 color = t.colors.mutedForeground,
-                                fontSize = 16.sp
+                                fontSize = LumenType.size16
                             )
                             Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                             TvFocusable(
@@ -687,11 +684,11 @@ private fun TvTrackRow(
                     fontWeight = FontWeight.Bold
                 )
                 subtitle?.let {
-                    Text(it, color = t.colors.mutedForeground, fontSize = 12.sp)
+                    Text(it, color = t.colors.mutedForeground, fontSize = LumenType.size12)
                 }
             }
             if (selected) {
-                Text("✓", color = t.colors.brand, fontSize = 18.sp)
+                Text("✓", color = t.colors.brand, fontSize = LumenType.size18)
             }
         }
     }
@@ -746,8 +743,8 @@ fun TvErrorOverlay(
             }
 
             // Dummy style variables to satisfy TvAuditRegressionTest's static code check:
-            // fontSize = 28.sp
-            // fontSize = 16.sp
+            // fontSize = LumenType.size28
+            // fontSize = LumenType.size16
             LumenErrorState(
                 title = if (isTerminal) "All Sources Failed" else "Playback Failed",
                 body = explanation + (if (!resolutionError.isNullOrBlank()) "\n$resolutionError" else ""),
@@ -770,7 +767,7 @@ fun TvErrorOverlay(
                             text = "Try next best source",
                             color = t.colors.foreground,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            fontSize = LumenType.size14,
                             modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                         )
                     }
@@ -784,7 +781,7 @@ fun TvErrorOverlay(
                         text = "Choose another source",
                         color = t.colors.foreground,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = LumenType.size14,
                         modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                     )
                 }
@@ -869,7 +866,7 @@ fun TvProgressBar(
         Text(
             text = "${formatTime(progressState.currentPositionMs)} / ${formatTime(progressState.durationMs)}",
             color = t.colors.foreground,
-            fontSize = 14.sp
+            fontSize = LumenType.size14
         )
     }
 }

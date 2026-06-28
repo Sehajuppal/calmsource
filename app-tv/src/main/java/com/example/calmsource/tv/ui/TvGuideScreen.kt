@@ -32,9 +32,7 @@ import com.example.calmsource.core.ui.components.AdaptiveButton
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.LumenEmptyState
 import com.example.calmsource.core.ui.components.TvFocusable
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.theme.*
 import com.example.calmsource.feature.epg.EpgGrid
 import com.example.calmsource.feature.epg.mapGuideToEpgGrid
 import com.example.calmsource.feature.iptv.EpgNowNext
@@ -121,7 +119,7 @@ fun TvGuideScreen(
         ) {
             Text(
                 text = "Live Guide (EPG)",
-                fontSize = 20.sp,
+                fontSize = LumenType.size20,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
             )
@@ -132,7 +130,7 @@ fun TvGuideScreen(
                 onClick = {
                     val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
                     scope.launch {
-                        val px = with(density) { (EPG_PX_PER_MINUTE.dp * nowMinutes).roundToPx() }
+                        val px = with(density) { (LumenLayout.epgPxPerMinute * nowMinutes).roundToPx() }
                         horizontalScrollState.animateScrollTo(px)
                     }
                 },
@@ -143,7 +141,7 @@ fun TvGuideScreen(
                     onClick = {
                         val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
                         scope.launch {
-                            val px = with(density) { (EPG_PX_PER_MINUTE.dp * nowMinutes).roundToPx() }
+                            val px = with(density) { (LumenLayout.epgPxPerMinute * nowMinutes).roundToPx() }
                             horizontalScrollState.animateScrollTo(px)
                         }
                     },
@@ -168,20 +166,20 @@ fun TvGuideScreen(
                 if (program != null) {
                     Text(
                         text = "${focusedChannel?.name.orEmpty()} — ${program.title}",
-                        fontSize = 14.sp,
+                        fontSize = LumenType.size14,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.foreground,
                     )
                     Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                     Text(
                         text = "${timeFormatter.format(Date(program.startTimeMs))} - ${timeFormatter.format(Date(program.endTimeMs))}",
-                        fontSize = 11.sp,
+                        fontSize = LumenType.size11,
                         color = t.colors.brand,
                     )
                     Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                     Text(
                         text = program.description ?: "No description available.",
-                        fontSize = 11.sp,
+                        fontSize = LumenType.size11,
                         color = t.colors.mutedForeground,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -189,7 +187,7 @@ fun TvGuideScreen(
                 } else {
                     Text(
                         text = "Select a program to view details",
-                        fontSize = 12.sp,
+                        fontSize = LumenType.size12,
                         color = t.colors.mutedForeground,
                     )
                 }

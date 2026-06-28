@@ -1,9 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenExtendedColors
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,7 +50,6 @@ import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.*
 
 @Composable
 fun TvDetailsScreen(
@@ -415,9 +411,9 @@ fun TvDetailsScreen(
         androidx.compose.ui.window.Dialog(onDismissRequest = { showUnavailableDialog = false }) {
             Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenLegacySpace.xxl)) {
                 Column {
-                    Text("Source Unavailable", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text("Source Unavailable", fontSize = LumenType.size20, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
-                    Text("The selected stream is missing a valid URL. Please choose another option.", fontSize = 14.sp, color = t.colors.mutedForeground)
+                    Text("The selected stream is missing a valid URL. Please choose another option.", fontSize = LumenType.size14, color = t.colors.mutedForeground)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     TvFocusable(onClick = { showUnavailableDialog = false }, modifier = Modifier.align(Alignment.End)) {
                         Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2))
@@ -431,9 +427,9 @@ fun TvDetailsScreen(
         androidx.compose.ui.window.Dialog(onDismissRequest = { showBlockedDialog = false }) {
             Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenLegacySpace.xxl)) {
                 Column {
-                    Text("Configuration Required", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text("Configuration Required", fontSize = LumenType.size20, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
-                    Text("This source requires configuration or authentication. Please update your settings.", fontSize = 14.sp, color = t.colors.mutedForeground)
+                    Text("This source requires configuration or authentication. Please update your settings.", fontSize = LumenType.size14, color = t.colors.mutedForeground)
                     Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     TvFocusable(onClick = { showBlockedDialog = false }, modifier = Modifier.align(Alignment.End)) {
                         Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2))
@@ -588,7 +584,7 @@ fun TvDetailsScreen(
                     Text(
                         text = "← Back to Home",
                         color = t.colors.foreground,
-                        fontSize = 14.sp,
+                        fontSize = LumenType.size14,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                     )
@@ -625,7 +621,7 @@ fun TvDetailsScreen(
                         } else {
                             Text(
                                 text = currentMediaItem.title,
-                                fontSize = 36.sp,
+                                fontSize = LumenType.size36,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.foreground
                             )
@@ -637,16 +633,16 @@ fun TvDetailsScreen(
                             modifier = Modifier.padding(vertical = LumenLegacySpace.sm2)
                         ) {
                             val year = currentMediaItem.releaseDate ?: stremioMeta?.releaseInfo ?: ""
-                            Text(text = year, color = t.colors.mutedForeground, fontSize = 14.sp)
+                            Text(text = year, color = t.colors.mutedForeground, fontSize = LumenType.size14)
                             
                             currentMediaItem.rating?.let {
-                                Text(text = "IMDb: ★ $it", color = LumenExtendedColors.ratingGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "IMDb: ★ $it", color = LumenExtendedColors.ratingGold, fontSize = LumenType.size14, fontWeight = FontWeight.Bold)
                             }
                             stremioMeta?.rtRating?.let {
-                                Text(text = "RT: 🍅 $it", color = LumenExtendedColors.errorBright, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "RT: 🍅 $it", color = LumenExtendedColors.errorBright, fontSize = LumenType.size14, fontWeight = FontWeight.Bold)
                             }
                             stremioMeta?.metascore?.let {
-                                Text(text = "Metascore: Ⓜ️ $it", color = LumenExtendedColors.statusHealthy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Metascore: Ⓜ️ $it", color = LumenExtendedColors.statusHealthy, fontSize = LumenType.size14, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -654,7 +650,7 @@ fun TvDetailsScreen(
                         if (tagline.isNotBlank() && tagline.length > 5) {
                             Text(
                                 text = tagline,
-                                fontSize = 16.sp,
+                                fontSize = LumenType.size16,
                                 fontWeight = FontWeight.Medium,
                                 color = t.colors.mutedForeground,
                                 modifier = Modifier.padding(bottom = LumenLegacySpace.sm2)
@@ -664,8 +660,8 @@ fun TvDetailsScreen(
                         Text(
                             text = currentMediaItem.overview ?: stremioMeta?.description ?: "",
                             color = t.colors.mutedForeground,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
+                            fontSize = LumenType.size14,
+                            lineHeight = LumenType.size20,
                             modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                         )
 
@@ -694,7 +690,7 @@ fun TvDetailsScreen(
                                             text = "Play Best Match",
                                             color = controlFg,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp
+                                            fontSize = LumenType.size15
                                         )
                                     }
                                 }
@@ -717,7 +713,7 @@ fun TvDetailsScreen(
                                     text = if (isFavorite) "✓ Watchlist" else "+ Watchlist",
                                     color = t.colors.foreground,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
+                                    fontSize = LumenType.size15,
                                     modifier = Modifier.padding(horizontal = LumenLegacySpace.xl, vertical = LumenLegacySpace.md)
                                 )
                             }
@@ -731,7 +727,7 @@ fun TvDetailsScreen(
                 item(key = "seasons_row") {
                     if (seasons.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)) {
-                            Text("Seasons", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                            Text("Seasons", fontSize = LumenType.size20, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
                                 items(seasons) { season ->
                                     val isSelected = selectedSeason == season
@@ -749,7 +745,7 @@ fun TvDetailsScreen(
                                             Text(
                                                 text = seasonDisplayLabel(season),
                                                 color = if (isSelected) t.colors.brandForeground else t.colors.foreground,
-                                                fontSize = 14.sp,
+                                                fontSize = LumenType.size14,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -763,7 +759,7 @@ fun TvDetailsScreen(
                 item(key = "episodes_row") {
                     if (episodesForSelectedSeason.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
-                            Text("Episodes", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                            Text("Episodes", fontSize = LumenType.size20, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                             LazyRow(
                                 state = currentSeasonScrollState,
                                 horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
@@ -789,7 +785,7 @@ fun TvDetailsScreen(
                                             Text(
                                                 text = "Episode ${video.episode}: ${video.title ?: ""}",
                                                 color = if (isSelected) t.colors.brand else t.colors.foreground,
-                                                fontSize = 13.sp,
+                                                fontSize = LumenType.size13,
                                                 fontWeight = FontWeight.Bold,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
@@ -808,7 +804,7 @@ fun TvDetailsScreen(
             if (similarItems.isNotEmpty()) {
                 item(key = "similar_items_row") {
                     Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
-                        Text("More Like This", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                        Text("More Like This", fontSize = LumenType.size20, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
                             items(similarItems, key = { "similar-${it.id}" }) { item ->
                                 val similarMedia = MediaItem(
@@ -832,7 +828,7 @@ fun TvDetailsScreen(
                                         Text(
                                             text = similarMedia.title,
                                             color = t.colors.foreground,
-                                            fontSize = 13.sp,
+                                            fontSize = LumenType.size13,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -850,7 +846,7 @@ fun TvDetailsScreen(
             item(key = "alternative_options_header") {
                 Text(
                     text = "Alternative Watch Options",
-                    fontSize = 20.sp,
+                    fontSize = LumenType.size20,
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground,
                     modifier = Modifier.padding(top = LumenLegacySpace.md)
@@ -915,7 +911,7 @@ fun TvDetailsScreen(
                     ) {
                         Text(
                             text = "Advanced - Manual Sources (${sortedOptions.size})",
-                            fontSize = 16.sp,
+                            fontSize = LumenType.size16,
                             fontWeight = FontWeight.Bold,
                             color = t.colors.foreground,
                             modifier = Modifier.weight(1f)
@@ -923,7 +919,7 @@ fun TvDetailsScreen(
                         Text(
                             text = if (isAdvancedExpanded) "Collapse ▲" else "Expand ▼",
                             color = t.colors.brand,
-                            fontSize = 14.sp,
+                            fontSize = LumenType.size14,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -937,7 +933,7 @@ fun TvDetailsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = LumenLegacySpace.lg)
                     ) {
-                        Text("Show Raw Details", color = t.colors.foreground, fontSize = 14.sp)
+                        Text("Show Raw Details", color = t.colors.foreground, fontSize = LumenType.size14)
                         Switch(checked = showRawDetails, onCheckedChange = { showRawDetails = it })
                     }
                 }
@@ -958,7 +954,7 @@ fun TvDetailsScreen(
                                     )
                                     .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                             ) {
-                                Text("Best Match", color = t.colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Best Match", color = t.colors.foreground, fontSize = LumenType.size13, fontWeight = FontWeight.Bold)
                             }
                         }
                         TvFocusable(
@@ -972,7 +968,7 @@ fun TvDetailsScreen(
                                     )
                                     .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                             ) {
-                                Text("Highest Quality", color = t.colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Highest Quality", color = t.colors.foreground, fontSize = LumenType.size13, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1008,8 +1004,8 @@ private fun TvWatchOptionContent(
             .padding(LumenLegacySpace.md),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = title, fontWeight = FontWeight.Bold, color = t.colors.foreground, fontSize = 14.sp)
-        Text(text = resolution, color = t.colors.mutedForeground, fontSize = 12.sp, modifier = Modifier.padding(top = LumenLegacySpace.xs))
+        Text(text = title, fontWeight = FontWeight.Bold, color = t.colors.foreground, fontSize = LumenType.size14)
+        Text(text = resolution, color = t.colors.mutedForeground, fontSize = LumenType.size12, modifier = Modifier.padding(top = LumenLegacySpace.xs))
     }
 }
 
@@ -1038,7 +1034,7 @@ fun TvManualSourceItem(
                 Text(
                     text = if (showRawDetails) com.example.calmsource.core.network.UrlRedactor.redactFilename(option.source.name) else result.displayLabel.primaryLabel,
                     color = t.colors.foreground,
-                    fontSize = 14.sp,
+                    fontSize = LumenType.size14,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -1066,7 +1062,7 @@ fun TvManualSourceItem(
                             Text(
                                 text = extensionName,
                                 color = t.colors.brandGlow,
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1083,7 +1079,7 @@ fun TvManualSourceItem(
                         Text(
                             text = "[$quality] [$sizeStr]",
                             color = t.colors.foreground,
-                            fontSize = 11.sp,
+                            fontSize = LumenType.size11,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1099,7 +1095,7 @@ fun TvManualSourceItem(
                             Text(
                                 text = "[$hdrBadge]",
                                 color = LumenExtendedColors.ratingGold,
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1116,7 +1112,7 @@ fun TvManualSourceItem(
                             Text(
                                 text = "[$codecBadge]",
                                 color = LumenExtendedColors.cyan,
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1133,14 +1129,14 @@ fun TvManualSourceItem(
                             Text(
                                 text = "[$audioBadge]",
                                 color = LumenExtendedColors.violet,
-                                fontSize = 11.sp,
+                                fontSize = LumenType.size11,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
                     if (result.displayLabel.secondaryLabel.isNotEmpty()) {
-                        Text(text = result.displayLabel.secondaryLabel, color = t.colors.mutedForeground, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = result.displayLabel.secondaryLabel, color = t.colors.mutedForeground, fontSize = LumenType.size12, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     
                     val tier = health?.reliabilityTier ?: SourceReliabilityTier.EXCELLENT
@@ -1153,13 +1149,13 @@ fun TvManualSourceItem(
                     Text(
                         text = labelText,
                         color = labelColor,
-                        fontSize = 12.sp,
+                        fontSize = LumenType.size12,
                         fontWeight = FontWeight.Bold
                     )
                     
                     val parsedSeeds = parsedInfo.seeds ?: option.source.seeds
                     if (parsedSeeds != null) {
-                        Text(text = "Seeds: $parsedSeeds", color = LumenTokens.Color.success, fontSize = 12.sp)
+                        Text(text = "Seeds: $parsedSeeds", color = LumenTokens.Color.success, fontSize = LumenType.size12)
                     }
                 }
                 
@@ -1168,16 +1164,16 @@ fun TvManualSourceItem(
                         horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                         modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     ) {
-                        Text(text = "Failures: ${health.failureCount}", fontSize = 12.sp, color = t.colors.mutedForeground)
-                        Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 12.sp, color = t.colors.mutedForeground)
-                        Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = 12.sp, color = t.colors.mutedForeground)
+                        Text(text = "Failures: ${health.failureCount}", fontSize = LumenType.size12, color = t.colors.mutedForeground)
+                        Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = LumenType.size12, color = t.colors.mutedForeground)
+                        Text(text = "Buffering: ${String.format("%.1f", health.averageBufferingSeverity)}", fontSize = LumenType.size12, color = t.colors.mutedForeground)
                     }
                 }
             }
             Text(
                 text = "Score: $score",
                 color = t.colors.brand,
-                fontSize = 14.sp,
+                fontSize = LumenType.size14,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -1201,7 +1197,7 @@ fun TvSourceBadge(type: SourceType, modifier: Modifier = Modifier) {
         Text(
             text = label,
             color = fg,
-            fontSize = 11.sp,
+            fontSize = LumenType.size11,
             fontWeight = FontWeight.Black
         )
     }

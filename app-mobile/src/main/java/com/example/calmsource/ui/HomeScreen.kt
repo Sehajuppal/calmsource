@@ -1,8 +1,6 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
 
@@ -45,7 +43,6 @@ import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.core.playback.PrefetchCoordinator
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -409,7 +406,7 @@ fun HomeScreen(
                                             Text(
                                                 text = (index + 1).toString(),
                                                 style = androidx.compose.ui.text.TextStyle(
-                                                    fontSize = 110.sp,
+                                                    fontSize = LumenType.size110,
                                                     fontWeight = FontWeight.Black,
                                                     color = t.colors.border.copy(alpha = 0.35f)
                                                 ),
@@ -569,7 +566,7 @@ fun VODItemCard(
         Text(
             text = item.title,
             color = t.colors.foreground,
-            fontSize = 14.sp,
+            fontSize = LumenType.size14,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -579,7 +576,7 @@ fun VODItemCard(
             Text(
                 text = reason,
                 color = t.colors.brand,
-                fontSize = 11.sp,
+                fontSize = LumenType.size11,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -618,7 +615,7 @@ fun LiveChannelCard(
             Text(
                 text = channelName,
                 color = t.colors.foreground,
-                fontSize = 14.sp,
+                fontSize = LumenType.size14,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -627,7 +624,7 @@ fun LiveChannelCard(
                 Text(
                     text = category,
                     color = t.colors.brand,
-                    fontSize = 12.sp,
+                    fontSize = LumenType.size12,
                     fontWeight = FontWeight.Medium
                 )
             }

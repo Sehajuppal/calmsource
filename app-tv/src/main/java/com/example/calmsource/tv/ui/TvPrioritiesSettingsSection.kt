@@ -1,7 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,22 +16,23 @@ import com.example.calmsource.core.database.repository.UserPreferencesRepository
 
 @Composable
 fun TvPrioritiesScreen(onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     val prefs by UserPreferencesRepository.preferences.collectAsState()
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(LumenLegacySpace.xxl),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
             TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenLegacySpace.lg)) {
-                Text(text = "← Back", color = TvColors.TextMain)
+                Text(text = "← Back", color = t.colors.foreground)
             }
         }
         item {
-            Text(text = "Priorities Configuration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
+            Text(text = "Priorities Configuration", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
         }
 
         item {
@@ -44,8 +44,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Primary Language Priority", color = TvColors.TextMain)
-                    Text(text = prefs.primaryLanguage, color = TvColors.BorderFocused, fontWeight = FontWeight.Bold)
+                    Text(text = "Primary Language Priority", color = t.colors.foreground)
+                    Text(text = prefs.primaryLanguage, color = t.colors.brand, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -57,8 +57,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Debrid Auto-Pick Cache", color = TvColors.TextMain)
-                    Text(text = if (prefs.preferCachedDebrid) "Enabled" else "Disabled", color = TvColors.BorderFocused, fontWeight = FontWeight.Bold)
+                    Text(text = "Debrid Auto-Pick Cache", color = t.colors.foreground)
+                    Text(text = if (prefs.preferCachedDebrid) "Enabled" else "Disabled", color = t.colors.brand, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -70,8 +70,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Prefer Highest Quality (4K/1080p)", color = TvColors.TextMain)
-                    Text(text = if (prefs.preferHighestQuality) "Enabled" else "Disabled", color = if (prefs.preferHighestQuality) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
+                    Text(text = "Prefer Highest Quality (4K/1080p)", color = t.colors.foreground)
+                    Text(text = if (prefs.preferHighestQuality) "Enabled" else "Disabled", color = if (prefs.preferHighestQuality) t.colors.brand else t.colors.mutedForeground, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -83,8 +83,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Hide Duplicates", color = TvColors.TextMain)
-                    Text(text = if (prefs.hideDuplicates) "Enabled" else "Disabled", color = if (prefs.hideDuplicates) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
+                    Text(text = "Hide Duplicates", color = t.colors.foreground)
+                    Text(text = if (prefs.hideDuplicates) "Enabled" else "Disabled", color = if (prefs.hideDuplicates) t.colors.brand else t.colors.mutedForeground, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -96,8 +96,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Allow Cleartext HTTP Sources (Unsafe)", color = TvColors.TextMain)
-                    Text(text = if (prefs.allowCleartextUserSources) "Enabled" else "Disabled", color = if (prefs.allowCleartextUserSources) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
+                    Text(text = "Allow Cleartext HTTP Sources (Unsafe)", color = t.colors.foreground)
+                    Text(text = if (prefs.allowCleartextUserSources) "Enabled" else "Disabled", color = if (prefs.allowCleartextUserSources) t.colors.brand else t.colors.mutedForeground, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -109,8 +109,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Low-Data Bandwidth Mode", color = TvColors.TextMain, modifier = Modifier.weight(1f))
-                    Text(text = if (prefs.preferLowerDataUsage) "Enabled" else "Disabled", color = if (prefs.preferLowerDataUsage) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
+                    Text(text = "Low-Data Bandwidth Mode", color = t.colors.foreground, modifier = Modifier.weight(1f))
+                    Text(text = if (prefs.preferLowerDataUsage) "Enabled" else "Disabled", color = if (prefs.preferLowerDataUsage) t.colors.brand else t.colors.mutedForeground, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -122,8 +122,8 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm), modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Separate IPTV Categories by Provider", color = TvColors.TextMain, modifier = Modifier.weight(1f))
-                    Text(text = if (prefs.separateIptvCategoriesByProvider) "Enabled" else "Disabled", color = if (prefs.separateIptvCategoriesByProvider) TvColors.BorderFocused else TvColors.TextSub, fontWeight = FontWeight.Bold)
+                    Text(text = "Separate IPTV Categories by Provider", color = t.colors.foreground, modifier = Modifier.weight(1f))
+                    Text(text = if (prefs.separateIptvCategoriesByProvider) "Enabled" else "Disabled", color = if (prefs.separateIptvCategoriesByProvider) t.colors.brand else t.colors.mutedForeground, fontWeight = FontWeight.Bold)
                 }
             }
         }

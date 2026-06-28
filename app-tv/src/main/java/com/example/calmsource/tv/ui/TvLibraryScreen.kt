@@ -1,8 +1,6 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
-import com.example.calmsource.core.ui.theme.LumenLayout
-import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +43,7 @@ fun TvLibraryScreen(
     onOpenChannel: (UserMemoryReference) -> Unit,
     onSearch: (String) -> Unit
 ) {
+    val t = LocalLumenTokens.current
     val context = LocalContext.current.applicationContext
     // Gate Room access on databaseReady so we never build the database on the main thread before
     // the deferred warmup completes; use the in-memory fallback until the DB has been built on IO.
@@ -91,16 +90,16 @@ fun TvLibraryScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(TvColors.Background)
+            .background(t.colors.background)
             .padding(LumenLegacySpace.xxl),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
-            Text("Library", color = TvColors.TextMain, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+            Text("Library", color = t.colors.foreground, fontSize = LumenType.size38, fontWeight = FontWeight.Bold)
             Text(
                 "Continue watching, favorites, history, and recent channels",
-                color = TvColors.TextSub,
-                fontSize = 16.sp,
+                color = t.colors.mutedForeground,
+                fontSize = LumenType.size16,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
         }
@@ -231,8 +230,8 @@ fun TvLibraryScreen(
                     ) { focused ->
                         Text(
                             item.query,
-                            color = if (focused) TvColors.TextMain else TvColors.TextSub,
-                            fontSize = 17.sp,
+                            color = if (focused) t.colors.foreground else t.colors.mutedForeground,
+                            fontSize = LumenType.size17,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -253,6 +252,7 @@ private fun TvLibraryHeader(
     focusRequester: FocusRequester,
     onClear: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
@@ -266,8 +266,8 @@ private fun TvLibraryHeader(
         ) {
             Text(
                 title,
-                color = TvColors.TextMain,
-                fontSize = 22.sp,
+                color = t.colors.foreground,
+                fontSize = LumenType.size22,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -275,7 +275,7 @@ private fun TvLibraryHeader(
             TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClear) { focused ->
                 Text(
                     "Clear",
-                    color = if (focused) TvColors.TextMain else TvColors.BorderFocused,
+                    color = if (focused) t.colors.foreground else t.colors.brand,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
@@ -291,6 +291,7 @@ private fun TvMemoryRow(
     onOpen: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
@@ -300,8 +301,8 @@ private fun TvMemoryRow(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     reference.title,
-                    color = TvColors.TextMain,
-                    fontSize = 18.sp,
+                    color = t.colors.foreground,
+                    fontSize = LumenType.size18,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -309,8 +310,8 @@ private fun TvMemoryRow(
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         subtitle,
-                        color = if (focused) TvColors.TextMain else TvColors.TextSub,
-                        fontSize = 13.sp,
+                        color = if (focused) t.colors.foreground else t.colors.mutedForeground,
+                        fontSize = LumenType.size13,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -321,13 +322,13 @@ private fun TvMemoryRow(
                             .fillMaxWidth()
                             .padding(top = LumenLegacySpace.sm2)
                             .height(LumenLayout.progressHeight)
-                            .background(TvColors.Surface)
+                            .background(t.colors.surface)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress)
                                 .height(LumenLayout.progressHeight)
-                                .background(TvColors.BorderFocused)
+                                .background(t.colors.brand)
                         )
                     }
                 }
@@ -339,10 +340,11 @@ private fun TvMemoryRow(
 
 @Composable
 private fun TvRemoveAction(onClick: () -> Unit) {
+    val t = LocalLumenTokens.current
     TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClick) { focused ->
         Text(
             "Remove",
-            color = if (focused) TvColors.TextMain else TvColors.TextSub,
+            color = if (focused) t.colors.foreground else t.colors.mutedForeground,
             modifier = Modifier.align(Alignment.CenterHorizontally),
             maxLines = 1
         )
@@ -351,7 +353,8 @@ private fun TvRemoveAction(onClick: () -> Unit) {
 
 @Composable
 private fun TvEmptyMemory(message: String) {
-    Text(message, color = TvColors.TextSub, fontSize = 15.sp, modifier = Modifier.padding(bottom = LumenLegacySpace.sm2))
+    val t = LocalLumenTokens.current
+    Text(message, color = t.colors.mutedForeground, fontSize = LumenType.size15, modifier = Modifier.padding(bottom = LumenLegacySpace.sm2))
 }
 
 private fun progressLabel(progressMs: Long, durationMs: Long): String {

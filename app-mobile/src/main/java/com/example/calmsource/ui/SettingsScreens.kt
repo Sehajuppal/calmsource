@@ -845,6 +845,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
 
 @Composable
 fun SubScreenHeader(title: String, onBack: () -> Unit) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -852,9 +853,9 @@ fun SubScreenHeader(title: String, onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppColors.TextMain)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = t.colors.foreground)
         }
-        Text(text = title, style = MaterialTheme.typography.headlineSmall, color = AppColors.TextMain)
+        Text(text = title, style = MaterialTheme.typography.headlineSmall, color = t.colors.foreground)
     }
 }
 
@@ -879,12 +880,13 @@ fun HealthBadge(status: String, color: Color) {
 
 @Composable
 fun PreferenceSwitchRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val t = LocalLumenTokens.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = LumenLegacySpace.sm2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, color = AppColors.TextMain, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(title, color = t.colors.foreground, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
