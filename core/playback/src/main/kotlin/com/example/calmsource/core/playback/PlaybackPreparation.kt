@@ -78,6 +78,13 @@ fun isResolvedPlaybackUrlInvalid(request: PlaybackRequest?): Boolean {
 private fun containsRedactedMaterial(url: String): Boolean =
     url.contains("REDACTED", ignoreCase = true)
 
+/** Normalizes `channelId-alt-m3u8` fallback ids back to the base live channel id. */
+fun liveChannelBaseId(channelOrSourceId: String): String =
+    channelOrSourceId.substringBefore("-alt-")
+
+fun requiresPlaybackUrlResolution(rawUrl: String): Boolean =
+    rawUrl.startsWith("xtream://", ignoreCase = true) || containsRedactedMaterial(rawUrl)
+
 /**
  * After a stream-level fallback, track the active source identity in UI state but keep the
  * original pseudo URL and headers so credentials are not held in the Compose layer (#14).

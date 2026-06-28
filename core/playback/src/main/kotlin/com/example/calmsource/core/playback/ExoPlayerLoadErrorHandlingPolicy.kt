@@ -14,7 +14,7 @@ internal class CustomLoadErrorHandlingPolicy : DefaultLoadErrorHandlingPolicy() 
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val exception = loadErrorInfo.exception
         val statusCode = extractHttpStatusCode(exception)
-        if (statusCode in setOf(400, 401, 403, 404, 405, 410, 451, 500)) {
+        if (statusCode in setOf(400, 401, 403, 404, 405, 410, 451)) {
             return C.TIME_UNSET
         }
         return super.getRetryDelayMsFor(loadErrorInfo)

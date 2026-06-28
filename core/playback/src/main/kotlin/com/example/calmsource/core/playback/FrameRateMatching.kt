@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 private val Context.frameRateMatchingStore by preferencesDataStore(
     name = "playback_frame_rate_matching"
@@ -38,8 +39,12 @@ object FrameRateMatchingPreferences {
     }
 
     fun warmBestEffort(context: Context) {
+        warmBlockingBestEffort(context)
+    }
+
+    fun warmBlockingBestEffort(context: Context) {
         val appContext = context.applicationContext ?: context
-        scope.launch {
+        runBlocking(Dispatchers.IO) {
             runCatching {
                 mode = readMode(appContext)
             }.onFailure { throwable ->

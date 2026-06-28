@@ -50,7 +50,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import com.example.calmsource.core.playback.PlaybackManager
 import com.example.calmsource.core.playback.LiveChannelRecovery
+import com.example.calmsource.core.playback.liveChannelBaseId
 import com.example.calmsource.core.playback.isResolvedPlaybackUrlInvalid
+import com.example.calmsource.core.playback.requiresPlaybackUrlResolution
 import com.example.calmsource.core.playback.mergeFallbackIdentityPreservingPseudoUrl
 import com.example.calmsource.core.playback.resolvePlaybackFallbacks
 import com.example.calmsource.core.playback.resolvePlaybackRequest
@@ -133,7 +135,7 @@ fun TvPlayerScreen(
     )
     val channels = remember(iptvChannelsFlowCollected) { iptvChannelsFlowCollected }
     val currentIndex = remember(activeRequest, channels) {
-        channels.indexOfFirst { it.id == activeRequest.source.id }
+        channels.indexOfFirst { it.id == liveChannelBaseId(activeRequest.source.id) }
     }
 
     fun switchChannel(offset: Int) {
@@ -183,7 +185,6 @@ fun TvPlayerScreen(
     LaunchedEffect(uiState.error) {
         val error = uiState.error
         if (error is PlaybackError.TerminalError) {
-            android.widget.Toast.makeText(context, error.message, android.widget.Toast.LENGTH_LONG).show()
             onBack()
         }
     }
@@ -274,7 +275,10 @@ fun TvPlayerScreen(
                 val resumableStates = setOf(
                     PlayerState.PLAYING, PlayerState.PAUSED, PlayerState.READY, PlayerState.BUFFERING
                 )
-                if (active.source?.id == activeRequest.source.id && active.playerState in resumableStates) {
+                val canResumeWithoutResolve = active.source?.id == activeRequest.source.id &&
+                    active.playerState in resumableStates &&
+                    !requiresPlaybackUrlResolution(activeRequest.source.rawUrl)
+                if (canResumeWithoutResolve) {
                     playbackManager.play()
                     kotlinx.coroutines.awaitCancellation()
                 }
@@ -643,9 +647,21 @@ fun TvPlayerScreen(
                                 }
                             ) {
                                 Text(
-                                    text = if (channel.id == activeRequest.source.id) "Playing  ${channel.name}" else channel.name,
-                                    color = if (channel.id == activeRequest.source.id) t.colors.brandGlow else t.colors.foreground,
-                                    fontWeight = if (channel.id == activeRequest.source.id) FontWeight.Bold else FontWeight.Normal,
+                                    text = if (channel.id == liveChannelBaseId(activeRequest.source.id)) {
+                                        "Playing  ${channel.name}"
+                                    } else {
+                                        channel.name
+                                    },
+                                    color = if (channel.id == liveChannelBaseId(activeRequest.source.id)) {
+                                        t.colors.brandGlow
+                                    } else {
+                                        t.colors.foreground
+                                    },
+                                    fontWeight = if (channel.id == liveChannelBaseId(activeRequest.source.id)) {
+                                        FontWeight.Bold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
                                     modifier = Modifier.padding(LumenLegacySpace.md),
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis

@@ -115,7 +115,9 @@ class CalmSourceApp : Application() {
 
         com.example.calmsource.core.playback.PlaybackCrashMarker.installGlobalUncaughtHandler(this)
         wireCrashReporter()
-        com.example.calmsource.core.playback.StreamRacePreferences.warmBestEffort(this)
+        com.example.calmsource.core.playback.FallbackPreferences.warmBestEffort(this)
+        com.example.calmsource.core.playback.FrameRateMatchingPreferences.warmBlockingBestEffort(this)
+        com.example.calmsource.core.playback.StreamRacePreferences.warmBlockingBestEffort(this)
         com.example.calmsource.core.discoveryengine.database.DiscoverySearchFeatureFlags.warmBestEffort(this)
         DatabaseProvider.init(this)
 

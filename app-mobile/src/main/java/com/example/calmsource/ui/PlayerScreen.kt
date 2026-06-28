@@ -69,7 +69,9 @@ import com.example.calmsource.core.model.AutoFallbackPolicy
 import androidx.compose.ui.unit.sp
 import com.example.calmsource.core.playback.PlaybackManager
 import com.example.calmsource.core.playback.LiveChannelRecovery
+import com.example.calmsource.core.playback.liveChannelBaseId
 import com.example.calmsource.core.playback.isResolvedPlaybackUrlInvalid
+import com.example.calmsource.core.playback.requiresPlaybackUrlResolution
 import com.example.calmsource.core.playback.mergeFallbackIdentityPreservingPseudoUrl
 import com.example.calmsource.core.playback.resolvePlaybackFallbacks
 import com.example.calmsource.core.playback.resolvePlaybackRequest
@@ -172,7 +174,7 @@ fun PlayerScreen(
     val iptvPlaybackError by IPTVRepository.playbackResolutionError.collectAsStateWithLifecycle()
     
     val currentIndex = remember(currentRequest, iptvChannels) {
-        iptvChannels.indexOfFirst { it.id == currentRequest.source.id }
+        iptvChannels.indexOfFirst { it.id == liveChannelBaseId(currentRequest.source.id) }
     }
     
     var channelSwitchFails by remember { mutableStateOf(0) }
@@ -230,7 +232,10 @@ fun PlayerScreen(
                 val resumableStates = setOf(
                     PlayerState.PLAYING, PlayerState.PAUSED, PlayerState.READY, PlayerState.BUFFERING
                 )
-                if (active.source?.id == currentRequest.source.id && active.playerState in resumableStates) {
+                val canResumeWithoutResolve = active.source?.id == currentRequest.source.id &&
+                    active.playerState in resumableStates &&
+                    !requiresPlaybackUrlResolution(currentRequest.source.rawUrl)
+                if (canResumeWithoutResolve) {
                     playbackManager.play()
                     kotlinx.coroutines.awaitCancellation()
                 }
@@ -375,6 +380,41 @@ fun PlayerScreen(
                     currentRequest = mergeFallbackIdentityPreservingPseudoUrl(currentRequest, newSource)
                 }
             }
+        }
+    }
+
+    LaunchedEffect(uiState.playerState, currentRequest.source.id) {
+        if (currentRequest.source.type == PlaybackSourceType.IPTV &&
+            uiState.playerState == PlayerState.PLAYING && !successRecorded
+        ) {
+            delay(5000)
+            if (uiStateLatest.value.playerState == PlayerState.PLAYING && !successRecorded) {
+                IPTVRepository.recordPlaybackSuccess(currentRequest.source.id)
+                successRecorded = true
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.error, uiState.isTransitioningSource, currentRequest.source.id) {
+        val error = uiState.error
+        if (currentRequest.source.type == PlaybackSourceType.IPTV && error != null &&
+            !uiState.isTransitioningSource && !failureRecorded
+        ) {
+            val errorCategory = when (error) {
+                is PlaybackError.Network -> "NETWORK"
+                is PlaybackError.Timeout -> "TIMEOUT"
+                is PlaybackError.UnsupportedFormat -> "UNSUPPORTED_FORMAT"
+                is PlaybackError.PermissionRequired -> "PERMISSION_REQUIRED"
+                is PlaybackError.SourceUnavailable -> "SOURCE_UNAVAILABLE"
+                is PlaybackError.DecoderError -> "DECODER_ERROR"
+                is PlaybackError.Drm -> "DRM"
+                is PlaybackError.ServerRefused -> "SERVER_REFUSED"
+                is PlaybackError.CleartextNotPermitted -> "CLEARTEXT_NOT_PERMITTED"
+                is PlaybackError.TerminalError -> "TERMINAL_ERROR"
+                else -> "UNKNOWN"
+            }
+            IPTVRepository.recordPlaybackFailure(currentRequest.source.id, errorCategory)
+            failureRecorded = true
         }
     }
 
@@ -629,7 +669,7 @@ fun PlayerScreen(
             ) {
                 ChannelSwitcherSheet(
                     channels = iptvChannels,
-                    currentChannelId = currentRequest.source.id,
+                    currentChannelId = liveChannelBaseId(currentRequest.source.id),
                     onChannelSelect = { channel ->
                         currentRequest = IPTVRepository.buildLivePlaybackRequest(channel)
                         showChannelSwitcher = false

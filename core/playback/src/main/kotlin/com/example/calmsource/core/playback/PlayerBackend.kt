@@ -38,6 +38,9 @@ internal interface PlayerBackend {
     /** Media duration in milliseconds, or 0 if unknown. */
     fun durationMs(): Long
 
+    /** Buffered position in milliseconds, or 0 when unknown (e.g. VLC). */
+    fun bufferedPositionMs(): Long = 0L
+
     /** Whether content is currently playing (not paused). */
     fun isPlaying(): Boolean
 

@@ -423,6 +423,8 @@ class PlaybackManager(
     }
 
     private fun recordPlaybackSuccess(source: PlaybackSource) {
+        // IPTV health + channel sorting is recorded by player screens via IPTVRepository.
+        if (source.type == PlaybackSourceType.IPTV) return
         val providerId = source.id.substringBefore("-", "")
             .ifBlank { source.type.name.lowercase() }
         coroutineScope.launch {
@@ -829,6 +831,7 @@ class PlaybackManager(
         }
         if (!isFallbackAttempt) {
             consecutiveFallbackCount = 0
+            isSurfaceRequired = false
             currentBackend?.release()
             currentBackend = null
             profileHistory = PlaybackProfileHistory()
@@ -927,6 +930,7 @@ class PlaybackManager(
         val backend = currentBackend as? ExoPlayerBackend ?: ExoPlayerBackend(this).also {
             currentBackend?.release()
             currentBackend = it
+            isSurfaceRequired = false
             observeBackendState(it)
         }
         backend.prepare(context, source, resumePosition)
@@ -1555,11 +1559,7 @@ class PlaybackManager(
                     it.copy(
                         currentPositionMs = backend.currentPositionMs().coerceAtLeast(0),
                         durationMs = backend.durationMs().coerceAtLeast(0),
-                        bufferedPositionMs = if (backend is ExoPlayerBackend) {
-                            player?.bufferedPosition?.coerceAtLeast(0) ?: 0L
-                        } else {
-                            backend.currentPositionMs().coerceAtLeast(0)
-                        }
+                        bufferedPositionMs = backend.bufferedPositionMs().coerceAtLeast(0),
                     )
                 }
                 watchMemoryManager.onPeriodicCheckpoint(currentPositionMs(), currentDurationMs())

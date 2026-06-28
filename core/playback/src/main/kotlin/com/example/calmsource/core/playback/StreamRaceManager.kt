@@ -33,6 +33,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -67,6 +68,20 @@ object StreamRacePreferences {
     fun warmBestEffort(context: Context) {
         val appContext = context.applicationContext ?: context
         scope.launch {
+            runCatching {
+                enableStreamRacing = readEnabled(appContext)
+            }.onFailure { throwable ->
+                runCatching {
+                    Log.w("StreamRacePreferences", "Failed to load stream racing preference", throwable)
+                }
+            }
+        }
+    }
+
+    /** Blocking hydrate for [Application.onCreate] so the first playback sees the saved toggle. */
+    fun warmBlockingBestEffort(context: Context) {
+        val appContext = context.applicationContext ?: context
+        runBlocking(Dispatchers.IO) {
             runCatching {
                 enableStreamRacing = readEnabled(appContext)
             }.onFailure { throwable ->

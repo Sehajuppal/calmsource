@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
@@ -85,8 +86,8 @@ class ReliabilityAndDiagnosticsTest {
         val mockLoadEventInfo = Mockito.mock(LoadEventInfo::class.java)
         val mockMediaLoadData = Mockito.mock(MediaLoadData::class.java)
 
-        val errorCodes = listOf(400, 401, 403, 404, 405, 410, 451, 500)
-        for (code in errorCodes) {
+        val fatalCodes = listOf(400, 401, 403, 404, 405, 410, 451)
+        for (code in fatalCodes) {
             val mockUri = Mockito.mock(Uri::class.java)
             val dataSpec = DataSpec.Builder().setUri(mockUri).build()
             val exception = HttpDataSource.InvalidResponseCodeException(
@@ -107,6 +108,26 @@ class ReliabilityAndDiagnosticsTest {
             val delay = policy.getRetryDelayMsFor(mockErrorInfo)
             assertEquals("HTTP $code should immediately abort and return C.TIME_UNSET", C.TIME_UNSET, delay)
         }
+
+        // Transient server errors should still allow ExoPlayer to retry.
+        val mockUri500 = Mockito.mock(Uri::class.java)
+        val dataSpec500 = DataSpec.Builder().setUri(mockUri500).build()
+        val exception500 = HttpDataSource.InvalidResponseCodeException(
+            500,
+            "Error 500",
+            null,
+            emptyMap(),
+            dataSpec500,
+            ByteArray(0)
+        )
+        val mockErrorInfo500 = LoadErrorHandlingPolicy.LoadErrorInfo(
+            mockLoadEventInfo,
+            mockMediaLoadData,
+            exception500,
+            1
+        )
+        val delay500 = policy.getRetryDelayMsFor(mockErrorInfo500)
+        assertNotEquals("HTTP 500 should allow retry", C.TIME_UNSET, delay500)
 
         // Check a transient code still allows ExoPlayer to retry.
         val mockUri = Mockito.mock(Uri::class.java)

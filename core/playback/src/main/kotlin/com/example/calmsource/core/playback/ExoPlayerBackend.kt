@@ -153,6 +153,10 @@ internal class ExoPlayerBackend(
         return host.hostedPlayer?.duration ?: 0L
     }
 
+    override fun bufferedPositionMs(): Long {
+        return host.hostedPlayer?.bufferedPosition?.coerceAtLeast(0L) ?: 0L
+    }
+
     override fun isPlaying(): Boolean {
         return host.hostedPlayer?.isPlaying ?: false
     }
