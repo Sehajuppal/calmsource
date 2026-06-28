@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +44,7 @@ import com.example.calmsource.core.playback.TunnelingPreferences
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.GlassSurface
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -124,27 +127,27 @@ fun TvSettingsScreens(
 
     var showProviderTypeSelect by remember { mutableStateOf(false) }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
             .padding(LumenLegacySpace.xxl),
-        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl)
+        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl),
     ) {
-        // Left Nav Pane (width = 240dp)
-        Column(
+        // Secondary navigation stays horizontal so content keeps the full canvas.
+        Row(
             modifier = Modifier
-                .width(LumenLayout.detailsContentTop)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Settings",
-                fontSize = LumenType.size32,
+                fontSize = LumenType.size24,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
-                modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
             )
+            Spacer(modifier = Modifier.weight(1f))
 
             TvLeftNavItem(
                 title = "Profile",
@@ -182,7 +185,7 @@ fun TvSettingsScreens(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
         ) {
@@ -635,79 +638,64 @@ fun TvSettingsScreens(
     // IPTV Type Select Dialog
     if (showProviderTypeSelect) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showProviderTypeSelect = false }) {
-            Box(
-                modifier = Modifier
-                    .width(LumenLayout.width400)
-                    .background(t.colors.card, LumenTokens.Shape.md)
-                    .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md)
-                    .padding(LumenLegacySpace.xxl)
+            GlassSurface(
+                modifier = Modifier.width(LumenLayout.discoveryPanelWidth),
+                shape = LumenTokens.Shape.xxl,
+                strong = true,
+                borderColor = LumenTokens.Color.borderStrong,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
-                    Text("Add IPTV Provider", color = t.colors.foreground, fontSize = LumenType.size20, fontWeight = FontWeight.Bold)
-                    Text("Select M3U playlist format or Xtream credentials format.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
-                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
-                    
-                    TvFocusable(
-                        onClick = {
-                            showProviderTypeSelect = false
-                            m3uEditProvider = null
-                            m3uName = ""
-                            m3uUrl = ""
-                            m3uError = null
-                            showM3uDialog = true
-                        },
+                Column(
+                    modifier = Modifier.padding(LumenLegacySpace.xxl),
+                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                ) {
+                    Text("Connect television", color = t.colors.foreground, fontSize = LumenType.size24, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Choose how your provider gave you access. You can change or remove it later.",
+                        color = t.colors.mutedForeground,
+                        fontSize = LumenType.size14,
+                    )
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        cornerRadius = LumenLegacySpace.sm2
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(t.colors.muted)
-                                .padding(LumenLegacySpace.md),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = LumenType.size14)
-                        }
+                        ProviderTypeCard(
+                            icon = Icons.Default.Link,
+                            title = "Playlist link",
+                            body = "Use an M3U or M3U8 URL",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showProviderTypeSelect = false
+                                m3uEditProvider = null
+                                m3uName = ""
+                                m3uUrl = ""
+                                m3uError = null
+                                showM3uDialog = true
+                            },
+                        )
+                        ProviderTypeCard(
+                            icon = Icons.Default.Key,
+                            title = "Provider login",
+                            body = "Use Xtream server credentials",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showProviderTypeSelect = false
+                                xtreamEditProvider = null
+                                xtreamName = ""
+                                xtreamServer = ""
+                                xtreamUsername = ""
+                                xtreamPassword = ""
+                                xtreamError = null
+                                showXtreamDialog = true
+                            },
+                        )
                     }
-
-                    TvFocusable(
-                        onClick = {
-                            showProviderTypeSelect = false
-                            xtreamEditProvider = null
-                            xtreamName = ""
-                            xtreamServer = ""
-                            xtreamUsername = ""
-                            xtreamPassword = ""
-                            xtreamError = null
-                            showXtreamDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        cornerRadius = LumenLegacySpace.sm2
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(t.colors.muted)
-                                .padding(LumenLegacySpace.md),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Xtream API", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = LumenType.size14)
-                        }
-                    }
-
-                    TvFocusable(
-                        onClick = { showProviderTypeSelect = false },
-                        modifier = Modifier.fillMaxWidth(),
-                        cornerRadius = LumenLegacySpace.sm2
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(LumenLegacySpace.md),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Cancel", color = t.colors.mutedForeground, fontSize = LumenType.size14)
-                        }
+                    TvFocusable(onClick = { showProviderTypeSelect = false }) {
+                        Text(
+                            "Not now",
+                            color = t.colors.mutedForeground,
+                            fontSize = LumenType.size14,
+                            modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
+                        )
                     }
                 }
             }
@@ -1217,6 +1205,42 @@ fun TvSettingsScreens(
 }
 
 @Composable
+private fun ProviderTypeCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    body: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val t = LocalLumenTokens.current
+    TvFocusable(
+        onClick = onClick,
+        modifier = modifier,
+        cornerRadius = LumenTokens.Radius.lg,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(LumenLayout.epgMinBlockWidth)
+                .background(t.colors.muted, LumenTokens.Shape.lg)
+                .padding(LumenLegacySpace.lg),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = t.colors.brandGlow,
+                modifier = Modifier.size(LumenLegacySpace.xxl),
+            )
+            Column {
+                Text(title, color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
+                Text(body, color = t.colors.mutedForeground, fontSize = LumenType.size12, maxLines = 2)
+            }
+        }
+    }
+}
+
+@Composable
 fun TvLeftNavItem(
     title: String,
     isSelected: Boolean,
@@ -1227,21 +1251,23 @@ fun TvLeftNavItem(
     val t = LocalLumenTokens.current
     TvFocusable(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
             .onFocusChanged { if (it.isFocused) onFocus() },
-        cornerRadius = LumenLegacySpace.sm2
+        cornerRadius = LumenTokens.Radius.pill,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .fillMaxWidth()
-                .background(if (isSelected) t.colors.brand.copy(alpha = 0.15f) else Color.Transparent)
-                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.md)
+                .background(
+                    if (isSelected) t.colors.brand.copy(alpha = 0.16f) else t.colors.card,
+                    LumenTokens.Shape.pill,
+                )
+                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
         ) {
             Text(
                 text = title,
-                color = if (isSelected) t.colors.brand else t.colors.foreground,
-                fontSize = LumenType.size16,
+                color = t.colors.foreground,
+                fontSize = LumenType.size14,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
         }

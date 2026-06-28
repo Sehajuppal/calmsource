@@ -687,7 +687,7 @@ fun TvDetailsScreen(
                                             .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                                     ) {
                                         Text(
-                                            text = "Play Best Match",
+                                            text = if (startPositionMs > 0L) "Resume" else "Play",
                                             color = controlFg,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = LumenType.size15
@@ -710,7 +710,7 @@ fun TvDetailsScreen(
                                 }
                             ) {
                                 Text(
-                                    text = if (isFavorite) "✓ Watchlist" else "+ Watchlist",
+                                    text = if (isFavorite) "✓ My List" else "+ My List",
                                     color = t.colors.foreground,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = LumenType.size15,
@@ -845,7 +845,7 @@ fun TvDetailsScreen(
             // Alternative options
             item(key = "alternative_options_header") {
                 Text(
-                    text = "Alternative Watch Options",
+                    text = "Ways to Watch",
                     fontSize = LumenType.size20,
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground,
@@ -910,7 +910,7 @@ fun TvDetailsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Advanced - Manual Sources (${sortedOptions.size})",
+                            text = "Source Controls · ${sortedOptions.size}",
                             fontSize = LumenType.size16,
                             fontWeight = FontWeight.Bold,
                             color = t.colors.foreground,
@@ -933,7 +933,7 @@ fun TvDetailsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = LumenLegacySpace.lg)
                     ) {
-                        Text("Show Raw Details", color = t.colors.foreground, fontSize = LumenType.size14)
+                        Text("Show technical details", color = t.colors.foreground, fontSize = LumenType.size14)
                         Switch(checked = showRawDetails, onCheckedChange = { showRawDetails = it })
                     }
                 }

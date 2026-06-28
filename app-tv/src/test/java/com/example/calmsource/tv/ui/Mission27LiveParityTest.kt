@@ -17,11 +17,11 @@ class Mission27LiveParityTest {
 
         assertOrdered(
             tvNavigation,
-            "TvNavRailItem(\"Home\"",
-            "TvNavRailItem(\"Live\"",
-            "TvNavRailItem(\"Library\"",
-            "TvNavRailItem(\"Search\"",
-            "TvNavRailItem(\"Setup\""
+            "TvNavRailItem(Icons.Default.Home, \"Home\"",
+            "TvNavRailItem(Icons.Default.LiveTv, \"Live\"",
+            "TvNavRailItem(Icons.Default.Favorite, \"Library\"",
+            "TvNavRailItem(Icons.Default.Search, \"Search\"",
+            "TvNavRailItem(Icons.Default.Settings, \"Setup\""
         )
         assertTrue(tvNavigation.contains("1 -> TvScreen.LiveGuide"))
         assertTrue(tvNavigation.contains("2 -> TvScreen.Library"))

@@ -5,6 +5,7 @@ import com.example.calmsource.core.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -28,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,16 +87,36 @@ fun LibraryScreen(
     ) {
         item {
             Text(
-                text = "Library",
+                text = "My Space",
                 style = LumenType.H1.toTextStyle(),
                 color = t.colors.foreground,
                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
             )
             Text(
-                text = "Your saved and recently watched items",
+                text = "Everything you meant to come back to.",
                 color = t.colors.mutedForeground,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+            ) {
+                LibraryStat(
+                    value = continueWatching.size.toString(),
+                    label = "In progress",
+                    modifier = Modifier.weight(1f),
+                )
+                LibraryStat(
+                    value = favorites.size.toString(),
+                    label = "Saved",
+                    modifier = Modifier.weight(1f),
+                )
+                LibraryStat(
+                    value = recentChannels.size.toString(),
+                    label = "Recent live",
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         item {
@@ -258,6 +282,8 @@ private fun MemoryRow(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            MemoryArtwork(reference)
+            Spacer(modifier = Modifier.size(LumenLegacySpace.md))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = reference.title,
@@ -293,6 +319,58 @@ private fun MemoryRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LibraryStat(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    val t = LocalLumenTokens.current
+    Column(
+        modifier = modifier
+            .clip(LumenTokens.Shape.md)
+            .background(t.colors.card)
+            .padding(LumenLegacySpace.md),
+    ) {
+        Text(
+            text = value,
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            color = t.colors.foreground,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = t.colors.mutedForeground,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun MemoryArtwork(reference: UserMemoryReference) {
+    val t = LocalLumenTokens.current
+    val accent = when (reference.contentType) {
+        UserMemoryContentType.LIVE_CHANNEL -> LumenTokens.Color.cyan
+        UserMemoryContentType.SHOW, UserMemoryContentType.EPISODE -> LumenTokens.Color.violet
+        UserMemoryContentType.MOVIE, UserMemoryContentType.VOD -> t.colors.brandGlow
+    }
+    Box(
+        modifier = Modifier
+            .size(LumenLayout.avatarLg)
+            .clip(LumenTokens.Shape.md)
+            .background(Brush.linearGradient(listOf(accent, t.colors.card))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = reference.title.firstOrNull()?.uppercase() ?: "•",
+            style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
+            color = t.colors.foreground,
+            fontWeight = FontWeight.Black,
+        )
     }
 }
 

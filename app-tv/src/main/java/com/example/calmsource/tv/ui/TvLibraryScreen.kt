@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,8 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,13 +98,21 @@ fun TvLibraryScreen(
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
-            Text("Library", color = t.colors.foreground, fontSize = LumenType.size38, fontWeight = FontWeight.Bold)
+            Text("My Space", color = t.colors.foreground, fontSize = LumenType.size38, fontWeight = FontWeight.Bold)
             Text(
-                "Continue watching, favorites, history, and recent channels",
+                "Everything you meant to come back to.",
                 color = t.colors.mutedForeground,
                 fontSize = LumenType.size16,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+            ) {
+                TvLibraryStat("${continueWatching.size}", "In progress", Modifier.weight(1f))
+                TvLibraryStat("${favorites.size}", "Saved", Modifier.weight(1f))
+                TvLibraryStat("${recentChannels.size}", "Recent live", Modifier.weight(1f))
+            }
         }
 
         item {
@@ -298,43 +309,94 @@ private fun TvMemoryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         TvFocusCard(modifier = Modifier.weight(1f), onClick = onOpen) { focused ->
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    reference.title,
-                    color = t.colors.foreground,
-                    fontSize = LumenType.size18,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!subtitle.isNullOrBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+            ) {
+                TvMemoryArtwork(reference)
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        subtitle,
-                        color = if (focused) t.colors.foreground else t.colors.mutedForeground,
-                        fontSize = LumenType.size13,
+                        reference.title,
+                        color = t.colors.foreground,
+                        fontSize = LumenType.size18,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-                if (progress != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = LumenLegacySpace.sm2)
-                            .height(LumenLayout.progressHeight)
-                            .background(t.colors.surface)
-                    ) {
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            color = if (focused) t.colors.foreground else t.colors.mutedForeground,
+                            fontSize = LumenType.size13,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (progress != null) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(progress)
+                                .fillMaxWidth()
+                                .padding(top = LumenLegacySpace.sm2)
                                 .height(LumenLayout.progressHeight)
-                                .background(t.colors.brand)
-                        )
+                                .background(t.colors.surface)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress)
+                                    .height(LumenLayout.progressHeight)
+                                    .background(t.colors.brand)
+                            )
+                        }
                     }
                 }
             }
         }
         TvRemoveAction(onRemove)
+    }
+}
+
+@Composable
+private fun TvLibraryStat(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    val t = LocalLumenTokens.current
+    Row(
+        modifier = modifier
+            .clip(LumenTokens.Shape.md)
+            .background(t.colors.card)
+            .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+    ) {
+        Text(value, color = t.colors.foreground, fontSize = LumenType.size28, fontWeight = FontWeight.Bold)
+        Text(label, color = t.colors.mutedForeground, fontSize = LumenType.size13, maxLines = 1)
+    }
+}
+
+@Composable
+private fun TvMemoryArtwork(reference: UserMemoryReference) {
+    val t = LocalLumenTokens.current
+    val accent = when (reference.contentType) {
+        UserMemoryContentType.LIVE_CHANNEL -> LumenTokens.Color.cyan
+        UserMemoryContentType.SHOW, UserMemoryContentType.EPISODE -> LumenTokens.Color.violet
+        UserMemoryContentType.MOVIE, UserMemoryContentType.VOD -> t.colors.brandGlow
+    }
+    Box(
+        modifier = Modifier
+            .size(LumenLayout.avatarLg)
+            .clip(LumenTokens.Shape.md)
+            .background(Brush.linearGradient(listOf(accent, t.colors.card))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = reference.title.firstOrNull()?.uppercase() ?: "•",
+            color = t.colors.foreground,
+            fontSize = LumenType.size28,
+            fontWeight = FontWeight.Black,
+        )
     }
 }
 

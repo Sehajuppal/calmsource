@@ -321,7 +321,8 @@ class MobileAppQaRegressionTest {
 
         assertTrue(
             "SearchScreen should use indexed keys so duplicate media IDs can render safely",
-            source.contains("itemsIndexed(") && source.contains("searchResultLazyKey")
+            (source.contains("itemsIndexed(") || source.contains("gridItemsIndexed(")) &&
+                source.contains("searchResultLazyKey")
         )
     }
 

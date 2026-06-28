@@ -4,7 +4,12 @@ import com.example.calmsource.core.ui.theme.*
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,7 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -21,12 +28,12 @@ import com.example.calmsource.core.ui.tv.TvFocusScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -76,27 +83,12 @@ fun TvHomeScreen(
         onDispose(prefetchCoordinator::close)
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(top = LumenLegacySpace.xxl)
     ) {
-        Text(
-            text = "CalmSource",
-            fontSize = LumenType.size36,
-            fontWeight = FontWeight.Bold,
-            color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = LumenLayout.iconXl)
-        )
-        Text(
-            text = "Your media sanctuary",
-            fontSize = LumenType.size16,
-            color = t.colors.mutedForeground,
-            modifier = Modifier.padding(start = LumenLayout.iconXl, end = LumenLayout.iconXl, bottom = LumenLegacySpace.xxl)
-        )
-
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (homeRows.isEmpty() && isLoading) {
                 // Loading shimmer placeholders
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -143,7 +135,43 @@ fun TvHomeScreen(
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                val featuredItem = remember(homeRows) {
+                    homeRows.asSequence()
+                        .filter { it.rowType != "continue_watching" && it.rowType != "live_tv" }
+                        .flatMap { it.items.asSequence() }
+                        .firstOrNull { it.type != "channel" && !it.posterUrl.isNullOrBlank() }
+                }
+                val initialSpotlight = remember(featuredItem) {
+                    featuredItem?.let {
+                        MediaItem(
+                            id = it.id,
+                            title = it.title,
+                            type = if (it.type == "series" || it.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                            overview = it.reason,
+                            posterUrl = it.posterUrl,
+                            externalIds = it.externalIds,
+                        )
+                    }
+                }
+                var spotlight by remember { mutableStateOf<MediaItem?>(null) }
+                LaunchedEffect(initialSpotlight?.id) {
+                    if (spotlight == null) spotlight = initialSpotlight
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = LumenTokens.Space.sectionGapTv),
+                ) {
+                    if (spotlight != null) {
+                        item(key = "top_shelf") {
+                            TvTopShelf(
+                                item = spotlight!!,
+                                eyebrow = "Selected for you",
+                                onOpen = { spotlight?.let(onMediaClick) },
+                            )
+                        }
+                    }
+
                     items(homeRows, key = { "${it.rowType}-${it.title}-${it.items.size}-${it.hashCode()}" }) { row ->
                         val uniqueItems = remember(row.items) { row.items.distinctBy { it.id } }
                         if (uniqueItems.isEmpty()) return@items
@@ -187,6 +215,14 @@ fun TvHomeScreen(
                                         TvVODItemCard(
                                             item = mediaItem,
                                             reason = item.reason,
+                                            landscape = row.rowType == "continue_watching",
+                                            progress = item.reason
+                                                .takeIf { row.rowType == "continue_watching" }
+                                                ?.substringAfter("(", "")
+                                                ?.substringBefore("%")
+                                                ?.toFloatOrNull()
+                                                ?.div(100f),
+                                            onFocused = { spotlight = mediaItem },
                                             onClick = { onMediaClick(mediaItem) },
                                             modifier = cardModifier,
                                         )
@@ -229,17 +265,24 @@ private fun SectionTitle(title: String) {
 fun TvVODItemCard(
     item: MediaItem,
     reason: String? = null,
+    landscape: Boolean = false,
+    progress: Float? = null,
+    onFocused: (() -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val t = LocalLumenTokens.current
+    var isFocused by remember { mutableStateOf(false) }
     TvFocusable(
         onClick = onClick,
-        modifier = modifier
+        modifier = modifier.onFocusChanged { isFocused = it.isFocused },
+        onFocused = onFocused,
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .width(LumenLayout.epgMinBlockWidthTv)
+                .width(if (landscape) LumenTokens.Tile.landscapeMobileW else LumenLayout.epgMinBlockWidthTv)
+                .aspectRatio(if (landscape) LumenTokens.AspectRatio.landscape else LumenTokens.AspectRatio.poster)
+                .clip(LumenTokens.Shape.sm)
                 .background(t.colors.card)
         ) {
             AsyncImage(
@@ -247,32 +290,171 @@ fun TvVODItemCard(
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(LumenLayout.posterTileHeightTv)
-                    .clip(LumenTokens.Shape.sm)
+                    .fillMaxSize()
                     .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
-            Text(
-                text = item.title,
-                color = t.colors.foreground,
-                fontSize = LumenType.size14,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = LumenLegacySpace.sm2, start = LumenLegacySpace.sm2, end = LumenLegacySpace.sm2, bottom = LumenLegacySpace.xs)
-            )
-            if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
-                Text(
-                    text = reason,
+
+            AnimatedVisibility(
+                visible = isFocused,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomStart),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, t.colors.background.copy(alpha = 0.96f)),
+                            ),
+                        )
+                        .padding(
+                            start = LumenTokens.Space.s5,
+                            end = LumenTokens.Space.s5,
+                            top = LumenTokens.Space.s9,
+                            bottom = LumenTokens.Space.s5,
+                        ),
+                ) {
+                    Text(
+                        text = item.title,
+                        color = t.colors.foreground,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (!reason.isNullOrBlank() && !reason.startsWith("poster:") && !reason.startsWith("Resume watching")) {
+                        Text(
+                            text = reason,
+                            color = t.colors.mutedForeground,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            if (progress != null) {
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(LumenTokens.Space.s2)
+                        .align(Alignment.BottomCenter),
                     color = t.colors.brand,
-                    fontSize = LumenType.size11,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = LumenLegacySpace.sm2, end = LumenLegacySpace.sm2, bottom = LumenLegacySpace.sm2)
+                    trackColor = Color.White.copy(alpha = 0.2f),
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TvTopShelf(
+    item: MediaItem,
+    eyebrow: String,
+    onOpen: () -> Unit,
+) {
+    val t = LocalLumenTokens.current
+    Crossfade(
+        targetState = item,
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = LumenTokens.Duration.cinematic,
+            easing = LumenTokens.Easing.AppleOut,
+        ),
+        label = "home-spotlight",
+    ) { spotlightItem ->
+      Box(
+          modifier = Modifier
+              .fillMaxWidth()
+              .height(LumenLayout.detailsHeroHeight),
+      ) {
+        AsyncImage(
+            model = spotlightItem.backdropUrl ?: spotlightItem.posterUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to t.colors.background,
+                        0.48f to t.colors.background.copy(alpha = 0.78f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.72f to Color.Transparent,
+                        1f to t.colors.background,
+                    ),
+                ),
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(LumenLayout.width480)
+                .padding(start = LumenTokens.Space.sidePaddingTv),
+        ) {
+            Text(
+                text = eyebrow.uppercase(),
+                color = t.colors.brand,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(LumenTokens.Space.s4))
+            Text(
+                text = spotlightItem.title,
+                color = t.colors.foreground,
+                style = MaterialTheme.typography.displayMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!spotlightItem.overview.isNullOrBlank()) {
+                Spacer(Modifier.height(LumenTokens.Space.s4))
+                Text(
+                    text = spotlightItem.overview.orEmpty(),
+                    color = t.colors.mutedForeground,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(LumenTokens.Space.s6))
+            TvFocusable(onClick = onOpen) {
+                Row(
+                    modifier = Modifier
+                        .clip(LumenTokens.Shape.pill)
+                        .background(t.colors.foreground)
+                        .border(
+                            width = LumenTokens.Focus.ringStroke,
+                            color = Color.White.copy(alpha = 0.24f),
+                            shape = LumenTokens.Shape.pill,
+                        )
+                        .padding(horizontal = LumenTokens.Space.s7, vertical = LumenTokens.Space.s5),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s4),
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = t.colors.background)
+                    Text(
+                        text = "View details",
+                        color = t.colors.background,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+      }
     }
 }
 

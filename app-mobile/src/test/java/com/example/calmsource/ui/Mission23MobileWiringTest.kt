@@ -44,7 +44,7 @@ class Mission23MobileWiringTest {
         assertTrue(
             "The normal navigation bar must expose Library",
             source.contains("contentDescription = \"Library\"") &&
-                source.contains("Text(\"Library\")")
+                source.contains("label = \"Library\"")
         )
     }
 
@@ -134,7 +134,7 @@ class Mission23MobileWiringTest {
             "Search query and viewport must be retained by the activity-scoped view model",
             viewModel.contains("val query: StateFlow<String>") &&
                 viewModel.contains("val scrollPosition: StateFlow<Pair<Int, Int>>") &&
-                source.contains("rememberLazyListState(") &&
+                (source.contains("rememberLazyListState(") || source.contains("rememberLazyGridState(")) &&
                 source.contains("viewModel.updateScrollPosition(index, offset)")
         )
     }

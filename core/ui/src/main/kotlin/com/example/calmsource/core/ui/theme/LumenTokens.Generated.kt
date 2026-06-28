@@ -40,15 +40,15 @@ object LumenTokens {
         val textSecondary = androidx.compose.ui.graphics.Color(0xFFA3A3AD)
         val textMuted     = androidx.compose.ui.graphics.Color(0xFF6B7280)
         val onBrand       = androidx.compose.ui.graphics.Color(0xFFFCFCFC)
-        // Brand — Electric Cobalt
-        val brand         = androidx.compose.ui.graphics.Color(0xFF3D6BFF)
-        val brandGlow     = androidx.compose.ui.graphics.Color(0xFF5C86FF)
+        // Brand — soft signal blue
+        val brand         = androidx.compose.ui.graphics.Color(0xFF6E8BFF)
+        val brandGlow     = androidx.compose.ui.graphics.Color(0xFF94A8FF)
         // Borders (white over surface)
         val borderSubtle  = androidx.compose.ui.graphics.Color(0x14FFFFFF) // 8%
         val border        = androidx.compose.ui.graphics.Color(0x1AFFFFFF) // 10%
         val borderStrong  = androidx.compose.ui.graphics.Color(0x2EFFFFFF) // 18%
         // Focus
-        val focusHalo     = androidx.compose.ui.graphics.Color(0x993D6BFF) // brand @ 60%
+        val focusHalo     = androidx.compose.ui.graphics.Color(0xB3FAFAFA) // neutral white @ 70%
         // Feedback
         val danger        = androidx.compose.ui.graphics.Color(0xFFE5484D)
         val success       = androidx.compose.ui.graphics.Color(0xFF34D399)
@@ -120,7 +120,7 @@ object LumenTokens {
     }
 
     object Focus {
-        const val scale = 1.06f
+        const val scale = 1.045f
         const val hoverScale = 1.055f
         val liftY = (-6).dp
         val ringStroke = 3.dp

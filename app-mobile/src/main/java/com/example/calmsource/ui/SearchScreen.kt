@@ -18,6 +18,11 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -67,6 +72,7 @@ import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.ChipRow
 import com.example.calmsource.core.ui.components.LumenSkeleton
 import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.PosterCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +95,7 @@ fun SearchScreen(
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState(
+    val listState = rememberLazyGridState(
         initialFirstVisibleItemIndex = scrollPosition.first,
         initialFirstVisibleItemScrollOffset = scrollPosition.second
     )
@@ -148,7 +154,7 @@ fun SearchScreen(
             TextField(
                 value = query,
                 onValueChange = viewModel::search,
-                placeholder = { Text("Search movies, shows, and channels...", color = t.colors.mutedForeground) },
+                placeholder = { Text("Search a title, channel, genre, or mood…", color = t.colors.mutedForeground) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -233,14 +239,14 @@ fun SearchScreen(
                         .weight(1f)
                 ) {
                     LumenEmptyState(
-                        title = "Search films, series, channels",
-                        body = "Find movies, series, or live TV channels from all sources.",
+                        title = "What are you in the mood for?",
+                        body = "Try a title, genre, live channel, or a feeling like “funny and light.”",
                         icon = Icons.Default.Search,
                         modifier = Modifier.weight(1f)
                     )
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
-                        text = "Suggested Genres",
+                        text = "Start with a mood",
                         fontSize = LumenType.size13,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
@@ -258,15 +264,20 @@ fun SearchScreen(
                 }
             }
             else -> {
-                LazyColumn(
+                LazyVerticalGrid(
                     state = listState,
+                    columns = GridCells.Adaptive(minSize = LumenLayout.epgMinBlockWidth),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                     verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        bottom = LumenTokens.Space.sectionGapMobile,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
                     if (titlesGroup.isNotEmpty()) {
-                        item(key = "header-titles") {
+                        item(key = "header-titles", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 text = "TITLES · ${titlesGroup.size}",
                                 fontSize = LumenType.size11,
@@ -276,11 +287,11 @@ fun SearchScreen(
                                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
                             )
                         }
-                        itemsIndexed(
+                        gridItemsIndexed(
                             titlesGroup,
                             key = { index, result -> searchResultLazyKey("titles", index, result) }
                         ) { _, result ->
-                            DiscoverySearchResultItem(
+                            VisualSearchResultItem(
                                 result = result,
                                 onClick = {
                                     val selectedQuery = query.trim()
@@ -295,7 +306,7 @@ fun SearchScreen(
                         }
                     }
                     if (channelsGroup.isNotEmpty()) {
-                        item(key = "header-channels") {
+                        item(key = "header-channels", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 text = "LIVE CHANNELS · ${channelsGroup.size}",
                                 fontSize = LumenType.size11,
@@ -305,11 +316,11 @@ fun SearchScreen(
                                 modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
                             )
                         }
-                        itemsIndexed(
+                        gridItemsIndexed(
                             channelsGroup,
                             key = { index, result -> searchResultLazyKey("channels", index, result) }
                         ) { _, result ->
-                            DiscoverySearchResultItem(
+                            VisualSearchResultItem(
                                 result = result,
                                 onClick = {
                                     onChannelClick(result.id)
@@ -470,6 +481,56 @@ fun DiscoverySearchResultItem(
                     modifier = Modifier.padding(top = LumenLegacySpace.xs)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun VisualSearchResultItem(
+    result: SearchDisplayResult,
+    onClick: () -> Unit,
+) {
+    val t = LocalLumenTokens.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PosterCard(
+            imageUrl = result.posterUrl,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = result.title,
+            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = t.colors.foreground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = LumenLegacySpace.sm2),
+        )
+        val meta = remember(result) {
+            buildString {
+                append(result.type.toSearchItemTypeLabel())
+                if (result.sourceLabel.isNotEmpty()) {
+                    append(" · ")
+                    append(result.sourceLabel)
+                }
+            }
+        }
+        Text(
+            text = meta,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = t.colors.mutedForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (!result.subtitle.isNullOrBlank()) {
+            Text(
+                text = result.subtitle.orEmpty(),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = t.colors.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = LumenLegacySpace.xs),
+            )
         }
     }
 }

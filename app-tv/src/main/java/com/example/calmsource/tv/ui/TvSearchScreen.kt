@@ -134,7 +134,7 @@ fun TvSearchScreen(
         TvTextField(
             value = query,
             onValueChange = viewModel::search,
-            placeholder = { Text("Search movies, series, and live channels...", color = t.colors.mutedForeground) },
+            placeholder = { Text("Search a title, channel, genre, or mood…", color = t.colors.mutedForeground) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
             onSearchAction = { submitQuery() },
@@ -186,14 +186,14 @@ fun TvSearchScreen(
                         .weight(1f)
                 ) {
                     LumenEmptyState(
-                        title = "Search films, series, channels",
-                        body = "Find movies, series, or live TV channels from all sources.",
+                        title = "What are you in the mood for?",
+                        body = "Try a title, genre, live channel, or a feeling like “funny and light.”",
                         icon = androidx.compose.material.icons.Icons.Default.Search,
                         modifier = Modifier.weight(1f)
                     )
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
-                        text = "Suggested Genres",
+                        text = "Start with a mood",
                         fontSize = LumenType.size14,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
@@ -242,7 +242,7 @@ fun TvSearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Enter a search term to find movies, shows, and channels.",
+                            text = "Search by title, channel, genre, or mood.",
                             color = t.colors.mutedForeground,
                             fontSize = LumenType.size16
                         )
@@ -271,9 +271,10 @@ fun TvSearchScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         itemsIndexed(titlesGroup, key = { index, result -> tvSearchResultLazyKey("titles", index, result) }) { _, result ->
-                                            PosterCard(
-                                                imageUrl = result.posterUrl,
-                                                orientation = PosterOrientation.Portrait,
+                                            val mediaItem = result.toTvMediaItem()
+                                            TvVODItemCard(
+                                                item = mediaItem,
+                                                reason = result.subtitle,
                                                 onClick = {
                                                     val selectedQuery = query.trim()
                                                     if (selectedQuery.isNotEmpty()) {
@@ -281,7 +282,7 @@ fun TvSearchScreen(
                                                             viewModel.recordSearchInterest(selectedQuery, result)
                                                         }
                                                     }
-                                                    onMediaClick(result.toTvMediaItem())
+                                                    onMediaClick(mediaItem)
                                                 },
                                                 modifier = restorer.itemModifier(result.id),
                                             )

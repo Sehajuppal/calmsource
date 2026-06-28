@@ -15,7 +15,7 @@ class Mission23TvWiringTest {
         assertTrue(Regex("""TvScreen\.Library\s*->\s*TvLibraryScreen\s*\(""").containsMatchIn(source))
         assertTrue(
             "The TV navigation rail must expose Library",
-            Regex("TvNavRailItem\\s*\\(\\s*\"Library\"").containsMatchIn(source)
+            Regex("TvNavRailItem\\s*\\(\\s*Icons\\.Default\\.Favorite\\s*,\\s*\"Library\"").containsMatchIn(source)
         )
     }
 

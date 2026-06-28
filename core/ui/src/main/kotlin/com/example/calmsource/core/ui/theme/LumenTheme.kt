@@ -21,19 +21,19 @@ fun LumenTheme(
     val scale = if (isTv) LumenType.TV_SCALE else 1f
 
     val material = androidx.compose.material3.darkColorScheme(
-        background = LumenTokens.Color.bg,
-        onBackground = LumenTokens.Color.textPrimary,
-        surface = LumenTokens.Color.surface,
-        onSurface = LumenTokens.Color.textPrimary,
-        surfaceVariant = LumenTokens.Color.surfaceMuted,
-        onSurfaceVariant = LumenTokens.Color.textSecondary,
-        primary = LumenTokens.Color.brand,
-        onPrimary = LumenTokens.Color.onBrand,
-        secondary = LumenTokens.Color.surfaceMuted,
-        onSecondary = LumenTokens.Color.textPrimary,
-        error = LumenTokens.Color.danger,
-        onError = LumenTokens.Color.textPrimary,
-        outline = LumenTokens.Color.border,
+        background = colors.background,
+        onBackground = colors.foreground,
+        surface = colors.card,
+        onSurface = colors.cardForeground,
+        surfaceVariant = colors.muted,
+        onSurfaceVariant = colors.mutedForeground,
+        primary = colors.brand,
+        onPrimary = colors.brandForeground,
+        secondary = colors.accent,
+        onSecondary = colors.foreground,
+        error = colors.destructive,
+        onError = colors.foreground,
+        outline = colors.border,
     )
 
     CompositionLocalProvider(

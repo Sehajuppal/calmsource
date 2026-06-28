@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import com.example.calmsource.core.ui.theme.*
 import com.example.calmsource.core.ui.components.PerfMode
@@ -23,6 +24,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -193,7 +206,7 @@ class TvMainActivity : ComponentActivity() {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
             ProvidePerfMode(perfMode) {
-            LumenTheme(isTv = true) {
+            LumenTheme(variant = LumenVariant.Oled, isTv = true) {
                 val t = LocalLumenTokens.current
                 val pendingDeepLink by _pendingDeepLink.collectAsState()
             val appContext = LocalContext.current.applicationContext
@@ -370,7 +383,7 @@ class TvMainActivity : ComponentActivity() {
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(t.colors.background)
@@ -383,39 +396,55 @@ class TvMainActivity : ComponentActivity() {
                         )
                 ) {
                     if (topLevel) {
-                        Column(
+                        Row(
                             modifier = Modifier
-                                .width(110.dp)
-                                .fillMaxHeight()
-                                .background(t.colors.surface)
-                                .padding(vertical = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .fillMaxWidth()
+                                .height(LumenTokens.Space.s12)
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        listOf(LumenTokens.Color.glassStrong, Color.Transparent),
+                                    ),
+                                )
+                                .border(
+                                    width = LumenLayout.hairline,
+                                    color = LumenTokens.Color.borderSubtle,
+                                )
+                                .padding(horizontal = LumenTokens.Space.s8, vertical = LumenTokens.Space.s4),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "CS",
-                                color = LocalLumenTokens.current.colors.brand,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            TvNavRailItem("Home", activeTab == 0, modifier = Modifier.focusRequester(tabFocusRequesters[0])) {
+                            Box(
+                                modifier = Modifier
+                                    .width(LumenTokens.Space.s10)
+                                    .height(LumenTokens.Space.s10)
+                                    .background(t.colors.brand, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    "C",
+                                    color = t.colors.brandForeground,
+                                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                )
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            TvNavRailItem(Icons.Default.Home, "Home", activeTab == 0, modifier = Modifier.focusRequester(tabFocusRequesters[0])) {
                                 activeTab = 0
                                 currentScreen = TvScreen.Home
                             }
-                            TvNavRailItem("Live", activeTab == 1, modifier = Modifier.focusRequester(tabFocusRequesters[1])) {
+                            TvNavRailItem(Icons.Default.LiveTv, "Live", activeTab == 1, modifier = Modifier.focusRequester(tabFocusRequesters[1])) {
                                 activeTab = 1
                                 currentScreen = TvScreen.LiveGuide
                             }
-                            TvNavRailItem("Library", activeTab == 2, modifier = Modifier.focusRequester(tabFocusRequesters[2])) {
+                            TvNavRailItem(Icons.Default.Favorite, "Library", activeTab == 2, modifier = Modifier.focusRequester(tabFocusRequesters[2])) {
                                 activeTab = 2
                                 currentScreen = TvScreen.Library
                             }
-                            TvNavRailItem("Search", activeTab == 3, modifier = Modifier.focusRequester(tabFocusRequesters[3])) {
+                            TvNavRailItem(Icons.Default.Search, "Search", activeTab == 3, modifier = Modifier.focusRequester(tabFocusRequesters[3])) {
                                 activeTab = 3
                                 currentScreen = TvScreen.Search
                             }
-                            TvNavRailItem("Setup", activeTab == 4, modifier = Modifier.focusRequester(tabFocusRequesters[4])) {
+                            TvNavRailItem(Icons.Default.Settings, "Setup", activeTab == 4, modifier = Modifier.focusRequester(tabFocusRequesters[4])) {
                                 activeTab = 4
                                 currentScreen = TvScreen.Settings
                             }
@@ -425,9 +454,9 @@ class TvMainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
+                            .fillMaxWidth()
                             .focusProperties {
-                                left = tabFocusRequesters[activeTab]
+                                up = tabFocusRequesters[activeTab]
                             }
                     ) {
                         when (val screen = currentScreen) {
@@ -657,15 +686,46 @@ class TvMainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TvNavRailItem(label: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun TvNavRailItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val t = LocalLumenTokens.current
-    TvFocusCard(onClick = onClick, modifier = modifier.width(88.dp)) { isFocused ->
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isSelected || isFocused) t.colors.brand else t.colors.mutedForeground,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
+    TvFocusCard(
+        onClick = onClick,
+        modifier = modifier,
+    ) { isFocused ->
+        Row(
+            modifier = Modifier
+                .animateContentSize()
+                .background(
+                    color = if (isSelected) t.colors.brand.copy(alpha = 0.16f) else Color.Transparent,
+                    shape = LumenTokens.Shape.pill,
+                )
+                .padding(horizontal = LumenTokens.Space.s4, vertical = LumenTokens.Space.s2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s3),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = when {
+                    isFocused -> t.colors.foreground
+                    isSelected -> t.colors.brand
+                    else -> t.colors.mutedForeground
+                },
+                modifier = Modifier.width(LumenTokens.Space.s7).height(LumenTokens.Space.s7),
+            )
+            Text(
+                text = label,
+                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isFocused || isSelected) t.colors.foreground else t.colors.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }

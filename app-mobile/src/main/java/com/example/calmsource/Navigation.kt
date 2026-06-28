@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +53,7 @@ import com.example.calmsource.core.model.toMediaItem
 import com.example.calmsource.core.model.CalmSourceDeepLink
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.core.ui.theme.*
+import com.example.calmsource.core.ui.components.GlassSurface
 import com.example.calmsource.ui.DetailsScreen
 import com.example.calmsource.ui.ProfilesScreen
 import com.example.calmsource.ui.HomeScreen
@@ -209,40 +216,61 @@ fun MainNavigation(
         Scaffold(
             bottomBar = {
                 if (isTopLevel) {
-                    NavigationBar(
-                        containerColor = t.colors.surface,
-                        contentColor = t.colors.brand
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(Color.Transparent, t.colors.background.copy(alpha = 0.96f)),
+                                ),
+                            )
+                            .navigationBarsPadding()
+                            .padding(horizontal = LumenTokens.Space.s5, vertical = LumenTokens.Space.s4),
                     ) {
-                        NavigationBarItem(
-                            selected = activeTab == 0,
-                            onClick = { activeTab = 0; currentScreen = MobileScreen.Home },
-                            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                            label = { Text("Home") }
-                        )
-                        NavigationBarItem(
-                            selected = activeTab == 1,
-                            onClick = { activeTab = 1; currentScreen = MobileScreen.LiveTv },
-                            icon = { @Suppress("DEPRECATION") Icon(Icons.Default.List, contentDescription = "Live TV") },
-                            label = { Text("Live") }
-                        )
-                        NavigationBarItem(
-                            selected = activeTab == 2,
-                            onClick = { activeTab = 2; currentScreen = MobileScreen.Library },
-                            icon = { Icon(Icons.Default.Favorite, contentDescription = "Library") },
-                            label = { Text("Library") }
-                        )
-                        NavigationBarItem(
-                            selected = activeTab == 3,
-                            onClick = { activeTab = 3; currentScreen = MobileScreen.Search },
-                            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                            label = { Text("Search") }
-                        )
-                        NavigationBarItem(
-                            selected = activeTab == 4,
-                            onClick = { activeTab = 4; currentScreen = MobileScreen.Settings },
-                            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                            label = { Text("Setup") }
-                        )
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = LumenTokens.Shape.xxl,
+                            strong = true,
+                            borderColor = LumenTokens.Color.borderStrong,
+                        ) {
+                            NavigationBar(
+                                containerColor = Color.Transparent,
+                                contentColor = t.colors.foreground,
+                                tonalElevation = LumenTokens.Space.s0,
+                                windowInsets = WindowInsets(0, 0, 0, 0),
+                            ) {
+                                MobileNavItem(
+                                    selected = activeTab == 0,
+                                    onClick = { activeTab = 0; currentScreen = MobileScreen.Home },
+                                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                                    label = "Home",
+                                )
+                                MobileNavItem(
+                                    selected = activeTab == 1,
+                                    onClick = { activeTab = 1; currentScreen = MobileScreen.LiveTv },
+                                    icon = { @Suppress("DEPRECATION") Icon(Icons.Default.List, contentDescription = "Live TV") },
+                                    label = "Live",
+                                )
+                                MobileNavItem(
+                                    selected = activeTab == 2,
+                                    onClick = { activeTab = 2; currentScreen = MobileScreen.Library },
+                                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Library") },
+                                    label = "Library",
+                                )
+                                MobileNavItem(
+                                    selected = activeTab == 3,
+                                    onClick = { activeTab = 3; currentScreen = MobileScreen.Search },
+                                    icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                                    label = "Search",
+                                )
+                                MobileNavItem(
+                                    selected = activeTab == 4,
+                                    onClick = { activeTab = 4; currentScreen = MobileScreen.Settings },
+                                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                                    label = "Setup",
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -412,6 +440,30 @@ fun MainNavigation(
             }
         }
     }
+}
+
+@Composable
+private fun RowScope.MobileNavItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+    label: String,
+) {
+    val t = LocalLumenTokens.current
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = icon,
+        label = { Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelSmall) },
+        alwaysShowLabel = selected,
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = t.colors.foreground,
+            selectedTextColor = t.colors.foreground,
+            indicatorColor = t.colors.brand.copy(alpha = 0.32f),
+            unselectedIconColor = t.colors.mutedForeground,
+            unselectedTextColor = t.colors.mutedForeground,
+        ),
+    )
 }
 
 private fun mobileTabScreen(tab: Int): MobileScreen = when (tab) {

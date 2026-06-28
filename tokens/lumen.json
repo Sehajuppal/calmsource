@@ -22,8 +22,8 @@
       "onBrand":   { "$value": "#FCFCFC", "$type": "color" }
     },
     "brand": {
-      "base":      { "$value": "#3D6BFF", "$type": "color", "$description": "Electric Cobalt — primary brand color", "$extensions": { "web": { "oklch": "oklch(0.62 0.22 260)" } } },
-      "glow":      { "$value": "#5C86FF", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.70 0.24 260)" } } },
+      "base":      { "$value": "#6E8BFF", "$type": "color", "$description": "Soft signal blue — selected state and progress only", "$extensions": { "web": { "oklch": "oklch(0.69 0.16 265)" } } },
+      "glow":      { "$value": "#94A8FF", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.77 0.12 265)" } } },
       "foreground":{ "$value": "#FCFCFC", "$type": "color" }
     },
     "border": {
@@ -32,7 +32,7 @@
       "strong":   { "$value": "rgba(255,255,255,0.18)", "$type": "color" }
     },
     "focus": {
-      "halo":     { "$value": "#3D6BFF", "$type": "color", "$description": "TV focus halo — 3dp ring + 6dp outer glow at 60% alpha" }
+      "halo":     { "$value": "#FAFAFA", "$type": "color", "$description": "Neutral TV focus halo — content remains the color source" }
     },
     "feedback": {
       "danger":   { "$value": "#E5484D", "$type": "color", "$extensions": { "web": { "oklch": "oklch(0.62 0.22 25)" } } },
@@ -152,7 +152,7 @@
       "soft":       { "stiffness": 220, "dampingRatio": 0.85, "$description": "Sheet/drawer" }
     },
     "focus": {
-      "scale":       { "$value": 1.06,  "$type": "number", "$description": "TV poster focus scale" },
+      "scale":       { "$value": 1.045, "$type": "number", "$description": "TV poster focus scale" },
       "hoverScale":  { "$value": 1.055, "$type": "number", "$description": "Web hover scale" },
       "liftY":       { "$value": "-6px","$type": "dimension" }
     }

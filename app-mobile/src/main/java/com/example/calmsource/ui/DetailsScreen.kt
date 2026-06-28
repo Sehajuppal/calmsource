@@ -633,7 +633,7 @@ fun DetailsScreen(
                             // Play Button
                             if (bestMatch != null) {
                                 AdaptiveButton(
-                                    text = "Play Best Match",
+                                    text = if (startPositionMs > 0L) "Resume" else "Play",
                                     onClick = { handlePlayOption(bestMatch, true) },
                                     backdropLuminance = backdropLuminance,
                                     modifier = Modifier.weight(1f)
@@ -642,7 +642,7 @@ fun DetailsScreen(
 
                             // Watchlist Toggle
                             LumenGhostButton(
-                                text = if (isFavorite) "✓ Watchlist" else "+ Watchlist",
+                                text = if (isFavorite) "✓ My List" else "+ My List",
                                 onClick = {
                                     val wasFavorite = isFavorite
                                     memoryScope.launch {
@@ -810,7 +810,7 @@ fun DetailsScreen(
                 // Alternative options
                 item(key = "alternative_options_header") {
                     Text(
-                        text = "Alternative Watch Options",
+                        text = "Ways to Watch",
                         fontSize = LumenType.size18,
                         fontWeight = FontWeight.SemiBold,
                         color = t.colors.foreground,
@@ -887,7 +887,7 @@ fun DetailsScreen(
                             .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                     ) {
                         Text(
-                            text = "Advanced - Manual Sources (${sortedOptions.size})",
+                            text = "Source Controls · ${sortedOptions.size}",
                             fontSize = LumenType.size16,
                             fontWeight = FontWeight.Bold,
                             color = t.colors.foreground,
@@ -911,7 +911,7 @@ fun DetailsScreen(
                                 .padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.sm2)
                         ) {
                             Text(
-                                text = "Show Raw Details",
+                                text = "Show technical details",
                                 color = t.colors.foreground,
                                 fontSize = LumenType.size14,
                                 fontWeight = FontWeight.Medium
