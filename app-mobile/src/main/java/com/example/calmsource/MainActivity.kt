@@ -12,6 +12,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.calmsource.core.ui.theme.LumenTheme
+import com.example.calmsource.core.ui.components.PerfMode
+import com.example.calmsource.core.ui.components.ProvidePerfMode
+import android.os.PowerManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -118,8 +121,11 @@ class MainActivity : ComponentActivity() {
     }
 
     enableEdgeToEdge()
+    val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+    val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
     setContent {
-      LumenTheme(isTv = false) {
+      ProvidePerfMode(perfMode) {
+        LumenTheme(isTv = false) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           MainNavigation(
             deepLinkUri = pendingDeepLink,
@@ -127,6 +133,7 @@ class MainActivity : ComponentActivity() {
             initialScreen = restoredScreen,
             onScreenChanged = { currentScreen = it }
           )
+        }
         }
       }
     }

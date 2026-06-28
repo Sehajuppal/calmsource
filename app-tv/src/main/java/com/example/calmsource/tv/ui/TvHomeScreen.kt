@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
@@ -16,7 +18,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.calmsource.core.ui.tv.rememberTvFocusMemory
+import com.example.calmsource.core.ui.tv.TvFocusScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -61,26 +61,7 @@ fun TvHomeScreen(
 
     val t = LocalLumenTokens.current
 
-    // TV Focus memory across Details -> Home
-    val focusedItemKeys = rememberSaveable { mutableStateMapOf<String, String>() }
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    val firstItemFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(homeRows.isNotEmpty(), isLoading) {
-        if (!isLoading && homeRows.isNotEmpty()) {
-            try {
-                val firstRow = homeRows.firstOrNull()
-                val savedItemId = firstRow?.let { focusedItemKeys[it.rowType] }
-                if (firstRow != null && savedItemId != null) {
-                    focusRequesters["${firstRow.rowType}:$savedItemId"]?.requestFocus()
-                } else {
-                    firstItemFocusRequester.requestFocus()
-                }
-            } catch (e: Exception) {
-                // Ignore focus request failure
-            }
-        }
-    }
+    val focusMemory = rememberTvFocusMemory()
 
     val homeRowsKey = remember(homeRows) { homeRows.map { "${it.rowType}-${it.items.size}" } }
     LaunchedEffect(homeRowsKey) {
@@ -102,20 +83,20 @@ fun TvHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(top = LumenTokens.Space.xxl)
+            .padding(top = LumenLegacySpace.xxl)
     ) {
         Text(
             text = "CalmSource",
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = LumenTokens.Layout.iconXl)
+            modifier = Modifier.padding(horizontal = LumenLayout.iconXl)
         )
         Text(
             text = "Your media sanctuary",
             fontSize = 16.sp,
             color = t.colors.mutedForeground,
-            modifier = Modifier.padding(start = LumenTokens.Layout.iconXl, end = LumenTokens.Layout.iconXl, bottom = LumenTokens.Space.xxl)
+            modifier = Modifier.padding(start = LumenLayout.iconXl, end = LumenLayout.iconXl, bottom = LumenLegacySpace.xxl)
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -127,13 +108,13 @@ fun TvHomeScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.lg)
+                                    .padding(horizontal = LumenLayout.iconXl, vertical = LumenLegacySpace.lg)
                             ) {
-                                LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.posterTileWidth).height(LumenTokens.Radius.xl))
-                                Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
-                                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
+                                LumenSkeleton(modifier = Modifier.width(LumenLayout.posterTileWidth).height(LumenTokens.Radius.xl))
+                                Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
+                                Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
                                     repeat(6) {
-                                        LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidthTv).height(LumenTokens.Layout.posterTileHeightTv))
+                                        LumenSkeleton(modifier = Modifier.width(LumenLayout.epgMinBlockWidthTv).height(LumenLayout.posterTileHeightTv))
                                     }
                                 }
                             }
@@ -173,57 +154,46 @@ fun TvHomeScreen(
                         SectionTitle(row.title)
 
                         val listState = rememberLazyListState()
-                        LazyRow(
-                            state = listState,
-                            flingBehavior = rememberSnapFlingBehavior(listState),
-                            contentPadding = PaddingValues(horizontal = LumenTokens.Layout.iconXl),
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-                            modifier = Modifier.padding(bottom = LumenTokens.Space.xxxl)
-                        ) {
-                            items(uniqueItems, key = { "${it.type}-${it.id}" }) { item ->
-                                val itemKey = "${row.rowType}:${item.id}"
-                                val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
-                                val isFirstGlobal = (row == homeRows.firstOrNull() && item == uniqueItems.firstOrNull())
+                        TvFocusScope(
+                            memory = focusMemory,
+                            scopeId = "home/row/${row.rowType}",
+                            itemIds = uniqueItems.map { it.id },
+                            listState = listState,
+                        ) { restorer ->
+                            LazyRow(
+                                state = restorer.listState,
+                                flingBehavior = rememberSnapFlingBehavior(listState),
+                                contentPadding = PaddingValues(horizontal = LumenLayout.iconXl),
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                                modifier = Modifier.padding(bottom = LumenLegacySpace.xxxl),
+                            ) {
+                                items(uniqueItems, key = { "${it.type}-${it.id}" }) { item ->
+                                    val cardModifier = restorer.itemModifier(item.id)
 
-                                val cardModifier = Modifier
-                                    .focusRequester(
-                                        if (focusedItemKeys[row.rowType] == item.id) {
-                                            requester
-                                        } else if (isFirstGlobal && !focusedItemKeys.containsKey(row.rowType)) {
-                                            firstItemFocusRequester
-                                        } else {
-                                            requester
-                                        }
-                                    )
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused) {
-                                            focusedItemKeys[row.rowType] = item.id
-                                        }
+                                    if (item.type == "channel") {
+                                        TvLiveChannelCard(
+                                            channelName = item.title,
+                                            logoUrl = item.posterUrl,
+                                            category = item.subtitle ?: item.reason,
+                                            onClick = { onChannelClick(item.id) },
+                                            modifier = cardModifier,
+                                        )
+                                    } else {
+                                        val mediaItem = MediaItem(
+                                            id = item.id,
+                                            title = item.title,
+                                            type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                            overview = item.reason,
+                                            posterUrl = item.posterUrl,
+                                            externalIds = item.externalIds,
+                                        )
+                                        TvVODItemCard(
+                                            item = mediaItem,
+                                            reason = item.reason,
+                                            onClick = { onMediaClick(mediaItem) },
+                                            modifier = cardModifier,
+                                        )
                                     }
-
-                                if (item.type == "channel") {
-                                    TvLiveChannelCard(
-                                        channelName = item.title,
-                                        logoUrl = item.posterUrl,
-                                        category = item.subtitle ?: item.reason,
-                                        onClick = { onChannelClick(item.id) },
-                                        modifier = cardModifier
-                                    )
-                                } else {
-                                    val mediaItem = MediaItem(
-                                        id = item.id,
-                                        title = item.title,
-                                        type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
-                                        overview = item.reason,
-                                        posterUrl = item.posterUrl,
-                                        externalIds = item.externalIds
-                                    )
-                                    TvVODItemCard(
-                                        item = mediaItem,
-                                        reason = item.reason,
-                                        onClick = { onMediaClick(mediaItem) },
-                                        modifier = cardModifier
-                                    )
                                 }
                             }
                         }
@@ -236,8 +206,8 @@ fun TvHomeScreen(
                     color = t.colors.brand,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(horizontal = LumenTokens.Layout.iconXl)
-                        .size(LumenTokens.Space.xxl)
+                        .padding(horizontal = LumenLayout.iconXl)
+                        .size(LumenLegacySpace.xxl)
                 )
             }
         }
@@ -254,7 +224,7 @@ private fun SectionTitle(title: String) {
         color = t.colors.foreground,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(start = LumenTokens.Layout.iconXl, end = LumenTokens.Layout.iconXl, bottom = LumenTokens.Space.lg)
+        modifier = Modifier.padding(start = LumenLayout.iconXl, end = LumenLayout.iconXl, bottom = LumenLegacySpace.lg)
     )
 }
 
@@ -272,7 +242,7 @@ fun TvVODItemCard(
     ) {
         Column(
             modifier = Modifier
-                .width(LumenTokens.Layout.epgMinBlockWidthTv)
+                .width(LumenLayout.epgMinBlockWidthTv)
                 .background(t.colors.card)
         ) {
             AsyncImage(
@@ -281,7 +251,7 @@ fun TvVODItemCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(LumenTokens.Layout.posterTileHeightTv)
+                    .height(LumenLayout.posterTileHeightTv)
                     .clip(LumenTokens.Shape.sm)
                     .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
@@ -292,7 +262,7 @@ fun TvVODItemCard(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = LumenTokens.Space.sm2, start = LumenTokens.Space.sm2, end = LumenTokens.Space.sm2, bottom = LumenTokens.Space.xs)
+                modifier = Modifier.padding(top = LumenLegacySpace.sm2, start = LumenLegacySpace.sm2, end = LumenLegacySpace.sm2, bottom = LumenLegacySpace.xs)
             )
             if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
                 Text(
@@ -302,7 +272,7 @@ fun TvVODItemCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = LumenTokens.Space.sm2, end = LumenTokens.Space.sm2, bottom = LumenTokens.Space.sm2)
+                    modifier = Modifier.padding(start = LumenLegacySpace.sm2, end = LumenLegacySpace.sm2, bottom = LumenLegacySpace.sm2)
                 )
             }
         }
@@ -325,20 +295,20 @@ fun TvLiveChannelCard(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .width(LumenTokens.Layout.tileWidthMd)
+                .width(LumenLayout.tileWidthMd)
                 .background(t.colors.card)
-                .padding(LumenTokens.Space.md)
+                .padding(LumenLegacySpace.md)
         ) {
             AsyncImage(
                 model = logoUrl,
                 contentDescription = channelName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(LumenTokens.Layout.iconXl)
+                    .size(LumenLayout.iconXl)
                     .clip(LumenTokens.Shape.sm)
                     .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
-            Spacer(modifier = Modifier.width(LumenTokens.Space.md))
+            Spacer(modifier = Modifier.width(LumenLegacySpace.md))
             Column {
                 Text(
                     text = channelName,

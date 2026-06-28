@@ -1,5 +1,8 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -204,22 +207,22 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(LumenTokens.Space.xxl),
-        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl)
+            .padding(LumenLegacySpace.xxl),
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl)
     ) {
         // Left Column: Extension List & registration triggers
         LazyColumn(
             modifier = Modifier
                 .weight(0.45f)
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
         ) {
             item {
                 TvFocusCard(
                     onClick = onBack,
                     modifier = Modifier
                         .wrapContentSize()
-                        .padding(bottom = LumenTokens.Space.sm2)
+                        .padding(bottom = LumenLegacySpace.sm2)
                         .focusRequester(stableFocusRequester)
                 ) {
                     Text(text = "← Back", color = TvColors.TextMain)
@@ -228,7 +231,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
             
             item {
                 Text(text = "Extensions", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
-                Text(text = "Configure catalog, search, and stream providers", fontSize = 12.sp, color = TvColors.TextSub, modifier = Modifier.padding(bottom = LumenTokens.Space.md))
+                Text(text = "Configure catalog, search, and stream providers", fontSize = 12.sp, color = TvColors.TextSub, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
             }
 
             items(RecommendedStremioAddons.presets, key = { "preset_${it.manifestId}" }) { preset ->
@@ -246,7 +249,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { isFocused ->
-                    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Color.focusRingWidth)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LumenExtendedColors.focusRingWidth)) {
                         Text(
                             text = if (installed == null) "+ Add ${preset.name}" else "${preset.name} Installed",
                             color = if (isFocused) TvColors.TextMain else TvColors.BorderFocused,
@@ -283,7 +286,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
             }
 
             item {
-                Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+                Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
             }
 
             if (extensions.isEmpty()) {
@@ -309,12 +312,12 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                             }
                     ) { isFocused ->
                         val healthColor = when (ext.health) {
-                            ExtensionHealth.ACTIVE -> LumenTokens.Color.statusHealthy
+                            ExtensionHealth.ACTIVE -> LumenExtendedColors.statusHealthy
                             ExtensionHealth.SLOW -> LumenTokens.Color.warning
-                            ExtensionHealth.FAILED -> LumenTokens.Color.errorBright
+                            ExtensionHealth.FAILED -> LumenExtendedColors.errorBright
                             ExtensionHealth.DISABLED -> LumenTokens.Color.textMuted
-                            ExtensionHealth.INVALID_MANIFEST -> LumenTokens.Color.errorBright
-                            ExtensionHealth.NEEDS_CONFIGURATION -> LumenTokens.Color.info
+                            ExtensionHealth.INVALID_MANIFEST -> LumenExtendedColors.errorBright
+                            ExtensionHealth.NEEDS_CONFIGURATION -> LumenExtendedColors.info
                             ExtensionHealth.UNKNOWN -> LumenTokens.Color.textMuted
                         }
 
@@ -334,14 +337,14 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                                     text = "Priority: ${ext.priority}", 
                                     color = TvColors.TextSub, 
                                     fontSize = 12.sp,
-                                    modifier = Modifier.padding(top = LumenTokens.Space.xxs)
+                                    modifier = Modifier.padding(top = LumenLegacySpace.xxs)
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(LumenTokens.Shape.md)
                                     .background(healthColor.copy(alpha = 0.2f))
-                                    .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                    .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                             ) {
                                 Text(
                                     text = ext.health.name,
@@ -362,8 +365,8 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                 .weight(0.55f)
                 .fillMaxHeight()
                 .background(TvColors.Surface.copy(alpha = 0.5f), LumenTokens.Shape.md)
-                .padding(LumenTokens.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                .padding(LumenLegacySpace.lg),
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
         ) {
             if (previewManifest != null) {
                 val manifest = previewManifest!!
@@ -383,7 +386,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
 
                 if (previewWarnings.isNotEmpty()) {
                     item {
-                        Column(modifier = Modifier.padding(vertical = LumenTokens.Space.sm2), verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs)) {
+                        Column(modifier = Modifier.padding(vertical = LumenLegacySpace.sm2), verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xs)) {
                             previewWarnings.forEach { warning ->
                                 Text(text = "⚠ $warning", color = LumenTokens.Color.warning, fontSize = 12.sp)
                             }
@@ -393,14 +396,14 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
 
                 // Capabilities listing
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xs)) {
                         Text(text = "Capabilities:", fontSize = 13.sp, color = TvColors.TextSub, fontWeight = FontWeight.Bold)
                         val resources = manifest.resources
                         if (resources.isEmpty()) {
                             Text(text = "• No capabilities declared", color = TvColors.TextSub, fontSize = 12.sp)
                         } else {
                             resources.forEach { capability ->
-                                Text(text = "✔ $capability", color = LumenTokens.Color.statusHealthy, fontSize = 13.sp)
+                                Text(text = "✔ $capability", color = LumenExtendedColors.statusHealthy, fontSize = 13.sp)
                             }
                         }
                     }
@@ -413,7 +416,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                     ) { isFocused ->
                         Text(
                             text = if (isInstalling) "Installing…" else "Confirm & Install",
-                            color = if (isFocused) LumenTokens.Color.textPrimary else LumenTokens.Color.statusHealthy,
+                            color = if (isFocused) LumenTokens.Color.textPrimary else LumenExtendedColors.statusHealthy,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -457,13 +460,13 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                             .focusRequester(inputUrlFocusRequester)
                             .onFocusChanged { isTextFieldFocused = it.isFocused }
-                            .border(if (isTextFieldFocused) LumenTokens.Space.xxs else 0.dp, if (isTextFieldFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
+                            .border(if (isTextFieldFocused) LumenLegacySpace.xxs else 0.dp, if (isTextFieldFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
                     )
                 }
 
                 if (validationError != null) {
                     item {
-                        Text(text = validationError!!, color = LumenTokens.Color.errorBright, fontSize = 12.sp)
+                        Text(text = validationError!!, color = LumenExtendedColors.errorBright, fontSize = 12.sp)
                     }
                 }
 
@@ -483,7 +486,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.xl))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.xl))
                 }
                 
                 // QR Placeholder
@@ -491,8 +494,8 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(LumenTokens.Layout.skeletonTitleWidth)
-                            .background(LumenTokens.Color.glassOverlay, LumenTokens.Shape.sm),
+                            .height(LumenLayout.skeletonTitleWidth)
+                            .background(LumenTokens.Color.glass, LumenTokens.Shape.sm),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = "Scan to push URL from phone (Coming soon)", color = TvColors.TextSub, fontSize = 12.sp)
@@ -514,25 +517,25 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
 
                 item {
                     val healthColor = when (ext.health) {
-                        ExtensionHealth.ACTIVE -> LumenTokens.Color.statusHealthy
+                        ExtensionHealth.ACTIVE -> LumenExtendedColors.statusHealthy
                         ExtensionHealth.SLOW -> LumenTokens.Color.warning
-                        ExtensionHealth.FAILED -> LumenTokens.Color.errorBright
+                        ExtensionHealth.FAILED -> LumenExtendedColors.errorBright
                         ExtensionHealth.DISABLED -> LumenTokens.Color.textMuted
-                        ExtensionHealth.INVALID_MANIFEST -> LumenTokens.Color.errorBright
-                        ExtensionHealth.NEEDS_CONFIGURATION -> LumenTokens.Color.info
+                        ExtensionHealth.INVALID_MANIFEST -> LumenExtendedColors.errorBright
+                        ExtensionHealth.NEEDS_CONFIGURATION -> LumenExtendedColors.info
                         ExtensionHealth.UNKNOWN -> LumenTokens.Color.textMuted
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                     ) {
                         Text(text = "Health Status:", color = TvColors.TextSub, fontSize = 13.sp)
                         Box(
                             modifier = Modifier
                                 .clip(LumenTokens.Shape.md)
                                 .background(healthColor.copy(alpha = 0.2f))
-                                .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                                .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                         ) {
                             Text(
                                 text = ext.health.name,
@@ -556,7 +559,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
 
                 // Capabilities listing
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xs)) {
                         Text(text = "What this extension can provide:", fontSize = 13.sp, color = TvColors.TextSub, fontWeight = FontWeight.Bold)
                         val resources = ext.manifest?.resources ?: emptyList()
                         if (resources.isEmpty()) {
@@ -570,7 +573,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                                     "subtitles" -> "Provides subtitle tracks"
                                     else -> "Custom capability ($capability)"
                                 }
-                                Text(text = "✔ $readable", color = LumenTokens.Color.statusHealthy, fontSize = 13.sp)
+                                Text(text = "✔ $readable", color = LumenExtendedColors.statusHealthy, fontSize = 13.sp)
                             }
                         }
                     }
@@ -578,7 +581,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
 
                 // Permissions listing
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xs)) {
                         Text(text = "Granted Permissions:", fontSize = 13.sp, color = TvColors.TextSub, fontWeight = FontWeight.Bold)
                         if (ext.permissions.isEmpty()) {
                             Text(text = "• No permissions requested", color = TvColors.TextSub, fontSize = 12.sp)
@@ -616,31 +619,31 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                                                 configValues[config.key] = next
                                             }
                                             .focusable()
-                                            .padding(LumenTokens.Space.xs)
+                                            .padding(LumenLegacySpace.xs)
                                     ) {
                                         androidx.compose.material3.Checkbox(
                                             checked = currentVal == "true",
                                             onCheckedChange = null
                                         )
-                                        Spacer(modifier = Modifier.width(LumenTokens.Space.sm2))
+                                        Spacer(modifier = Modifier.width(LumenLegacySpace.sm2))
                                         Text(text = config.title ?: config.key, color = TvColors.TextMain, fontSize = 13.sp)
                                     }
                                 }
                                 "select" -> {
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         Text(text = config.title ?: config.key, color = TvColors.TextSub, fontSize = 13.sp)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm), modifier = Modifier.padding(top = LumenTokens.Space.xs)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm), modifier = Modifier.padding(top = LumenLegacySpace.xs)) {
                                             config.options?.forEach { option ->
                                                 val isSelected = currentVal == option || (currentVal.isEmpty() && config.default == option)
                                                 var isOptFocused by remember { mutableStateOf(false) }
                                                 Box(
                                                     modifier = Modifier
-                                                        .background(if (isSelected) TvColors.BorderFocused else LumenTokens.Color.glassOverlay, LumenTokens.Shape.md)
+                                                        .background(if (isSelected) TvColors.BorderFocused else LumenTokens.Color.glass, LumenTokens.Shape.md)
                                                         .onFocusChanged { isOptFocused = it.isFocused }
                                                         .border(if (isOptFocused) 1.dp else 0.dp, if (isOptFocused) LumenTokens.Color.textPrimary else Color.Transparent, LumenTokens.Shape.md)
                                                         .clickable { configValues[config.key] = option }
                                                         .focusable()
-                                                        .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                                                        .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                                                 ) {
                                                     Text(
                                                         text = option,
@@ -666,14 +669,14 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                                                 .fillMaxWidth()
                                                 .onFocusChanged { isTextFocused = it.isFocused }
                                                 .border(if (isTextFocused) 1.dp else 0.dp, if (isTextFocused) TvColors.BorderFocused else Color.Transparent, LumenTokens.Shape.md)
-                                                .height(LumenTokens.Layout.epgRowHeight)
+                                                .height(LumenLayout.epgRowHeight)
                                         )
                                     }
                                 }
                             }
                         }
                         item {
-                            Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
+                            Spacer(modifier = Modifier.height(LumenLegacySpace.sm))
                         }
                     }
 
@@ -707,16 +710,16 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                         item {
                             Text(
                                 text = configSaveMessage!!,
-                                color = if (configSaveIsError) LumenTokens.Color.errorBright else LumenTokens.Color.statusHealthy,
+                                color = if (configSaveIsError) LumenExtendedColors.errorBright else LumenExtendedColors.statusHealthy,
                                 fontSize = 12.sp,
-                                modifier = Modifier.padding(top = LumenTokens.Space.xs)
+                                modifier = Modifier.padding(top = LumenLegacySpace.xs)
                             )
                         }
                     }
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.xs))
                 }
 
                 // Actions area
@@ -812,7 +815,7 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                         ) { isFocused ->
                             Text(
                                 text = "Remove Extension",
-                                color = if (isFocused) LumenTokens.Color.textPrimary else LumenTokens.Color.errorBright,
+                                color = if (isFocused) LumenTokens.Color.textPrimary else LumenExtendedColors.errorBright,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -830,8 +833,8 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(LumenTokens.Color.glassOverlayFaint, LumenTokens.Shape.xs)
-                                .padding(LumenTokens.Space.md)
+                                .background(LumenTokens.Color.borderSubtle, LumenTokens.Shape.xs)
+                                .padding(LumenLegacySpace.md)
                         ) {
                             Text(
                                 text = rawJson,

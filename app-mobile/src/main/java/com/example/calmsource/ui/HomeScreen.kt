@@ -1,5 +1,7 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
@@ -187,27 +189,27 @@ fun HomeScreen(
                     LumenSkeleton(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(LumenTokens.Layout.heroHeightMobile)
+                            .height(LumenLayout.heroHeightMobile)
                     )
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
                 }
                 item(key = "skeleton_rows") {
                     repeat(2) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+                                .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                         ) {
-                            LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidthTv).height(LumenTokens.Space.xxl))
-                            Spacer(modifier = Modifier.height(LumenTokens.Space.md))
+                            LumenSkeleton(modifier = Modifier.width(LumenLayout.epgMinBlockWidthTv).height(LumenLegacySpace.xxl))
+                            Spacer(modifier = Modifier.height(LumenLegacySpace.md))
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                             ) {
                                 repeat(5) {
                                     LumenSkeleton(
                                         modifier = Modifier
-                                            .width(LumenTokens.Layout.epgMinBlockWidth)
-                                            .height(LumenTokens.Layout.heroStripHeight)
+                                            .width(LumenLayout.epgMinBlockWidth)
+                                            .height(LumenLayout.heroStripHeight)
                                     )
                                 }
                             }
@@ -242,7 +244,7 @@ fun HomeScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = LumenTokens.Layout.bottomNavPadding)
+                contentPadding = PaddingValues(bottom = LumenLayout.bottomNavPadding)
             ) {
                 // 1. Hero Banner
                 if (featuredItem != null && featuredMediaItem != null) {
@@ -250,7 +252,7 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(LumenTokens.Layout.heroHeightLg)
+                                .height(LumenLayout.heroHeightLg)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onPress = {
@@ -272,7 +274,7 @@ fun HomeScreen(
                                         onClick = { onMediaClick(featuredMediaItem) },
                                         backdropLuminance = backdropLuminance
                                     )
-                                    Spacer(modifier = Modifier.width(LumenTokens.Space.md))
+                                    Spacer(modifier = Modifier.width(LumenLegacySpace.md))
                                     AdaptiveButton(
                                         text = "More Info",
                                         onClick = { onMediaClick(featuredMediaItem) },
@@ -316,7 +318,7 @@ fun HomeScreen(
                             selectedTab = it
                             selectedMood = null // Reset mood filter on tab switch
                         },
-                        modifier = Modifier.padding(vertical = LumenTokens.Space.md)
+                        modifier = Modifier.padding(vertical = LumenLegacySpace.md)
                     )
                 }
 
@@ -327,7 +329,7 @@ fun HomeScreen(
                             items = moods,
                             selected = selectedMood,
                             onSelect = { selectedMood = if (selectedMood == it) null else it },
-                            modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
+                            modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
                         )
                     }
                 }
@@ -338,7 +340,7 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(LumenTokens.Layout.iconXl),
+                                .padding(LumenLayout.iconXl),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -358,9 +360,9 @@ fun HomeScreen(
                             row.rowType == "continue_watching" -> {
                                 SectionHeader(row.title)
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
                                 ) {
                                     items(uniqueItems, key = { it.id }) { item ->
                                         val progress = if (item.reason.startsWith("Resume watching (")) {
@@ -381,7 +383,7 @@ fun HomeScreen(
                                             orientation = PosterOrientation.Landscape,
                                             progress = progress,
                                             onClick = { onMediaClick(mediaItem) },
-                                            modifier = Modifier.width(LumenTokens.Layout.tileWidthMd)
+                                            modifier = Modifier.width(LumenLayout.tileWidthMd)
                                         )
                                     }
                                 }
@@ -389,9 +391,9 @@ fun HomeScreen(
                             row.rowType == "top_rated" -> {
                                 SectionHeader("Top 10")
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
                                 ) {
                                     itemsIndexed(uniqueItems.take(10), key = { _, item -> item.id }) { index, item ->
                                         val mediaItem = MediaItem(
@@ -403,7 +405,7 @@ fun HomeScreen(
                                             externalIds = item.externalIds
                                         )
 
-                                        Box(modifier = Modifier.width(LumenTokens.Layout.posterTileWidth).padding(start = LumenTokens.Space.xxl)) {
+                                        Box(modifier = Modifier.width(LumenLayout.posterTileWidth).padding(start = LumenLegacySpace.xxl)) {
                                             Text(
                                                 text = (index + 1).toString(),
                                                 style = androidx.compose.ui.text.TextStyle(
@@ -413,7 +415,7 @@ fun HomeScreen(
                                                 ),
                                                 modifier = Modifier
                                                     .align(Alignment.BottomStart)
-                                                    .offset(x = (-LumenTokens.Space.xxl), y = LumenTokens.Radius.md)
+                                                    .offset(x = (-LumenLegacySpace.xxl), y = LumenTokens.Radius.md)
                                             )
                                             PosterCard(
                                                 imageUrl = item.posterUrl,
@@ -427,14 +429,14 @@ fun HomeScreen(
                             row.rowType == "live_tv" -> {
                                 SectionHeader("Live Channels")
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
                                 ) {
                                     items(uniqueItems, key = { item -> item.id }) { item ->
                                         LumenCard(
                                             modifier = Modifier
-                                                .size(LumenTokens.Layout.epgMinBlockWidth)
+                                                .size(LumenLayout.epgMinBlockWidth)
                                                 .clickable { onChannelClick(item.id) }
                                         ) {
                                             Column(
@@ -447,11 +449,11 @@ fun HomeScreen(
                                                     contentDescription = item.title,
                                                     contentScale = ContentScale.Fit,
                                                     modifier = Modifier
-                                                        .size(LumenTokens.Layout.playerControlSize)
+                                                        .size(LumenLayout.playerControlSize)
                                                         .clip(LumenTokens.Shape.sm)
                                                         .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
                                                 )
-                                                Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+                                                Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                                                 Text(
                                                     text = item.title,
                                                     color = t.colors.foreground,
@@ -467,9 +469,9 @@ fun HomeScreen(
                             row.rowType == "leaving_soon" || row.title.contains("Leaving Soon", ignoreCase = true) -> {
                                 SectionHeader(row.title)
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.xxl)
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
                                 ) {
                                     items(uniqueItems, key = { item -> item.id }) { item ->
                                         val mediaItem = MediaItem(
@@ -480,12 +482,12 @@ fun HomeScreen(
                                             posterUrl = item.posterUrl,
                                             externalIds = item.externalIds
                                         )
-                                        Column(modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidth)) {
+                                        Column(modifier = Modifier.width(LumenLayout.epgMinBlockWidth)) {
                                             PosterCard(
                                                 imageUrl = item.posterUrl,
                                                 onClick = { onMediaClick(mediaItem) }
                                             )
-                                            Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
+                                            Spacer(modifier = Modifier.height(LumenLegacySpace.sm))
                                             Text(
                                                 text = "Leaves Mar 12",
                                                 style = MaterialTheme.typography.labelSmall,
@@ -501,12 +503,12 @@ fun HomeScreen(
                                 // Default RowSection item listing
                                 RowSection(
                                     title = row.title,
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                                 ) {
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                                        modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
+                                        contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                                        modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
                                     ) {
                                         items(uniqueItems, key = { item -> item.id }) { item ->
                                             val mediaItem = MediaItem(
@@ -520,7 +522,7 @@ fun HomeScreen(
                                             PosterCard(
                                                 imageUrl = item.posterUrl,
                                                 onClick = { onMediaClick(mediaItem) },
-                                                modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidth)
+                                                modifier = Modifier.width(LumenLayout.epgMinBlockWidth)
                                             )
                                         }
                                     }
@@ -543,7 +545,7 @@ private fun SectionHeader(title: String) {
         color = t.colors.foreground,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+        modifier = Modifier.padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
     )
 }
 
@@ -556,7 +558,7 @@ fun VODItemCard(
     val t = LocalLumenTokens.current
     Column(
         modifier = Modifier
-            .width(LumenTokens.Layout.epgMinBlockWidth)
+            .width(LumenLayout.epgMinBlockWidth)
             .clickable(onClick = onClick)
     ) {
         PosterCard(
@@ -571,7 +573,7 @@ fun VODItemCard(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = LumenTokens.Space.sm2)
+            modifier = Modifier.padding(top = LumenLegacySpace.sm2)
         )
         if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
             Text(
@@ -596,7 +598,7 @@ fun LiveChannelCard(
     val t = LocalLumenTokens.current
     LumenCard(
         modifier = Modifier
-            .width(LumenTokens.Layout.posterTileWidth)
+            .width(LumenLayout.posterTileWidth)
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -608,11 +610,11 @@ fun LiveChannelCard(
                 contentDescription = channelName,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(LumenTokens.Layout.iconXl)
+                    .size(LumenLayout.iconXl)
                     .clip(LumenTokens.Shape.md)
                     .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
-            Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+            Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
             Text(
                 text = channelName,
                 color = t.colors.foreground,

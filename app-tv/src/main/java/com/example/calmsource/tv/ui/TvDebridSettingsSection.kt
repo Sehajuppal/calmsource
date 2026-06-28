@@ -1,5 +1,8 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -35,21 +38,21 @@ fun TvDebridScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(LumenTokens.Space.xxl),
-        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl)
+            .padding(LumenLegacySpace.xxl),
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl)
     ) {
         LazyColumn(
             modifier = Modifier
                 .weight(0.45f)
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
         ) {
             item {
                 TvFocusCard(
                     onClick = onBack, 
                     modifier = Modifier
                         .wrapContentSize()
-                        .padding(bottom = LumenTokens.Space.sm2)
+                        .padding(bottom = LumenLegacySpace.sm2)
                         .focusRequester(stableFocusRequester)
                 ) {
                     Text(text = "← Back", color = TvColors.TextMain)
@@ -57,7 +60,7 @@ fun TvDebridScreen(onBack: () -> Unit) {
             }
             item {
                 Text(text = "Debrid Connect", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
-                Text(text = "Connect premium debrid servers for source availability", fontSize = 12.sp, color = TvColors.TextSub, modifier = Modifier.padding(bottom = LumenTokens.Space.md))
+                Text(text = "Connect premium debrid servers for source availability", fontSize = 12.sp, color = TvColors.TextSub, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
             }
 
             item {
@@ -87,7 +90,7 @@ fun TvDebridScreen(onBack: () -> Unit) {
             }
 
             item {
-                Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
             }
 
             item {
@@ -109,9 +112,9 @@ fun TvDebridScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     ) { isFocused ->
                         val healthColor = when (acc.health) {
-                            DebridAccountHealth.HEALTHY -> LumenTokens.Color.statusHealthy
+                            DebridAccountHealth.HEALTHY -> LumenExtendedColors.statusHealthy
                             DebridAccountHealth.SLOW -> LumenTokens.Color.warning
-                            DebridAccountHealth.FAILED -> LumenTokens.Color.errorBright
+                            DebridAccountHealth.FAILED -> LumenExtendedColors.errorBright
                         }
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -127,16 +130,16 @@ fun TvDebridScreen(onBack: () -> Unit) {
                                 )
                                 Text(
                                     text = "Status: Ready",
-                                    color = LumenTokens.Color.statusHealthy,
+                                    color = LumenExtendedColors.statusHealthy,
                                     fontSize = 12.sp,
-                                    modifier = Modifier.padding(top = LumenTokens.Space.xxs)
+                                    modifier = Modifier.padding(top = LumenLegacySpace.xxs)
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(LumenTokens.Shape.md)
                                     .background(healthColor.copy(alpha = 0.2f))
-                                    .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                    .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                             ) {
                                 Text(
                                     text = acc.health.name,
@@ -156,8 +159,8 @@ fun TvDebridScreen(onBack: () -> Unit) {
                 .weight(0.55f)
                 .fillMaxHeight()
                 .background(TvColors.Surface.copy(alpha = 0.5f), LumenTokens.Shape.md)
-                .padding(LumenTokens.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                .padding(LumenLegacySpace.lg),
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
         ) {
             if (selectedProviderForConnect != null) {
                 item {
@@ -234,11 +237,11 @@ fun TvDebridConnectFlow(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
+    Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
         Text(text = "Connect to $providerName", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
 
         if (connectionError != null) {
-            Text(text = "Connection failed: $connectionError", color = LumenTokens.Color.errorBright, fontSize = 14.sp)
+            Text(text = "Connection failed: $connectionError", color = LumenExtendedColors.errorBright, fontSize = 14.sp)
             val retryFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
             LaunchedEffect(connectionError) {
                 retryFocusRequester.requestFocus()
@@ -270,8 +273,8 @@ fun TvDebridConnectFlow(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(LumenTokens.Color.glassOverlay, LumenTokens.Shape.sm)
-                            .padding(LumenTokens.Space.xl),
+                            .background(LumenTokens.Color.glass, LumenTokens.Shape.sm)
+                            .padding(LumenLegacySpace.xl),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -287,7 +290,7 @@ fun TvDebridConnectFlow(
 
                     Box(
                         modifier = Modifier
-                            .size(LumenTokens.Layout.epgMinBlockWidth)
+                            .size(LumenLayout.epgMinBlockWidth)
                             .background(LumenTokens.Color.textPrimary, LumenTokens.Shape.md)
                             .align(Alignment.CenterHorizontally),
                         contentAlignment = Alignment.Center
@@ -327,8 +330,8 @@ fun TvDebridConnectFlow(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(LumenTokens.Color.glassOverlay, LumenTokens.Shape.sm)
-                            .padding(LumenTokens.Space.xl),
+                            .background(LumenTokens.Color.glass, LumenTokens.Shape.sm)
+                            .padding(LumenLegacySpace.xl),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -392,9 +395,9 @@ fun TvDebridAccountDetails(
     var showRawJson by remember { mutableStateOf(false) }
     val status = account.status
     val healthColor = when (account.health) {
-        DebridAccountHealth.HEALTHY -> LumenTokens.Color.statusHealthy
+        DebridAccountHealth.HEALTHY -> LumenExtendedColors.statusHealthy
         DebridAccountHealth.SLOW -> LumenTokens.Color.warning
-        DebridAccountHealth.FAILED -> LumenTokens.Color.errorBright
+        DebridAccountHealth.FAILED -> LumenExtendedColors.errorBright
     }
 
     val maskedToken = remember(account) {
@@ -403,15 +406,15 @@ fun TvDebridAccountDetails(
     }
 
     Text(text = account.providerName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain)
-    Text(text = "Status: Ready", fontSize = 14.sp, color = LumenTokens.Color.statusHealthy)
+    Text(text = "Status: Ready", fontSize = 14.sp, color = LumenExtendedColors.statusHealthy)
     
-    Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2), verticalAlignment = Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2), verticalAlignment = Alignment.CenterVertically) {
         Text(text = "Account Health:", color = TvColors.TextSub, fontSize = 13.sp)
         Box(
             modifier = Modifier
                 .clip(LumenTokens.Shape.md)
                 .background(healthColor.copy(alpha = 0.2f))
-                .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
         ) {
             Text(
                 text = account.health.name,
@@ -459,8 +462,8 @@ fun TvDebridAccountDetails(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(LumenTokens.Color.debridPanel, LumenTokens.Shape.sm)
-                .padding(LumenTokens.Space.sm2)
+                .background(LumenExtendedColors.debridPanel, LumenTokens.Shape.sm)
+                .padding(LumenLegacySpace.sm2)
         ) {
             Text(
                 text = rawJson,
@@ -477,7 +480,7 @@ fun TvDebridAccountDetails(
     ) { isFocused ->
         Text(
             text = "Disconnect Account",
-            color = if (isFocused) LumenTokens.Color.textPrimary else LumenTokens.Color.errorBright,
+            color = if (isFocused) LumenTokens.Color.textPrimary else LumenExtendedColors.errorBright,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)

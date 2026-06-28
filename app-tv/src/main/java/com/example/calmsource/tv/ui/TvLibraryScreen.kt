@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -90,8 +92,8 @@ fun TvLibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(LumenTokens.Space.xxl),
-        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+            .padding(LumenLegacySpace.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
             Text("Library", color = TvColors.TextMain, fontSize = 38.sp, fontWeight = FontWeight.Bold)
@@ -99,7 +101,7 @@ fun TvLibraryScreen(
                 "Continue watching, favorites, history, and recent channels",
                 color = TvColors.TextSub,
                 fontSize = 16.sp,
-                modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
         }
 
@@ -221,7 +223,7 @@ fun TvLibraryScreen(
             items(searches, key = { "search-${it.query.lowercase()}" }) { item ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                 ) {
                     TvFocusCard(
                         modifier = Modifier.weight(1f),
@@ -253,7 +255,7 @@ private fun TvLibraryHeader(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         TvFocusCard(
@@ -270,7 +272,7 @@ private fun TvLibraryHeader(
             )
         }
         if (hasItems) {
-            TvFocusCard(modifier = Modifier.width(LumenTokens.Layout.clearButtonWidthTv), onClick = onClear) { focused ->
+            TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClear) { focused ->
                 Text(
                     "Clear",
                     color = if (focused) TvColors.TextMain else TvColors.BorderFocused,
@@ -291,7 +293,7 @@ private fun TvMemoryRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         TvFocusCard(modifier = Modifier.weight(1f), onClick = onOpen) { focused ->
@@ -317,14 +319,14 @@ private fun TvMemoryRow(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = LumenTokens.Space.sm2)
-                            .height(LumenTokens.Layout.progressHeight)
+                            .padding(top = LumenLegacySpace.sm2)
+                            .height(LumenLayout.progressHeight)
                             .background(TvColors.Surface)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress)
-                                .height(LumenTokens.Layout.progressHeight)
+                                .height(LumenLayout.progressHeight)
                                 .background(TvColors.BorderFocused)
                         )
                     }
@@ -337,7 +339,7 @@ private fun TvMemoryRow(
 
 @Composable
 private fun TvRemoveAction(onClick: () -> Unit) {
-    TvFocusCard(modifier = Modifier.width(LumenTokens.Layout.clearButtonWidthTv), onClick = onClick) { focused ->
+    TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClick) { focused ->
         Text(
             "Remove",
             color = if (focused) TvColors.TextMain else TvColors.TextSub,
@@ -349,7 +351,7 @@ private fun TvRemoveAction(onClick: () -> Unit) {
 
 @Composable
 private fun TvEmptyMemory(message: String) {
-    Text(message, color = TvColors.TextSub, fontSize = 15.sp, modifier = Modifier.padding(bottom = LumenTokens.Space.sm2))
+    Text(message, color = TvColors.TextSub, fontSize = 15.sp, modifier = Modifier.padding(bottom = LumenLegacySpace.sm2))
 }
 
 private fun progressLabel(progressMs: Long, durationMs: Long): String {

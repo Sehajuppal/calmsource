@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import android.widget.FrameLayout
@@ -61,6 +63,9 @@ import com.example.calmsource.core.model.ResourcePlaybackState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import kotlinx.coroutines.delay
+import com.example.calmsource.feature.player.PlayerChrome
+import com.example.calmsource.feature.player.PlayerActions
+import com.example.calmsource.feature.player.buildPlayerChromeState
 import com.example.calmsource.core.ui.components.*
 import com.example.calmsource.core.ui.theme.*
 
@@ -112,10 +117,7 @@ fun TvPlayerScreen(
     val showSubtitlePicker = remember(subtitleTracks) { subtitleTracks.isNotEmpty() }
     val subtitlesOff = remember(subtitleTracks) { subtitleTracks.none { it.isSelected } }
     
-    var showControls by remember { mutableStateOf(true) }
     var showChannelSwitcher by remember { mutableStateOf(false) }
-    var showTrackSelector by remember { mutableStateOf(false) }
-    var trackSelectorType by remember { mutableStateOf(TrackType.AUDIO) }
     var activeRequest by remember { mutableStateOf(request) }
     var successRecorded by remember(activeRequest.source.id) { mutableStateOf(false) }
     var failureRecorded by remember(activeRequest.source.id) { mutableStateOf(false) }
@@ -133,6 +135,15 @@ fun TvPlayerScreen(
         initialValue = emptyList<IPTVChannel>()
     )
     val channels = remember(iptvChannelsFlowCollected) { iptvChannelsFlowCollected }
+    val currentIndex = remember(activeRequest, channels) {
+        channels.indexOfFirst { it.id == activeRequest.source.id }
+    }
+
+    fun switchChannel(offset: Int) {
+        if (channels.isEmpty() || currentIndex == -1) return
+        val nextIndex = (currentIndex + offset + channels.size) % channels.size
+        activeRequest = IPTVRepository.buildLivePlaybackRequest(channels[nextIndex])
+    }
 
     val iptvPlaybackError by com.example.calmsource.feature.iptv.IPTVRepository.playbackResolutionError.collectAsStateWithLifecycle(initialValue = null)
 
@@ -143,9 +154,6 @@ fun TvPlayerScreen(
     val uiStateLatest = rememberUpdatedState(uiState)
 
     LaunchedEffect(uiState.error, activeRequest.source.id) {
-        if (uiState.error != null) {
-            showTrackSelector = false
-        }
         val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(
             com.example.calmsource.core.playback.FallbackPreferences.policy
         )
@@ -218,24 +226,9 @@ fun TvPlayerScreen(
         }
     }
  
-    var userInteractionTrigger by remember { mutableStateOf(0) }
     val retryTrigger = remember { mutableIntStateOf(0) }
     
-    // Focus Requesters for all key overlay controls
-    val playPauseFocusRequester = remember { FocusRequester() }
-    val channelsButtonFocusRequester = remember { FocusRequester() }
-    val audioButtonFocusRequester = remember { FocusRequester() }
-    val subtitleButtonFocusRequester = remember { FocusRequester() }
-    val seekMinusFocusRequester = remember { FocusRequester() }
-    val seekPlusFocusRequester = remember { FocusRequester() }
-    
     val channelSwitcherFocusRequester = remember { FocusRequester() }
-    val trackSelectorFocusRequester = remember { FocusRequester() }
-    val progressBarFocusRequester = remember { FocusRequester() }
-    val screenFocusRequester = remember { FocusRequester() }
-
-    // Focus Memory
-    var lastFocusedControl by rememberSaveable { mutableStateOf("play_pause") }
 
     LaunchedEffect(showChannelSwitcher) {
         if (showChannelSwitcher) {
@@ -244,17 +237,6 @@ fun TvPlayerScreen(
                 channelSwitcherFocusRequester.requestFocus()
             } catch (e: Exception) {
                 Log.w("TvPlayerScreen", "Failed to request channel switcher focus", e)
-            }
-        }
-    }
-
-    LaunchedEffect(showTrackSelector) {
-        if (showTrackSelector) {
-            delay(100)
-            try {
-                trackSelectorFocusRequester.requestFocus()
-            } catch (e: Exception) {
-                Log.w("TvPlayerScreen", "Failed to request track selector focus", e)
             }
         }
     }
@@ -269,42 +251,6 @@ fun TvPlayerScreen(
         }
     }
 
-    // Auto-hide controls (only while playing)
-    LaunchedEffect(showControls, userInteractionTrigger, uiState.playerState) {
-        if (showControls && uiState.playerState == PlayerState.PLAYING) {
-            delay(5000)
-            if (!showChannelSwitcher && !showTrackSelector) showControls = false
-        }
-    }
-
-    // Focus Restoration when controls re-appear
-    LaunchedEffect(showControls, showChannelSwitcher, showTrackSelector) {
-        if (showControls) {
-            if (!showChannelSwitcher && !showTrackSelector) {
-                delay(100)
-                try {
-                    when (lastFocusedControl) {
-                        "play_pause" -> playPauseFocusRequester.requestFocus()
-                        "channels" -> if (isLive) channelsButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
-                        "audio" -> if (showMultipleAudio) audioButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
-                        "subs" -> if (showSubtitlePicker) subtitleButtonFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
-                        "seek_minus" -> if (!isLive) seekMinusFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
-                        "seek_plus" -> if (!isLive) seekPlusFocusRequester.requestFocus() else playPauseFocusRequester.requestFocus()
-                        else -> playPauseFocusRequester.requestFocus()
-                    }
-                } catch (e: Exception) {
-                    playPauseFocusRequester.requestFocus()
-                }
-            }
-        } else {
-            try {
-                screenFocusRequester.requestFocus()
-            } catch (e: Exception) {
-                Log.w("TvPlayerScreen", "Failed to request screen focus", e)
-            }
-        }
-    }
- 
     val fallbackSourcesState = rememberUpdatedState(fallbackSources)
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -435,16 +381,49 @@ fun TvPlayerScreen(
     }
 
     androidx.activity.compose.BackHandler(enabled = true) {
-        if (showTrackSelector) {
-            showTrackSelector = false
-        } else if (showChannelSwitcher) {
+        if (showChannelSwitcher) {
             showChannelSwitcher = false
-        } else if (showControls) {
-            showControls = false
         } else {
             onBack()
         }
     }
+
+    val playerTitle = uiState.source?.title ?: activeRequest.source.title
+    val playerChromeState = buildPlayerChromeState(
+        title = playerTitle,
+        exoState = uiState.playerState,
+        progress = progressState,
+        audioTracks = audioTracks,
+        subtitleTracks = subtitleTracks,
+        isLive = isLive,
+        hasNext = isLive && currentIndex != -1 && channels.size > 1,
+        hasPrev = isLive && currentIndex != -1 && channels.size > 1,
+    )
+    val playerChromeActions = PlayerActions(
+        onPlayPause = {
+            if (uiState.playerState == PlayerState.PLAYING) playbackManager.pause()
+            else playbackManager.play()
+        },
+        onSeekTo = playbackManager::seekTo,
+        onSeekRelative = { delta ->
+            val duration = progressState.durationMs
+            val target = progressState.currentPositionMs + delta
+            playbackManager.seekTo(
+                when {
+                    duration > 0L && delta > 0 -> target.coerceAtMost(duration)
+                    else -> target.coerceAtLeast(0L)
+                },
+            )
+        },
+        onSelectAudio = { playbackManager.selectAudioTrack(it.id) },
+        onSelectSubtitle = { track ->
+            if (track.id == "off") playbackManager.disableSubtitles()
+            else playbackManager.selectSubtitleTrack(track.id)
+        },
+        onNext = { switchChannel(1) },
+        onPrev = { switchChannel(-1) },
+        onClose = onBack,
+    )
  
     val player by playbackManager.playerFlow.collectAsStateWithLifecycle()
 
@@ -468,26 +447,14 @@ fun TvPlayerScreen(
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
                     when (event.key) {
-                        Key.DirectionCenter, Key.Enter, Key.DirectionUp, Key.DirectionDown -> {
-                            if (!showControls && !showChannelSwitcher && !showTrackSelector && uiState.error == null) {
-                                showControls = true
-                                true
-                            } else false
-                        }
                         Key.DirectionLeft -> {
-                            if (!showControls && !showChannelSwitcher && !showTrackSelector &&
-                                uiState.error == null && channels.isNotEmpty()
-                            ) {
+                            if (!showChannelSwitcher && uiState.error == null && isLive && channels.isNotEmpty()) {
                                 showChannelSwitcher = true
                                 true
                             } else false
                         }
                         Key.DirectionRight -> {
-                            if (showTrackSelector) {
-                                showTrackSelector = false
-                                userInteractionTrigger++
-                                true
-                            } else if (showChannelSwitcher) {
+                            if (showChannelSwitcher) {
                                 showChannelSwitcher = false
                                 true
                             } else false
@@ -495,20 +462,17 @@ fun TvPlayerScreen(
                         Key.MediaPlayPause -> {
                             if (uiState.playerState == PlayerState.PLAYING) playbackManager.pause()
                             else playbackManager.play()
-                            userInteractionTrigger++
                             true
                         }
                         Key.MediaRewind -> {
                             val newPos = (progressState.currentPositionMs - 10_000L).coerceAtLeast(0L)
                             playbackManager.seekTo(newPos)
-                            userInteractionTrigger++
                             true
                         }
                         Key.MediaFastForward -> {
                             val target = progressState.currentPositionMs + 10_000L
                             val duration = progressState.durationMs
                             playbackManager.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
-                            userInteractionTrigger++
                             true
                         }
                         Key.MediaStop -> {
@@ -516,41 +480,23 @@ fun TvPlayerScreen(
                             true
                         }
                         Key.MediaNext -> {
-                            val isLive = activeRequest.source.metadata?.isLive == true
-                            if (isLive) {
-                                val currentIdx = channels.indexOfFirst { it.id == activeRequest.source.id }
-                                val nextIdx = if (currentIdx >= 0) (currentIdx + 1) % channels.size else 0
-                                if (channels.isNotEmpty()) {
-                                    activeRequest = com.example.calmsource.feature.iptv.IPTVRepository.buildLivePlaybackRequest(channels[nextIdx])
-                                }
-                            } else {
+                            if (isLive) switchChannel(1)
+                            else {
                                 val target = progressState.currentPositionMs + 10_000L
                                 val duration = progressState.durationMs
                                 playbackManager.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
                             }
-                            userInteractionTrigger++
                             true
                         }
                         Key.MediaPrevious -> {
-                            val isLive = activeRequest.source.metadata?.isLive == true
-                            if (isLive) {
-                                val currentIdx = channels.indexOfFirst { it.id == activeRequest.source.id }
-                                val prevIdx = if (currentIdx >= 0) (currentIdx - 1 + channels.size) % channels.size else 0
-                                if (channels.isNotEmpty()) {
-                                    activeRequest = com.example.calmsource.feature.iptv.IPTVRepository.buildLivePlaybackRequest(channels[prevIdx])
-                                }
-                            } else {
-                                val newPos = (progressState.currentPositionMs - 10_000L).coerceAtLeast(0L)
-                                playbackManager.seekTo(newPos)
-                            }
-                            userInteractionTrigger++
+                            if (isLive) switchChannel(-1)
+                            else playbackManager.seekTo((progressState.currentPositionMs - 10_000L).coerceAtLeast(0L))
                             true
                         }
                         else -> false
                     }
                 } else false
             }
-            .focusRequester(screenFocusRequester)
             .focusable()
     ) {
         AndroidView(
@@ -581,25 +527,15 @@ fun TvPlayerScreen(
         val fallbackMsg = uiState.fallbackMessage
         val isTransitioning = uiState.isTransitioningSource || !fallbackMsg.isNullOrBlank()
 
-        // Buffering loader
-        if (!isTransitioning && (uiState.playerState == PlayerState.BUFFERING || uiState.playerState == PlayerState.PREPARING)) {
-            LumenBufferingOverlay(
-                isBuffering = true,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
- 
-        // Fallback progress state overlay
         if (isTransitioning) {
             val displayMsg = if (!fallbackMsg.isNullOrBlank()) fallbackMsg else "Trying alternative track..."
             LumenBufferingOverlay(
                 isBuffering = true,
                 text = displayMsg,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
-        // Error display
         val currentError = uiState.error
         if (currentError != null && (uiState.isTerminal || !isTransitioning)) {
             TvErrorOverlay(
@@ -614,243 +550,33 @@ fun TvPlayerScreen(
                     onBack()
                 },
                 onRetry = { retryTrigger.intValue++ },
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
-        }
- 
-        // Overlay Controls
-        AnimatedVisibility(
-            visible = showControls && uiState.error == null,
-            enter = PlayerOverlayMotion.fadeIn,
-            exit = PlayerOverlayMotion.fadeOut,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                LumenTokens.Color.bg.copy(alpha = 0.8f),
-                                Color.Transparent,
-                                LumenTokens.Color.bg.copy(alpha = 0.9f)
-                            )
-                        )
+        } else if (uiState.error == null) {
+            PlayerChrome(
+                state = playerChromeState,
+                actions = playerChromeActions,
+                isTv = true,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (isLive) {
+                TvFocusable(
+                    onClick = { showChannelSwitcher = true },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(LumenLegacySpace.xl),
+                ) {
+                    Text(
+                        text = "Channels",
+                        color = t.colors.foreground,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
                     )
-            ) {
-                // Top Status Bar (Glass pane)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopStart)
-                        .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.xl)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(t.colors.brand.copy(alpha = 0.2f), LumenTokens.Shape.sm)
-                                .padding(horizontal = LumenTokens.Radius.sm, vertical = LumenTokens.Layout.progressHeight)
-                        ) {
-                            Text(
-                                text = if (activeRequest.source.metadata?.isLive == true) "LIVE TV"
-                                    else activeRequest.source.type.name.replace('_', ' '),
-                                color = t.colors.brandGlow,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Text(
-                            text = "Press Back to hide controls",
-                            color = t.colors.mutedForeground,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                // Bottom Info & Controls Panel (Glass pane)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomStart)
-                        .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = LumenTokens.Layout.iconXl, vertical = LumenTokens.Space.xxl)
-                ) {
-                    Column {
-                        Text(
-                            text = uiState.source?.title ?: activeRequest.source.title,
-                            color = t.colors.foreground,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        
-                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
-
-                        // Controls Row
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val isLive = uiState.source?.metadata?.isLive == true || activeRequest.source.metadata?.isLive == true
-
-                            if (isLive) {
-                                TvFocusable(
-                                    onClick = {
-                                        userInteractionTrigger++
-                                        showChannelSwitcher = true
-                                    },
-                                    modifier = Modifier
-                                        .focusRequester(channelsButtonFocusRequester)
-                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "channels" }
-                                ) {
-                                    Text(
-                                        text = "Channels",
-                                        color = t.colors.foreground,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                    )
-                                }
-                            }
-                            
-                            if (!isLive) {
-                                TvFocusable(
-                                    onClick = {
-                                        userInteractionTrigger++
-                                        val currentPos = progressState.currentPositionMs
-                                        val newPos = (currentPos - 10000L).coerceAtLeast(0L)
-                                        playbackManager.seekTo(newPos)
-                                    },
-                                    modifier = Modifier
-                                        .focusRequester(seekMinusFocusRequester)
-                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "seek_minus" }
-                                ) {
-                                    Text(
-                                        text = "-10s",
-                                        color = t.colors.foreground,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                    )
-                                }
-                            }
-
-                            val isPlaying = uiState.playerState == PlayerState.PLAYING
-                            TvFocusable(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    if (isPlaying) {
-                                        playbackManager.pause()
-                                    } else {
-                                        playbackManager.play()
-                                    }
-                                },
-                                modifier = Modifier
-                                    .focusRequester(playPauseFocusRequester)
-                                    .onFocusChanged { if (it.isFocused) lastFocusedControl = "play_pause" }
-                            ) {
-                                Text(
-                                    text = if (isPlaying) "Pause" else "Play",
-                                    color = t.colors.foreground,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                )
-                            }
-
-                            if (showMultipleAudio) {
-                                TvFocusable(
-                                    onClick = {
-                                        userInteractionTrigger++
-                                        trackSelectorType = TrackType.AUDIO
-                                        showTrackSelector = true
-                                    },
-                                    modifier = Modifier
-                                        .focusRequester(audioButtonFocusRequester)
-                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "audio" }
-                                ) {
-                                    Text(
-                                        text = "Audio",
-                                        color = t.colors.foreground,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                    )
-                                }
-                            }
-
-                            if (showSubtitlePicker) {
-                                TvFocusable(
-                                    onClick = {
-                                        userInteractionTrigger++
-                                        trackSelectorType = TrackType.SUBTITLE
-                                        showTrackSelector = true
-                                    },
-                                    modifier = Modifier
-                                        .focusRequester(subtitleButtonFocusRequester)
-                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "subs" }
-                                ) {
-                                    Text(
-                                        text = "Subs",
-                                        color = t.colors.foreground,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                    )
-                                }
-                            }
-
-                            if (!isLive) {
-                                TvFocusable(
-                                    onClick = {
-                                        userInteractionTrigger++
-                                        val currentPos = progressState.currentPositionMs
-                                        val duration = progressState.durationMs
-                                        val newPos = (currentPos + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
-                                        playbackManager.seekTo(newPos)
-                                    },
-                                    modifier = Modifier
-                                        .focusRequester(seekPlusFocusRequester)
-                                        .onFocusChanged { if (it.isFocused) lastFocusedControl = "seek_plus" }
-                                ) {
-                                    Text(
-                                        text = "+10s",
-                                        color = t.colors.foreground,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
-                        
-                        if (isLive) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(LumenTokens.Space.sm2).clip(LumenTokens.Shape.md).background(t.colors.destructive))
-                                Spacer(modifier = Modifier.width(LumenTokens.Space.sm2))
-                                Text(text = "LIVE", color = t.colors.foreground, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.height(LumenTokens.Space.md))
-                            TvProgressBar(
-                                progressState = progressState,
-                                playbackManager = playbackManager,
-                                focusRequester = progressBarFocusRequester,
-                                onUserInteraction = { userInteractionTrigger++ }
-                            )
-                        }
-                    }
                 }
             }
         }
- 
+
         // Channel Switcher Sidebar
         AnimatedVisibility(
             visible = showChannelSwitcher && uiState.error == null,
@@ -861,10 +587,10 @@ fun TvPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(LumenTokens.Layout.panelWidthTv)
+                    .width(LumenLayout.panelWidthTv)
                     .background(t.colors.card.copy(alpha = 0.95f))
                     .border(1.dp, t.colors.border)
-                    .padding(LumenTokens.Space.xxl)
+                    .padding(LumenLegacySpace.xxl)
             ) {
                 Text(
                     text = "Live Channels",
@@ -877,7 +603,7 @@ fun TvPlayerScreen(
                     color = t.colors.mutedForeground,
                     fontSize = 14.sp
                 )
-                Spacer(modifier = Modifier.height(LumenTokens.Layout.iconMd))
+                Spacer(modifier = Modifier.height(LumenLayout.iconMd))
                 if (channels.isEmpty()) {
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -889,7 +615,7 @@ fun TvPlayerScreen(
                                 color = t.colors.mutedForeground,
                                 fontSize = 16.sp
                             )
-                            Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                            Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                             TvFocusable(
                                 modifier = Modifier.focusRequester(channelSwitcherFocusRequester),
                                 onClick = { showChannelSwitcher = false }
@@ -897,14 +623,14 @@ fun TvPlayerScreen(
                                 Text(
                                     text = "Close",
                                     color = t.colors.foreground,
-                                    modifier = Modifier.padding(LumenTokens.Space.md)
+                                    modifier = Modifier.padding(LumenLegacySpace.md)
                                 )
                             }
                         }
                     }
                 } else {
                     androidx.compose.foundation.lazy.LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                         modifier = Modifier.weight(1f)
                     ) {
                         itemsIndexed(channels, key = { _, channel -> channel.id }) { index, channel ->
@@ -923,94 +649,11 @@ fun TvPlayerScreen(
                                     text = if (channel.id == activeRequest.source.id) "Playing  ${channel.name}" else channel.name,
                                     color = if (channel.id == activeRequest.source.id) t.colors.brandGlow else t.colors.foreground,
                                     fontWeight = if (channel.id == activeRequest.source.id) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(LumenTokens.Space.md),
+                                    modifier = Modifier.padding(LumenLegacySpace.md),
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                             }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Track Selector Sidebar
-        AnimatedVisibility(
-            visible = showTrackSelector && uiState.error == null,
-            enter = PlayerOverlayMotion.fadeIn,
-            exit = PlayerOverlayMotion.fadeOut,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(LumenTokens.Layout.panelWidthTv)
-                    .background(t.colors.card.copy(alpha = 0.95f))
-                    .border(1.dp, t.colors.border)
-                    .padding(LumenTokens.Space.xxl)
-                    .onKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.Back) {
-                            showTrackSelector = false
-                            true
-                        } else false
-                    }
-            ) {
-                Text(
-                    text = if (trackSelectorType == TrackType.AUDIO) "Audio Track" else "Subtitles",
-                    color = t.colors.foreground,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(LumenTokens.Layout.iconMd))
-
-                androidx.compose.foundation.lazy.LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (trackSelectorType == TrackType.AUDIO) {
-                        itemsIndexed(audioTracks, key = { _, track -> track.id }) { index, track ->
-                            TvTrackRow(
-                                label = TrackLanguageFormatter.trackLabel(track.name, track.language),
-                                subtitle = TrackLanguageFormatter.displayLanguage(track.language),
-                                selected = track.isSelected,
-                                onClick = {
-                                    playbackManager.selectAudioTrack(track.id)
-                                    showTrackSelector = false
-                                    userInteractionTrigger++
-                                },
-                                modifier = if (index == 0) {
-                                    Modifier.focusRequester(trackSelectorFocusRequester).fillMaxWidth()
-                                } else {
-                                    Modifier.fillMaxWidth()
-                                }
-                            )
-                        }
-                    } else {
-                        item(key = "subtitles-off") {
-                            TvTrackRow(
-                                label = "Off",
-                                subtitle = null,
-                                selected = subtitlesOff,
-                                onClick = {
-                                    playbackManager.disableSubtitles()
-                                    showTrackSelector = false
-                                    userInteractionTrigger++
-                                },
-                                modifier = Modifier.focusRequester(trackSelectorFocusRequester).fillMaxWidth()
-                            )
-                        }
-                        items(subtitleTracks, key = { it.id }) { track ->
-                            TvTrackRow(
-                                label = TrackLanguageFormatter.trackLabel(track.name, track.language),
-                                subtitle = TrackLanguageFormatter.displayLanguage(track.language),
-                                selected = track.isSelected,
-                                onClick = {
-                                    playbackManager.selectSubtitleTrack(track.id)
-                                    showTrackSelector = false
-                                    userInteractionTrigger++
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         }
                     }
                 }
@@ -1033,7 +676,7 @@ private fun TvTrackRow(
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+            modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1085,7 +728,7 @@ fun TvErrorOverlay(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.widthIn(max = LumenTokens.Layout.playerSheetMaxWidth)
+            modifier = Modifier.widthIn(max = LumenLayout.playerSheetMaxWidth)
         ) {
             val explanation = when (error) {
                 is PlaybackError.Network -> "A network connection error occurred. Please check your internet connection."
@@ -1112,10 +755,10 @@ fun TvErrorOverlay(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(LumenTokens.Space.xxxl))
+            Spacer(modifier = Modifier.height(LumenLegacySpace.xxxl))
             
             Row(
-                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onTryNext != null) {
@@ -1128,7 +771,7 @@ fun TvErrorOverlay(
                             color = t.colors.foreground,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                            modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                         )
                     }
                 }
@@ -1142,7 +785,7 @@ fun TvErrorOverlay(
                         color = t.colors.foreground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                        modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                     )
                 }
             }
@@ -1171,7 +814,7 @@ fun TvProgressBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(LumenTokens.Space.sm2)
+                .height(LumenLegacySpace.sm2)
                 .clip(LumenTokens.Shape.md)
                 .background(t.colors.muted.copy(alpha = 0.5f))
                 .focusRequester(focusRequester)
@@ -1203,7 +846,7 @@ fun TvProgressBar(
                     modifier = Modifier
                         .fillMaxSize()
                         .border(
-                            width = LumenTokens.Space.xxs,
+                            width = LumenLegacySpace.xxs,
                             color = t.colors.brand,
                             shape = LumenTokens.Shape.md
                         )
@@ -1222,7 +865,7 @@ fun TvProgressBar(
                     .background(t.colors.brand)
             )
         }
-        Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+        Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
         Text(
             text = "${formatTime(progressState.currentPositionMs)} / ${formatTime(progressState.durationMs)}",
             color = t.colors.foreground,

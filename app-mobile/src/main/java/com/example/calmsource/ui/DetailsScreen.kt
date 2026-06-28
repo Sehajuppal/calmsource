@@ -1,5 +1,8 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.activity.compose.BackHandler
@@ -483,23 +486,23 @@ fun DetailsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(LumenTokens.Space.xxl),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                    .padding(LumenLegacySpace.xxl),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
-                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.detailsSkeletonHero))
-                LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.tileWidthMd).height(LumenTokens.Space.xxxl))
-                Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)) {
-                    LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.skeletonChipWidth).height(LumenTokens.Space.xxl))
-                    LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.skeletonChipWidth).height(LumenTokens.Space.xxl))
+                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenLayout.detailsSkeletonHero))
+                LumenSkeleton(modifier = Modifier.width(LumenLayout.tileWidthMd).height(LumenLegacySpace.xxxl))
+                Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)) {
+                    LumenSkeleton(modifier = Modifier.width(LumenLayout.skeletonChipWidth).height(LumenLegacySpace.xxl))
+                    LumenSkeleton(modifier = Modifier.width(LumenLayout.skeletonChipWidth).height(LumenLegacySpace.xxl))
                 }
-                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.epgMinBlockWidth))
+                LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenLayout.epgMinBlockWidth))
             }
         } else {
             // Full-bleed Backdrop Hero with bottom-up gradient scrim
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(LumenTokens.Layout.detailsHeroHeight)
+                    .height(LumenLayout.detailsHeroHeight)
             ) {
                 AsyncImage(
                     model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
@@ -535,13 +538,13 @@ fun DetailsScreen(
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = LumenTokens.Layout.detailsContentTop, bottom = LumenTokens.Space.xxxl)
+                contentPadding = PaddingValues(top = LumenLayout.detailsContentTop, bottom = LumenLegacySpace.xxxl)
             ) {
                 item(key = "title_block") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = LumenTokens.Space.xxl)
+                            .padding(horizontal = LumenLegacySpace.xxl)
                     ) {
                         // Title / Logo
                         if (!stremioMeta?.logo.isNullOrEmpty()) {
@@ -550,8 +553,8 @@ fun DetailsScreen(
                                 contentDescription = currentMediaItem.title,
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
-                                    .padding(vertical = LumenTokens.Space.md)
-                                    .height(LumenTokens.Layout.avatarLg)
+                                    .padding(vertical = LumenLegacySpace.md)
+                                    .height(LumenLayout.avatarLg)
                             )
                         } else {
                             Text(
@@ -559,15 +562,15 @@ fun DetailsScreen(
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.foreground,
-                                modifier = Modifier.padding(vertical = LumenTokens.Space.md)
+                                modifier = Modifier.padding(vertical = LumenLegacySpace.md)
                             )
                         }
 
                         // Meta Chips (Year · Runtime · Rating)
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                            modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                         ) {
                             val year = currentMediaItem.releaseDate?.substringBefore("-") ?: stremioMeta?.releaseInfo ?: ""
                             val rating = currentMediaItem.rating?.toString() ?: stremioMeta?.imdbRating
@@ -580,7 +583,7 @@ fun DetailsScreen(
                                 MetaChip(text = duration)
                             }
                             if (!rating.isNullOrBlank()) {
-                                MetaChip(text = "★ $rating", color = LumenTokens.Color.ratingGold)
+                                MetaChip(text = "★ $rating", color = LumenExtendedColors.ratingGold)
                             }
                         }
 
@@ -594,7 +597,7 @@ fun DetailsScreen(
                                 color = t.colors.mutedForeground,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                                modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                             )
                         }
 
@@ -605,7 +608,7 @@ fun DetailsScreen(
                                     items = genres,
                                     selected = null,
                                     onSelect = {},
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.lg).offset(x = (-LumenTokens.Space.xxl))
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.lg).offset(x = (-LumenLegacySpace.xxl))
                                 )
                             }
                         }
@@ -614,9 +617,9 @@ fun DetailsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = LumenTokens.Space.md),
+                                .padding(vertical = LumenLegacySpace.md),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                         ) {
                             // Back Button
                             IconButton(
@@ -662,7 +665,7 @@ fun DetailsScreen(
                         // Synopsis (Expandable)
                         var isExpanded by remember { mutableStateOf(false) }
                         val overviewText = currentMediaItem.overview ?: stremioMeta?.description ?: "No description available."
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.sm2)) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = LumenLegacySpace.sm2)) {
                             Text(
                                 text = overviewText,
                                 fontSize = 14.sp,
@@ -679,7 +682,7 @@ fun DetailsScreen(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .clickable { isExpanded = !isExpanded }
-                                        .padding(top = LumenTokens.Space.sm)
+                                        .padding(top = LumenLegacySpace.sm)
                                 )
                             }
                         }
@@ -693,17 +696,17 @@ fun DetailsScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.sm2)
+                                    .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.sm2)
                             ) {
                                 Text(
                                     text = "Seasons",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = t.colors.foreground,
-                                    modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                                    modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                                 )
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     items(seasons) { season ->
@@ -730,19 +733,19 @@ fun DetailsScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = LumenTokens.Space.md)
+                                    .padding(vertical = LumenLegacySpace.md)
                             ) {
                                 Text(
                                     text = "Episodes",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = t.colors.foreground,
-                                    modifier = Modifier.padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, bottom = LumenTokens.Space.md)
+                                    modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.md)
                                 )
                                 LazyRow(
                                     state = currentSeasonScrollState,
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     items(episodesForSelectedSeason, key = { it.id ?: "${it.season}:${it.episode}" }) { video ->
@@ -771,9 +774,9 @@ fun DetailsScreen(
                         Text(
                             text = "Subtitles: $langs",
                             fontSize = 13.sp,
-                            color = LumenTokens.Color.statusHealthy,
+                            color = LumenExtendedColors.statusHealthy,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+                            modifier = Modifier.padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                         )
                     }
                 }
@@ -783,11 +786,11 @@ fun DetailsScreen(
                     item(key = "similar_items") {
                         RowSection(
                             title = "More Like This",
-                            modifier = Modifier.padding(top = LumenTokens.Space.lg)
+                            modifier = Modifier.padding(top = LumenLegacySpace.lg)
                         ) {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = LumenTokens.Space.xxl),
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                                contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                             ) {
                                 items(similarItems, key = { "similar-${it.id}" }) { item ->
                                     val similarMedia = MediaItem(
@@ -801,7 +804,7 @@ fun DetailsScreen(
                                     PosterCard(
                                         imageUrl = similarMedia.posterUrl,
                                         onClick = { onOpenMedia(similarMedia) },
-                                        modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidth)
+                                        modifier = Modifier.width(LumenLayout.epgMinBlockWidth)
                                     )
                                 }
                             }
@@ -816,14 +819,14 @@ fun DetailsScreen(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = t.colors.foreground,
-                        modifier = Modifier.padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, top = LumenTokens.Space.xl, bottom = LumenTokens.Space.md)
+                        modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, top = LumenLegacySpace.xl, bottom = LumenLegacySpace.md)
                     )
                 }
 
                 item(key = "alternative_options") {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
-                        modifier = Modifier.padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, bottom = LumenTokens.Space.xxl)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                        modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.xxl)
                     ) {
                         val iptvRes = remember(iptvOption) { iptvOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
                         if (iptvOption != null && iptvRes != null) {
@@ -886,7 +889,7 @@ fun DetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { isAdvancedExpanded = !isAdvancedExpanded }
-                            .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+                            .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                     ) {
                         Text(
                             text = "Advanced - Manual Sources (${sortedOptions.size})",
@@ -910,7 +913,7 @@ fun DetailsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, bottom = LumenTokens.Space.sm2)
+                                .padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.sm2)
                         ) {
                             Text(
                                 text = "Show Raw Details",
@@ -928,10 +931,10 @@ fun DetailsScreen(
                     item(key = "sort_strategies") {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, bottom = LumenTokens.Space.md)
+                                .padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.md)
                         ) {
                             Text(
                                 text = "Sort Strategy:",
@@ -944,7 +947,7 @@ fun DetailsScreen(
                                     .clip(LumenTokens.Shape.lg)
                                     .background(if (sortingPreference == SortingPreference.BEST_MATCH) t.colors.brand else t.colors.muted)
                                     .clickable { sortingPreference = SortingPreference.BEST_MATCH }
-                                    .padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm)
+                                    .padding(horizontal = LumenLegacySpace.md, vertical = LumenLegacySpace.sm)
                             ) {
                                 Text(
                                     text = "Best Match",
@@ -958,7 +961,7 @@ fun DetailsScreen(
                                     .clip(LumenTokens.Shape.lg)
                                     .background(if (sortingPreference == SortingPreference.HIGHEST_QUALITY) t.colors.brand else t.colors.muted)
                                     .clickable { sortingPreference = SortingPreference.HIGHEST_QUALITY }
-                                    .padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm)
+                                    .padding(horizontal = LumenLegacySpace.md, vertical = LumenLegacySpace.sm)
                             ) {
                                 Text(
                                     text = "Highest Quality",
@@ -971,7 +974,7 @@ fun DetailsScreen(
                     }
 
                     items(sortedOptionsWithScores, key = { it.first.id }) { (option, score) ->
-                        Box(modifier = Modifier.padding(start = LumenTokens.Space.xxl, end = LumenTokens.Space.xxl, bottom = LumenTokens.Radius.sm)) {
+                        Box(modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenTokens.Radius.sm)) {
                             ManualSourceItem(
                                 option = option,
                                 score = score,
@@ -983,7 +986,7 @@ fun DetailsScreen(
                     }
 
                     item(key = "advanced_bottom_spacer") {
-                        Spacer(modifier = Modifier.height(LumenTokens.Layout.spacerMd))
+                        Spacer(modifier = Modifier.height(LumenLayout.spacerMd))
                     }
                 }
             }
@@ -1001,7 +1004,7 @@ private fun MetaChip(
         modifier = Modifier
             .clip(LumenTokens.Shape.xs)
             .background(t.colors.muted)
-            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
     ) {
         Text(
             text = text,
@@ -1023,7 +1026,7 @@ private fun EpisodeRow(
     val t = LocalLumenTokens.current
     Column(
         modifier = Modifier
-            .width(LumenTokens.Layout.channelPanelWidth)
+            .width(LumenLayout.channelPanelWidth)
             .clickable(onClick = onClick)
     ) {
         PosterCard(
@@ -1040,7 +1043,7 @@ private fun EpisodeRow(
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = LumenTokens.Space.sm2)
+            modifier = Modifier.padding(top = LumenLegacySpace.sm2)
         )
     }
 }
@@ -1062,8 +1065,8 @@ fun ManualSourceItem(
             .clickable(onClick = onClick)
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xs),
-            modifier = Modifier.padding(LumenTokens.Space.md)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xs),
+            modifier = Modifier.padding(LumenLegacySpace.md)
         ) {
             Text(
                 text = if (showRawDetails) com.example.calmsource.core.network.UrlRedactor.redactFilename(option.source.name) else result.displayLabel.primaryLabel,
@@ -1091,7 +1094,7 @@ fun ManualSourceItem(
                 )
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SourceBadge(type = option.type)
@@ -1106,7 +1109,7 @@ fun ManualSourceItem(
                         modifier = Modifier
                             .clip(LumenTokens.Shape.xs)
                             .background(t.colors.brand.copy(alpha = 0.2f))
-                            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                     ) {
                         Text(
                             text = extensionName,
@@ -1123,7 +1126,7 @@ fun ManualSourceItem(
                     modifier = Modifier
                         .clip(LumenTokens.Shape.xs)
                         .background(t.colors.muted)
-                        .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                        .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                 ) {
                     Text(
                         text = "[$quality] [$sizeStr]",
@@ -1138,12 +1141,12 @@ fun ManualSourceItem(
                     Box(
                         modifier = Modifier
                             .clip(LumenTokens.Shape.xs)
-                            .background(LumenTokens.Color.ratingGold.copy(alpha = 0.24f))
-                            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                            .background(LumenExtendedColors.ratingGold.copy(alpha = 0.24f))
+                            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                     ) {
                         Text(
                             text = "[$hdrBadge]",
-                            color = LumenTokens.Color.ratingGold,
+                            color = LumenExtendedColors.ratingGold,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1155,12 +1158,12 @@ fun ManualSourceItem(
                     Box(
                         modifier = Modifier
                             .clip(LumenTokens.Shape.xs)
-                            .background(LumenTokens.Color.cyan.copy(alpha = 0.24f))
-                            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                            .background(LumenExtendedColors.cyan.copy(alpha = 0.24f))
+                            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                     ) {
                         Text(
                             text = "[$codecBadge]",
-                            color = LumenTokens.Color.cyan,
+                            color = LumenExtendedColors.cyan,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1172,12 +1175,12 @@ fun ManualSourceItem(
                     Box(
                         modifier = Modifier
                             .clip(LumenTokens.Shape.xs)
-                            .background(LumenTokens.Color.violet.copy(alpha = 0.24f))
-                            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+                            .background(LumenExtendedColors.violet.copy(alpha = 0.24f))
+                            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
                     ) {
                         Text(
                             text = "[$audioBadge]",
-                            color = LumenTokens.Color.violet,
+                            color = LumenExtendedColors.violet,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1186,10 +1189,10 @@ fun ManualSourceItem(
                 
                 val tier = health?.reliabilityTier ?: SourceReliabilityTier.EXCELLENT
                 val (labelText, labelColor) = when (tier) {
-                    SourceReliabilityTier.EXCELLENT, SourceReliabilityTier.GOOD -> "Reliable" to LumenTokens.Color.statusHealthy
+                    SourceReliabilityTier.EXCELLENT, SourceReliabilityTier.GOOD -> "Reliable" to LumenExtendedColors.statusHealthy
                     SourceReliabilityTier.UNSTABLE, SourceReliabilityTier.POOR -> "Unstable" to LumenTokens.Color.warning
-                    SourceReliabilityTier.BLOCKED -> "Failed recently" to LumenTokens.Color.errorBright
-                    else -> "Reliable" to LumenTokens.Color.statusHealthy
+                    SourceReliabilityTier.BLOCKED -> "Failed recently" to LumenExtendedColors.errorBright
+                    else -> "Reliable" to LumenExtendedColors.statusHealthy
                 }
                 Text(
                     text = labelText,
@@ -1220,8 +1223,8 @@ fun ManualSourceItem(
             }
             if (health != null) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                    modifier = Modifier.fillMaxWidth().padding(top = LumenTokens.Space.xs)
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                    modifier = Modifier.fillMaxWidth().padding(top = LumenLegacySpace.xs)
                 ) {
                     Text(text = "Failures: ${health.failureCount}", fontSize = 10.sp, color = t.colors.mutedForeground)
                     Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 10.sp, color = t.colors.mutedForeground)
@@ -1238,13 +1241,13 @@ fun SourceBadge(type: SourceType, modifier: Modifier = Modifier) {
     val (label, bg, fg) = when (type) {
         SourceType.IPTV -> Triple("IPTV", t.colors.brand.copy(alpha = 0.2f), t.colors.brandGlow)
         SourceType.EXTENSION -> Triple("ADDON", t.colors.muted, t.colors.foreground)
-        SourceType.DEBRID -> Triple("DEBRID", LumenTokens.Color.debridTint, LumenTokens.Color.success)
+        SourceType.DEBRID -> Triple("DEBRID", LumenExtendedColors.debridTint, LumenTokens.Color.success)
     }
     Box(
         modifier = modifier
             .clip(LumenTokens.Shape.xs)
             .background(bg)
-            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
+            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs)
     ) {
         Text(
             text = label,

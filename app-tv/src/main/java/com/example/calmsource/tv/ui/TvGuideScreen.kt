@@ -1,65 +1,71 @@
 package com.example.calmsource.tv.ui
 
-import com.example.calmsource.core.ui.theme.LumenTokens
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.calmsource.core.model.Channel
 import com.example.calmsource.core.model.Program
+import com.example.calmsource.core.ui.components.AdaptiveButton
+import com.example.calmsource.core.ui.components.LumenCard
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.feature.epg.EpgGrid
+import com.example.calmsource.feature.epg.mapGuideToEpgGrid
 import com.example.calmsource.feature.iptv.EpgNowNext
 import com.example.calmsource.feature.iptv.LiveGuideUiState
-import com.example.calmsource.core.ui.components.TvFocusable
-import com.example.calmsource.core.ui.theme.LocalLumenTokens
-import com.example.calmsource.core.ui.components.LumenCard
-import com.example.calmsource.core.ui.components.AdaptiveButton
-import com.example.calmsource.core.ui.components.LumenEmptyState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
+import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.math.max
+
+private const val EPG_PX_PER_MINUTE = 8
 
 @Composable
 fun TvGuideScreen(
     uiState: LiveGuideUiState,
     nowNextMap: Map<String, EpgNowNext>,
-    onChannelSelect: (Channel, Program?) -> Unit
+    onChannelSelect: (Channel, Program?) -> Unit,
 ) {
     val t = LocalLumenTokens.current
     val channels = uiState.filteredChannels
 
     if (channels.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             LumenEmptyState(
                 title = "Schedule unavailable",
                 body = "No channels are loaded or match the active filters.",
-                icon = androidx.compose.material.icons.Icons.Default.List
+                icon = Icons.Default.List,
             )
         }
         return
@@ -73,309 +79,146 @@ fun TvGuideScreen(
         cal.set(Calendar.MILLISECOND, 0)
         cal.timeInMillis
     }
-    
-    val endOfTimeline = startOfCurrentHour + 24 * 60 * 60 * 1000L // 24 hours timeline
-    val ticks = remember(startOfCurrentHour) {
-        List(48) { index -> // 30-min ticks
-            startOfCurrentHour + index * 30 * 60 * 1000L
-        }
+    val endOfTimeline = startOfCurrentHour + 24 * 60 * 60 * 1000L
+
+    val (epgChannels, programmes) = remember(channels, nowNextMap, startOfCurrentHour, endOfTimeline) {
+        mapGuideToEpgGrid(channels, nowNextMap, startOfCurrentHour, endOfTimeline)
     }
 
-    // Capture the currently focused program for the details synopsis panel
     var focusedProgram by remember { mutableStateOf<Program?>(null) }
     var focusedChannel by remember { mutableStateOf<Channel?>(null) }
 
-    val scope = rememberCoroutineScope()
-    val horizontalScrollState = rememberScrollState()
-
-    // Request initial focus on the first program card
-    val initialFocusRequester = remember { FocusRequester() }
-    var isFirstFocusTriggered by remember { mutableStateOf(false) }
-
-    LaunchedEffect(channels) {
-        if (channels.isNotEmpty() && !isFirstFocusTriggered) {
-            kotlinx.coroutines.delay(200)
-            try {
-                initialFocusRequester.requestFocus()
-                isFirstFocusTriggered = true
-            } catch (_: Exception) {}
-        }
+    LaunchedEffect(channels, nowNextMap) {
+        if (focusedProgram != null) return@LaunchedEffect
+        val channel = channels.firstOrNull() ?: return@LaunchedEffect
+        val current = nowNextMap[channel.id]?.currentProgram ?: return@LaunchedEffect
+        focusedChannel = channel
+        focusedProgram = Program(
+            id = current.id,
+            channelId = channel.id,
+            title = current.title,
+            description = current.description,
+            startTimeMs = current.startTimeMs,
+            endTimeMs = current.endTimeMs,
+        )
     }
+
+    val horizontalScrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(t.colors.background)
+            .background(t.colors.background),
     ) {
-        // Top Bar: Pinned "Jump to now" button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2),
+                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Live Guide (EPG)",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = t.colors.foreground
+                color = t.colors.foreground,
             )
 
             var isJumpFocused by remember { mutableStateOf(false) }
 
             TvFocusable(
                 onClick = {
+                    val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
                     scope.launch {
-                        horizontalScrollState.animateScrollTo(0)
+                        val px = with(density) { (EPG_PX_PER_MINUTE.dp * nowMinutes).roundToPx() }
+                        horizontalScrollState.animateScrollTo(px)
                     }
                 },
-                modifier = Modifier.onFocusChanged { isJumpFocused = it.isFocused }
+                modifier = Modifier.onFocusChanged { isJumpFocused = it.isFocused },
             ) {
                 AdaptiveButton(
                     text = "Jump to now",
                     onClick = {
+                        val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
                         scope.launch {
-                            horizontalScrollState.animateScrollTo(0)
+                            val px = with(density) { (EPG_PX_PER_MINUTE.dp * nowMinutes).roundToPx() }
+                            horizontalScrollState.animateScrollTo(px)
                         }
                     },
-                    backdropLuminance = if (isJumpFocused) 1f else 0f
+                    backdropLuminance = if (isJumpFocused) 1f else 0f,
                 )
             }
         }
 
-        // Synopsis / Selected Program Panel below ruler
         LumenCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(LumenTokens.Layout.inputWidthSm)
-                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                .height(LumenLayout.inputWidthSm)
+                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(LumenTokens.Space.sm2),
-                verticalArrangement = Arrangement.Center
+                    .padding(LumenLegacySpace.sm2),
+                verticalArrangement = Arrangement.Center,
             ) {
-                if (focusedProgram != null) {
+                val program = focusedProgram
+                if (program != null) {
                     Text(
-                        text = "${focusedChannel?.name ?: ""} — ${focusedProgram?.title ?: ""}",
+                        text = "${focusedChannel?.name.orEmpty()} — ${program.title}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = t.colors.foreground
+                        color = t.colors.foreground,
                     )
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                     Text(
-                        text = "${timeFormatter.format(Date(focusedProgram!!.startTimeMs))} - ${timeFormatter.format(Date(focusedProgram!!.endTimeMs))}",
+                        text = "${timeFormatter.format(Date(program.startTimeMs))} - ${timeFormatter.format(Date(program.endTimeMs))}",
                         fontSize = 11.sp,
-                        color = t.colors.brand
+                        color = t.colors.brand,
                     )
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                     Text(
-                        text = focusedProgram?.description ?: "No description available.",
+                        text = program.description ?: "No description available.",
                         fontSize = 11.sp,
                         color = t.colors.mutedForeground,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 } else {
                     Text(
-                        text = "Highlight a program card to view details",
+                        text = "Select a program to view details",
                         fontSize = 12.sp,
-                        color = t.colors.mutedForeground
+                        color = t.colors.mutedForeground,
                     )
                 }
             }
         }
 
-        // Grid Area (vertical scroll for channels, horizontal scroll for EPG timeline)
-        Row(
+        EpgGrid(
+            channels = epgChannels,
+            programmes = programmes,
+            windowStartEpochMs = startOfCurrentHour,
+            windowEndEpochMs = endOfTimeline,
+            horizontalScrollState = horizontalScrollState,
+            onProgrammeClick = { programme ->
+                val channel = channels.firstOrNull { it.id == programme.channelId } ?: return@EpgGrid
+                val uiProgram = Program(
+                    id = programme.id,
+                    channelId = programme.channelId,
+                    title = programme.title,
+                    description = programme.description,
+                    startTimeMs = programme.startEpochMs,
+                    endTimeMs = programme.endEpochMs,
+                )
+                focusedProgram = uiProgram
+                focusedChannel = channel
+                onChannelSelect(channel, uiProgram)
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-        ) {
-            // Sticky Left Channel list
-            LazyColumn(
-                modifier = Modifier
-                    .width(LumenTokens.Layout.epgTimeColumnWidth)
-                    .fillMaxHeight()
-            ) {
-                // Ruler alignment spacer
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(LumenTokens.Layout.offsetLg)
-                            .background(t.colors.muted)
-                            .border(LumenTokens.Layout.hairline, t.colors.border)
-                    )
-                }
-
-                itemsIndexed(channels, key = { _, ch -> "sticky-ch-${ch.id}" }) { _, channel ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(LumenTokens.Layout.epgTimeColumnWidth)
-                            .border(LumenTokens.Layout.hairline, t.colors.border)
-                            .padding(LumenTokens.Space.sm2),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = channel.logoUrl,
-                            contentDescription = channel.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(LumenTokens.Space.xxxxl)
-                                .clip(CircleShape)
-                                .background(t.colors.muted)
-                        )
-                    }
-                }
-            }
-
-            // Right scrollable EPG Timeline
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .horizontalScroll(horizontalScrollState)
-            ) {
-                // Time Ruler Row
-                Row(
-                    modifier = Modifier
-                        .height(LumenTokens.Layout.offsetLg)
-                        .background(t.colors.muted)
-                        .border(LumenTokens.Layout.hairline, t.colors.border),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ticks.forEach { tickTime ->
-                        Box(
-                            modifier = Modifier
-                                .width(LumenTokens.Layout.epgMinBlockWidth)
-                                .fillMaxHeight()
-                                .padding(horizontal = LumenTokens.Space.sm2),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Text(
-                                text = timeFormatter.format(Date(tickTime)),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = t.colors.foreground
-                            )
-                        }
-                    }
-                }
-
-                // Program Rows
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    itemsIndexed(channels, key = { _, ch -> "guide-row-${ch.id}" }) { channelIndex, channel ->
-                        val nowNext = nowNextMap[channel.id]
-                        Row(
-                            modifier = Modifier
-                                .height(LumenTokens.Layout.epgTimeColumnWidth)
-                                .border(LumenTokens.Layout.hairline, t.colors.border),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val currentProgram = nowNext?.currentProgram
-                            val nextProgram = nowNext?.nextProgram
-
-                            val programsList = remember(currentProgram, nextProgram) {
-                                buildList {
-                                    if (currentProgram != null) add(currentProgram)
-                                    if (nextProgram != null) add(nextProgram)
-                                }
-                            }
-
-                            if (programsList.isEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = LumenTokens.Space.lg)
-                                ) {
-                                    Text("No program information", color = t.colors.mutedForeground, fontSize = 11.sp)
-                                }
-                            } else {
-                                programsList.forEachIndexed { progIndex, program ->
-                                    val pStart = maxOf(program.startTimeMs, startOfCurrentHour)
-                                    val pEnd = minOf(program.endTimeMs, endOfTimeline)
-                                    val durationMinutes = (pEnd - pStart) / 60000.0
-                                    val blockWidth = (durationMinutes * 4.0).dp
-                                        .coerceAtLeast(LumenTokens.Layout.epgMinBlockWidthTv)
-
-                                    val isCurrent = System.currentTimeMillis() in program.startTimeMs..program.endTimeMs
-
-                                    val uiProgram = remember(program, channel) {
-                                        Program(
-                                            id = program.id,
-                                            channelId = channel.id,
-                                            title = program.title,
-                                            description = program.description,
-                                            startTimeMs = program.startTimeMs,
-                                            endTimeMs = program.endTimeMs
-                                        )
-                                    }
-
-                                    val isFirstCard = channelIndex == 0 && progIndex == 0
-                                    var isCardFocused by remember { mutableStateOf(false) }
-
-                                    TvFocusable(
-                                        onClick = { onChannelSelect(channel, uiProgram) },
-                                        modifier = Modifier
-                                            .width(blockWidth)
-                                            .fillMaxHeight()
-                                            .padding(LumenTokens.Space.xs)
-                                            .run {
-                                                if (isFirstCard) focusRequester(initialFocusRequester) else this
-                                            }
-                                            .onFocusChanged {
-                                                isCardFocused = it.isFocused
-                                                if (it.isFocused) {
-                                                    focusedProgram = uiProgram
-                                                    focusedChannel = channel
-                                                }
-                                            }
-                                    ) {
-                                        LumenCard(
-                                            modifier = Modifier.fillMaxSize()
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(
-                                                        if (isCurrent) t.colors.brand.copy(alpha = 0.15f)
-                                                        else Color.Transparent
-                                                    )
-                                                    .padding(LumenTokens.Space.sm2),
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = program.title,
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = t.colors.foreground,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Spacer(modifier = Modifier.height(LumenTokens.Space.xxs))
-                                                Text(
-                                                    text = "${timeFormatter.format(Date(program.startTimeMs))} - ${timeFormatter.format(Date(program.endTimeMs))}",
-                                                    fontSize = 9.5.sp,
-                                                    color = t.colors.mutedForeground,
-                                                    maxLines = 1
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                .weight(1f),
+        )
     }
 }

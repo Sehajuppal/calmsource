@@ -145,6 +145,8 @@ dependencies {
   implementation(project(":feature:extensions"))
   implementation(project(":feature:debrid"))
   implementation(project(":feature:search"))
+  implementation(project(":feature:epg"))
+  implementation(project(":feature:player"))
 
   // Coil, Icons & Media3
   implementation(libs.coil.compose)

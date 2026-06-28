@@ -322,7 +322,7 @@ class TvAuditRegressionTest {
             "TvSearchViewModel.kt",
             "TvDetailsScreen.kt",
             "TvLibraryScreen.kt",
-            "TvLiveTvScreen.kt"
+            "TvLiveGuideScreen.kt"
         )
         for (path in files) {
             val source = if (path == "TvSearchViewModel.kt") {
