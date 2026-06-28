@@ -79,7 +79,34 @@ data class PlaybackSource(
         } else {
             id
         }
+
+    /** Provider id used for source-health attribution (IPTV channel ids embed the provider). */
+    fun resolveProviderIdForHealth(): String = resolveProviderIdForHealth(id, type, rawUrl)
+
     companion object {
+        fun resolveProviderIdForHealth(id: String, type: PlaybackSourceType, rawUrl: String): String {
+            if (type == PlaybackSourceType.IPTV) {
+                extractProviderIdFromXtreamPseudo(rawUrl)?.let { return it }
+                val baseId = id.substringBefore("-alt-")
+                when {
+                    baseId.startsWith(XTREAM_SERIES_EPISODE_SOURCE_PREFIX) -> {
+                        return baseId.removePrefix(XTREAM_SERIES_EPISODE_SOURCE_PREFIX).substringBefore("|")
+                    }
+                    baseId.contains("_live_") -> return baseId.substringBefore("_live_")
+                    baseId.contains("_vod_") -> return baseId.substringBefore("_vod_")
+                    baseId.contains("_series_") -> return baseId.substringBefore("_series_")
+                }
+            }
+            return id.substringBefore("-alt-").substringBefore("-").ifBlank { type.name.lowercase() }
+        }
+
+        private fun extractProviderIdFromXtreamPseudo(pseudoUrl: String): String? {
+            if (!pseudoUrl.startsWith("xtream://stream_id/", ignoreCase = true)) return null
+            val suffix = pseudoUrl.removePrefix("xtream://stream_id/").substringBefore("?")
+            val parts = suffix.split("/")
+            return if (parts.size >= 2) parts[parts.size - 2].takeIf { it.isNotBlank() } else null
+        }
+
         const val XTREAM_SERIES_EPISODE_SOURCE_PREFIX = "xtream-series-episode|"
 
         fun redactUrl(url: String): String {

@@ -28,7 +28,7 @@ import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import kotlinx.coroutines.launch
 
 @Composable
-fun TvExtensionsScreen(onBack: () -> Unit) {
+fun TvExtensionsScreen(onBack: (() -> Unit)? = null) {
     val t = LocalLumenTokens.current
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val stableFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -37,6 +37,13 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
     var selectedExtensionId by remember { mutableStateOf<String?>(null) }
     var isInstallingOrPreviewing by remember { mutableStateOf(false) }
     
+    val vaultRestoreErrors by ExtensionRepository.vaultRestoreErrors.collectAsState()
+    LaunchedEffect(vaultRestoreErrors) {
+        vaultRestoreErrors.firstOrNull()?.let { error ->
+            android.util.Log.w("TvExtensionsScreen", "Extension restore failed: $error")
+        }
+    }
+
     val coroutineScope = rememberCoroutineScope()
     var inputUrl by remember { mutableStateOf("") }
     var isPreviewing by remember { mutableStateOf(false) }
@@ -216,14 +223,16 @@ fun TvExtensionsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
         ) {
             item {
-                TvFocusCard(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .wrapContentSize()
-                        .padding(bottom = LumenLegacySpace.sm2)
-                        .focusRequester(stableFocusRequester)
-                ) {
-                    Text(text = "← Back", color = t.colors.foreground)
+                if (onBack != null) {
+                    TvFocusCard(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .padding(bottom = LumenLegacySpace.sm2)
+                            .focusRequester(stableFocusRequester)
+                    ) {
+                        Text(text = "← Back", color = t.colors.foreground)
+                    }
                 }
             }
             

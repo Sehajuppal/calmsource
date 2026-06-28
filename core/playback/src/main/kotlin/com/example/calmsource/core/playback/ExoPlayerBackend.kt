@@ -112,6 +112,9 @@ internal class ExoPlayerBackend(
                 prepare()
             }
             playWhenReady = host.hostedPlayWhenReady
+        } ?: run {
+            val pe = PlaybackError.SourceUnavailable(cause = Exception("Playback engine unavailable"))
+            _state.value = _state.value.copy(playerState = PlayerState.FAILED, error = pe, rawErrorCode = "ERROR_CODE_UNSPECIFIED")
         }
     }
 

@@ -264,7 +264,7 @@ class IPTVPlaybackRequestRegressionTest {
 
         val request = IPTVRepository.buildLivePlaybackRequest(channel)
 
-        assertFalse(request.source.allowInsecureHttp)
+        assertTrue(request.source.allowInsecureHttp)
     }
 
     @Test

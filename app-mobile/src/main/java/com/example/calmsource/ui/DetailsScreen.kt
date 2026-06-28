@@ -74,7 +74,13 @@ fun DetailsScreen(
     }
 
     val installedExtensions by ExtensionRepository.extensions.collectAsState()
-    val activeExtensions = installedExtensions.filter { it.isEnabled && it.health != ExtensionHealth.NEEDS_CONFIGURATION && it.health != ExtensionHealth.INVALID_MANIFEST }
+    val activeExtensions = installedExtensions.filter {
+        it.isEnabled &&
+            it.health != ExtensionHealth.NEEDS_CONFIGURATION &&
+            it.health != ExtensionHealth.INVALID_MANIFEST &&
+            it.health != ExtensionHealth.FAILED &&
+            it.health != ExtensionHealth.SLOW
+    }
     val extensionQueryKey = activeExtensions.map { it.id to it.url }
     var currentMediaItem by remember(mediaItem.id) { mutableStateOf(mediaItem) }
     var streamSearchUiState by remember { mutableStateOf(StreamSearchUiState()) }
@@ -225,10 +231,8 @@ fun DetailsScreen(
                 && !option.source.url.startsWith("http://", ignoreCase = true)
                 && !option.source.url.startsWith("https://", ignoreCase = true)
                 && !com.example.calmsource.feature.debrid.DebridRepository.listAccounts().any { it.isConnected }
-            val isMagnetBlocked = option.source.url.startsWith("magnet:", ignoreCase = true) &&
-                !com.example.calmsource.feature.debrid.DebridRepository.listAccounts().any { it.isConnected }
 
-            if (provider?.health == ExtensionHealth.NEEDS_CONFIGURATION || isDebridBlocked || isMagnetBlocked) {
+            if (provider?.health == ExtensionHealth.NEEDS_CONFIGURATION || isDebridBlocked) {
                 showBlockedDialog = true
             } else {
                 val request = PlaybackRequest(

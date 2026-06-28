@@ -19,7 +19,13 @@ object IptvXtreamPlaybackResolver {
      */
     suspend fun resolveSourceUrl(source: PlaybackSource, surfaceError: Boolean = true): String? {
         val baseChannelId = source.id.substringBefore("-alt-")
-        val existingChannel = IPTVRepository.findPlaybackChannel(baseChannelId)
+        val existingChannel = IPTVRepository.findChannelForPlayback(baseChannelId)
+        if (existingChannel == null && IPTVRepository.findPlaybackChannel(baseChannelId) != null) {
+            if (surfaceError) {
+                IPTVRepository.reportPlaybackResolutionError("This channel is unavailable.")
+            }
+            return null
+        }
         val providerId = resolveProviderId(source, existingChannel)
         if (providerId == null) {
             if (surfaceError) {

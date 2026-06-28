@@ -49,6 +49,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import com.example.calmsource.core.playback.PlaybackManager
+import com.example.calmsource.core.playback.PlaybackRequestSaver
+import com.example.calmsource.core.playback.PlaybackUrlCache
 import com.example.calmsource.core.playback.LiveChannelRecovery
 import com.example.calmsource.core.playback.liveChannelBaseId
 import com.example.calmsource.core.playback.isResolvedPlaybackUrlInvalid
@@ -117,7 +119,8 @@ fun TvPlayerScreen(
     val subtitlesOff = remember(subtitleTracks) { subtitleTracks.none { it.isSelected } }
     
     var showChannelSwitcher by remember { mutableStateOf(false) }
-    var activeRequest by remember { mutableStateOf(request) }
+    PlaybackUrlCache.put(request.source.id, request.source.rawUrl)
+    var activeRequest by remember(request.source.id) { mutableStateOf(request) }
     var successRecorded by remember(activeRequest.source.id) { mutableStateOf(false) }
     var failureRecorded by remember(activeRequest.source.id) { mutableStateOf(false) }
     val isLive = activeRequest.source.metadata?.isLive == true
@@ -185,7 +188,7 @@ fun TvPlayerScreen(
     LaunchedEffect(uiState.error) {
         val error = uiState.error
         if (error is PlaybackError.TerminalError) {
-            onBack()
+            android.widget.Toast.makeText(context, error.message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
 

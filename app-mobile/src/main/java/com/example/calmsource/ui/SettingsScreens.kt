@@ -36,6 +36,7 @@ import com.example.calmsource.core.data.ProfileSessionManager
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import com.example.calmsource.core.model.*
 import com.example.calmsource.feature.extensions.ExtensionRepository
+import com.example.calmsource.feature.extensions.RecommendedStremioAddons
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.feature.iptv.XtreamRepository
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
@@ -103,13 +104,30 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     var previewManifest by remember { mutableStateOf<ExtensionManifest?>(null) }
     var addonValidationError by remember { mutableStateOf<String?>(null) }
     var isInstallingAddon by remember { mutableStateOf(false) }
+    var previewAddonWarnings by remember { mutableStateOf<List<String>>(emptyList()) }
+    var previewAddonJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var addonToConfigure by remember { mutableStateOf<ExtensionProvider?>(null) }
+
+    val vaultRestoreErrors by ExtensionRepository.vaultRestoreErrors.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(vaultRestoreErrors) {
+        vaultRestoreErrors.firstOrNull()?.let { error ->
+            snackbarHostState.showSnackbar("Extension restore failed: $error")
+        }
+    }
 
     var showProviderTypeSelect by remember { mutableStateOf(false) }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = t.colors.background
+    ) { padding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
+            .padding(padding)
             .padding(LumenLegacySpace.lg)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
@@ -390,6 +408,49 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     )
                 }
 
+                Text(
+                    text = "Recommended",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = t.colors.mutedForeground
+                )
+                RecommendedStremioAddons.presets.forEach { preset ->
+                    val installed = RecommendedStremioAddons.installedProvider(preset, extensions)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
+                            .padding(LumenLegacySpace.md),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(preset.name, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                            Text(preset.description, fontSize = 11.sp, color = t.colors.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        AdaptiveButton(
+                            text = if (installed != null) "Installed" else "Install",
+                            onClick = {
+                                if (installed == null && !isInstallingAddon) {
+                                    isInstallingAddon = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val preview = ExtensionRepository.previewExtension(preset.manifestUrl)
+                                            val manifest = preview.manifest
+                                            if (preview.isSuccess && manifest != null) {
+                                                ExtensionRepository.confirmInstall(manifest, preset.manifestUrl, preview.warnings)
+                                            }
+                                        } finally {
+                                            isInstallingAddon = false
+                                        }
+                                    }
+                                }
+                            },
+                            backdropLuminance = 0f
+                        )
+                    }
+                }
+
                 if (extensions.isEmpty()) {
                     LumenEmptyState(
                         title = "No add-ons installed",
@@ -443,6 +504,11 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     },
                                     colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand, checkedTrackColor = t.colors.brand.copy(alpha = 0.5f))
                                 )
+                                if (addon.manifest?.let { ExtensionRepository.getAddonConfigList(it).isNotEmpty() } == true) {
+                                    IconButton(onClick = { addonToConfigure = addon }) {
+                                        Icon(Icons.Default.Settings, contentDescription = "Configure", tint = t.colors.foreground)
+                                    }
+                                }
                                 IconButton(onClick = { addonToRemove = addon }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = Color.Red)
                                 }
@@ -726,6 +792,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             val trimmedUrl = url.trim()
             addonValidationError = null
             previewManifest = null
+            previewAddonWarnings = emptyList()
             if (trimmedUrl.isBlank()) {
                 addonValidationError = "URL cannot be blank"
                 return
@@ -736,16 +803,19 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 return
             }
             isPreviewingAddon = true
-            coroutineScope.launch {
+            previewAddonJob?.cancel()
+            previewAddonJob = coroutineScope.launch {
                 try {
                     val result = ExtensionRepository.previewExtension(trimmedUrl)
                     isPreviewingAddon = false
                     if (result.isSuccess) {
                         previewManifest = result.manifest
+                        previewAddonWarnings = result.warnings
                     } else {
                         addonValidationError = result.error?.message ?: result.warnings.firstOrNull() ?: "Failed to load manifest"
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     isPreviewingAddon = false
                     addonValidationError = e.localizedMessage ?: "Failed to load manifest"
                 }
@@ -787,7 +857,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             isInstallingAddon = true
                             coroutineScope.launch {
                                 try {
-                                    val result = ExtensionRepository.confirmInstall(manifest, addonUrl.trim(), emptyList())
+                                    val result = ExtensionRepository.confirmInstall(manifest, addonUrl.trim(), previewAddonWarnings)
                                     if (result.isSuccess) {
                                         showAddonDialog = false
                                     } else {
@@ -841,6 +911,70 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             containerColor = t.colors.card
         )
     }
+
+    addonToConfigure?.let { addon ->
+        MobileExtensionConfigDialog(
+            addon = addon,
+            onDismiss = { addonToConfigure = null }
+        )
+    }
+    }
+}
+
+@Composable
+fun MobileExtensionConfigDialog(
+    addon: ExtensionProvider,
+    onDismiss: () -> Unit,
+) {
+    val t = LocalLumenTokens.current
+    val coroutineScope = rememberCoroutineScope()
+    val configs = remember(addon) { addon.manifest?.let { ExtensionRepository.getAddonConfigList(it) } ?: emptyList() }
+    val configValues = remember(addon.id) { mutableStateMapOf<String, String>() }
+    LaunchedEffect(addon.id) {
+        val map = com.example.calmsource.core.network.StremioAddonClient.parseConfigFromUrl(addon.url).toMutableMap()
+        configs.forEach { config ->
+            if (ExtensionRepository.isSecretConfigKey(config)) {
+                com.example.calmsource.core.network.ExtensionSecrets.readSecret(addon.id, config.key)?.let { map[config.key] = it }
+            }
+        }
+        configValues.clear()
+        configValues.putAll(map)
+    }
+    var saveError by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Configure ${addon.name}", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
+                configs.forEach { config ->
+                    val isSecret = ExtensionRepository.isSecretConfigKey(config)
+                    OutlinedTextField(
+                        value = configValues[config.key].orEmpty(),
+                        onValueChange = { configValues[config.key] = it },
+                        label = { Text(config.title ?: config.key) },
+                        singleLine = true,
+                        visualTransformation = if (isSecret) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                saveError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                coroutineScope.launch {
+                    val result = ExtensionRepository.saveConfiguration(addon.id, configValues.toMap())
+                    if (result.isSuccess) onDismiss() else saveError = result.error?.message ?: "Failed to save"
+                }
+            }) { Text("Save", color = t.colors.brand, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = t.colors.foreground) }
+        },
+        containerColor = t.colors.card
+    )
 }
 
 @Composable

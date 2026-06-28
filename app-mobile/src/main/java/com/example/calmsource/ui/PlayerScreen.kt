@@ -68,6 +68,8 @@ import com.example.calmsource.core.model.WatchOption
 import com.example.calmsource.core.model.AutoFallbackPolicy
 import androidx.compose.ui.unit.sp
 import com.example.calmsource.core.playback.PlaybackManager
+import com.example.calmsource.core.playback.PlaybackRequestSaver
+import com.example.calmsource.core.playback.PlaybackUrlCache
 import com.example.calmsource.core.playback.LiveChannelRecovery
 import com.example.calmsource.core.playback.liveChannelBaseId
 import com.example.calmsource.core.playback.isResolvedPlaybackUrlInvalid
@@ -155,7 +157,8 @@ fun PlayerScreen(
     var showDoubleTapLeftFeedback by remember { mutableStateOf(false) }
     var showDoubleTapRightFeedback by remember { mutableStateOf(false) }
     
-    var currentRequest by remember(request) { mutableStateOf(request) }
+    PlaybackUrlCache.put(request.source.id, request.source.rawUrl)
+    var currentRequest by remember(request.source.id) { mutableStateOf(request) }
     var successRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
     var failureRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
     val isLive = currentRequest.source.metadata?.isLive == true
@@ -218,7 +221,6 @@ fun PlayerScreen(
         val error = uiState.error
         if (error is PlaybackError.TerminalError) {
             android.widget.Toast.makeText(context, error.message, android.widget.Toast.LENGTH_LONG).show()
-            onBack()
         }
     }
 

@@ -255,8 +255,7 @@ object PlaybackCrashMarker {
     }
 
     fun providerIdFor(source: PlaybackSource): String {
-        return source.id.substringBefore("-", missingDelimiterValue = source.type.name)
-            .ifBlank { source.type.name }
+        return source.resolveProviderIdForHealth()
     }
 
     private fun logWarning(message: String, throwable: Throwable) {

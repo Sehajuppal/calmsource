@@ -1150,7 +1150,8 @@ object IPTVRepository {
                     isLive = !channel.isVod,
                     containerFormat = liveOutputFormat.takeIf { !channel.isVod }
                 ),
-                allowInsecureHttp = streamUrl.startsWith("xtream://"),
+                allowInsecureHttp = streamUrl.startsWith("xtream://", ignoreCase = true) ||
+                    streamUrl.startsWith("http://", ignoreCase = true),
                 // Anchor health to the channel's pseudo URL so it stays consistent after the URL is
                 // resolved to a real http(s) URL at play time (bug #5).
                 stableSourceId = channel.safeSourceId
@@ -1193,6 +1194,7 @@ object IPTVRepository {
         }
         updateSortedChannelsCacheSync()
         dataUpdateTick.value = dataUpdateTick.value + 1
+        publishChannels(getChannels())
     }
 
     /**
@@ -1441,7 +1443,7 @@ object IPTVRepository {
         
         val streamId = com.example.calmsource.feature.iptv.xtream.XtreamStreamUrlBuilder.extractStreamId(channel.streamUrl)
         if (streamId == null) {
-            android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: Invalid stream ID in pseudo-URL ${channel.streamUrl}")
+            android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: Invalid stream ID in pseudo-URL for channel ${channel.id}")
             return@withContext ResolveResult(channel.streamUrl, "Invalid stream identifier")
         }
         val serverUrl = provider.serverUrl.takeIf { it.isNotBlank() }

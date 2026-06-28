@@ -84,7 +84,8 @@ fun XtreamLiveChannel.toIPTVChannel(providerId: String): IPTVChannel = IPTVChann
     tvgLogo = logo,
     groupTitle = categoryId,
     name = name,
-    streamUrl = XtreamStreamUrlBuilder.createPseudoUrl(providerId, streamId) ?: "xtream://stream_id/$providerId/${if (streamId.isBlank()) "0" else streamId}",
+    streamUrl = XtreamStreamUrlBuilder.createPseudoUrl(providerId, streamId)
+        ?: "xtream://stream_id/$providerId/__invalid__",
     providerId = providerId,
     rawAttributes = buildMap {
         put("xtream_stream_id", streamId)

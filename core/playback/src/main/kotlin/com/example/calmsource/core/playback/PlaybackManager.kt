@@ -307,7 +307,8 @@ class PlaybackManager(
     private data class PendingPrepare(
         val request: PlaybackRequest,
         val fallbackCandidates: List<PlaybackSource>,
-        val isFallbackAttempt: Boolean
+        val isFallbackAttempt: Boolean,
+        val useVlcBackend: Boolean = false,
     )
     private var pendingPrepare: PendingPrepare? = null
 
@@ -322,7 +323,16 @@ class PlaybackManager(
     private fun checkAndRunPendingPrepare() {
         val pending = pendingPrepare ?: return
         pendingPrepare = null
-        prepare(pending.request, pending.fallbackCandidates, pending.isFallbackAttempt)
+        if (pending.useVlcBackend) {
+            switchToVlcBackend(pending.request.source)
+        } else {
+            prepare(pending.request, pending.fallbackCandidates, pending.isFallbackAttempt)
+        }
+    }
+
+    private fun hasValidVideoSurface(): Boolean {
+        val surfaceView = playerView?.videoSurfaceView as? SurfaceView ?: return false
+        return surfaceView.holder?.surface?.isValid == true
     }
 
     // Playback Profile and Tunneling
@@ -425,8 +435,7 @@ class PlaybackManager(
     private fun recordPlaybackSuccess(source: PlaybackSource) {
         // IPTV health + channel sorting is recorded by player screens via IPTVRepository.
         if (source.type == PlaybackSourceType.IPTV) return
-        val providerId = source.id.substringBefore("-", "")
-            .ifBlank { source.type.name.lowercase() }
+        val providerId = source.resolveProviderIdForHealth()
         coroutineScope.launch {
             SourceHealthRepository.recordSuccess(
                 sourceId = source.safeSourceId,
@@ -1296,8 +1305,8 @@ class PlaybackManager(
         action: RecoveryAction,
         rawErrorCode: String,
     ) {
-        val providerId = currentSource.id.substringBefore("-", "")
-            .ifBlank { currentSource.type.name.lowercase() }
+        if (currentSource.type == PlaybackSourceType.IPTV) return
+        val providerId = currentSource.resolveProviderIdForHealth()
         coroutineScope.launch {
             val underlyingError = when (action) {
                 is RecoveryAction.ShowFallbackPrompt -> action.error
@@ -1347,6 +1356,17 @@ class PlaybackManager(
         vlcBackend.playerView = this@PlaybackManager.playerView
         currentBackend = vlcBackend
         isSurfaceRequired = vlcBackend.isSurfaceRequired
+        if (isSurfaceRequired && !hasValidVideoSurface()) {
+            val request = activeRequest ?: PlaybackRequest(source = currentSource)
+            pendingPrepare = PendingPrepare(
+                request = request,
+                fallbackCandidates = emptyList(),
+                isFallbackAttempt = true,
+                useVlcBackend = true,
+            )
+            (playerView?.videoSurfaceView as? SurfaceView)?.holder?.addCallback(surfaceCallback)
+            return
+        }
         observeBackendState(vlcBackend)
         vlcBackend.prepare(context, currentSource, currentPositionMs())
         audioManager.requestFocusAndRegister()

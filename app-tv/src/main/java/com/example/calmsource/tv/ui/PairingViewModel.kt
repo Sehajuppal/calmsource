@@ -134,7 +134,11 @@ class PairingViewModel @Inject constructor(
                                                     val previewResult = com.example.calmsource.feature.extensions.ExtensionRepository.previewExtension(extensionUrl)
                                                     val manifest = previewResult.manifest
                                                     if (previewResult.isSuccess && manifest != null) {
-                                                        com.example.calmsource.feature.extensions.ExtensionRepository.confirmInstall(manifest, extensionUrl)
+                                                        com.example.calmsource.feature.extensions.ExtensionRepository.confirmInstall(
+                                                            manifest,
+                                                            extensionUrl,
+                                                            previewResult.warnings
+                                                        )
                                                     }
                                                 } catch (e: Throwable) {
                                                     if (e is kotlinx.coroutines.CancellationException) throw e

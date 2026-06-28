@@ -146,7 +146,9 @@ object ExtensionRepository {
         runIO {
             try {
                 if (!isTest) {
-                    DatabaseProvider.databaseReady.first { it }
+                    kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                        DatabaseProvider.databaseReady.first { it }
+                    }
                 }
                 kotlinx.coroutines.coroutineScope {
                     val loaded = runCatching { dao.getAllExtensions().first() }.getOrDefault(emptyList())
@@ -300,11 +302,12 @@ object ExtensionRepository {
         val freshManifest = ExtensionManifestLoader.loadManifest(
             url = url,
             forceRefresh = true,
-            allowStaleFallback = false
+            allowStaleFallback = true
         )
-        val manifestVal = if (freshManifest.isSuccess) freshManifest.manifest else if (isTest) manifest else null
-        val isSuccess = freshManifest.isSuccess || (isTest && manifestVal != null)
-        if (!isSuccess || manifestVal == null) {
+        val manifestVal = (freshManifest.manifest ?: manifest).takeIf {
+            it.id.isNotBlank() || it.name.isNotBlank()
+        }
+        if (manifestVal == null) {
             return@withContext freshManifest.copy(
                 isSuccess = false,
                 error = freshManifest.error ?: ExtensionError.InvalidManifest("Could not verify manifest before install")
@@ -312,6 +315,9 @@ object ExtensionRepository {
         }
         val manifestToInstall = manifestVal.copy(id = manifest.id.ifBlank { manifestVal.id })
         val installWarnings = (warnings + freshManifest.warnings).distinct().toMutableList()
+        if (!freshManifest.isSuccess && freshManifest.manifest == null && !isTest) {
+            installWarnings.add("Installed from preview manifest; live re-verification was unavailable.")
+        }
         val providerId = manifestToInstall.id.ifBlank { "ext-${UUID.randomUUID()}" }
         // Stream providers the user explicitly installs (Torrentio, AIOStreams, …) should be queried
         // first, so give them a lower priority value than existing extensions rather than pushing
@@ -481,7 +487,7 @@ object ExtensionRepository {
     private val KNOWN_SECRET_CONFIG_KEYS = setOf(
         "token", "secret", "password", "passwd", "apikey", "api_key", "auth", "authorization",
         "realdebrid", "real_debrid", "alldebrid", "all_debrid", "premiumize", "debridlink",
-        "debrid_link", "offcloud", "torbox", "easydebrid", "putio", "put_io", "key"
+        "debrid_link", "offcloud", "torbox", "easydebrid", "putio", "put_io"
     )
 
     fun isSecretConfigKey(config: StremioAddonConfig): Boolean {
@@ -537,6 +543,11 @@ object ExtensionRepository {
 
     fun toggleExtension(id: String, isEnabled: Boolean) {
         runIO {
+            if (!isTest) {
+                kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                    DatabaseProvider.databaseReady.first { it }
+                }
+            }
             val provider = getExtensions().find { it.id == id } ?: return@runIO
             val tempProvider = provider.copy(isEnabled = isEnabled)
             val finalHealth = if (!isEnabled) {
@@ -555,6 +566,11 @@ object ExtensionRepository {
 
     fun removeExtension(id: String) {
         runIO {
+            if (!isTest) {
+                kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                    DatabaseProvider.databaseReady.first { it }
+                }
+            }
             val provider = getExtensions().find { it.id == id } ?: return@runIO
             dao.deleteExtension(provider.toEntity())
             com.example.calmsource.core.network.ExtensionSecrets.clearSecrets(id)
@@ -979,7 +995,8 @@ object ExtensionRepository {
                                 allowStaleFallback = false
                             )
                             if (result.isSuccess && result.manifest != null) {
-                                val updated = provider.copy(health = ExtensionHealth.ACTIVE)
+                                val recovered = provider.copy(manifest = result.manifest)
+                                val updated = recovered.copy(health = checkAddonHealth(recovered))
                                 dao.updateExtension(updated.toEntity())
                             }
                         } catch (e: kotlinx.coroutines.CancellationException) {

@@ -448,7 +448,7 @@ internal class VlcPlayerBackend : PlayerBackend {
                     // Unrecoverable JVM error unrelated to VLC availability — propagate.
                     throw e
                 }
-                Log.e(TAG, "VLC playback start failed: ${e.message}", e)
+                Log.e(TAG, "VLC playback start failed: ${PlaybackSanitizer.sanitize(e.message)}", e)
                 _state.value = PlayerBackendState(
                     PlayerState.FAILED,
                     PlaybackError.Unknown(

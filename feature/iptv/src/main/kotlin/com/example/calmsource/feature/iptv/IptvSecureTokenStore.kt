@@ -6,9 +6,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-/**
- * Contract for secure IPTV credential storage (Xtream).
- */
+class IptvSecureStorageUnavailableException(
+    message: String = "Secure credential storage is unavailable on this device. IPTV credentials cannot be saved.",
+) : IllegalStateException(message)
+
 interface IptvSecureTokenStore {
     fun savePassword(providerId: String, username: String, password: String)
     fun readPassword(providerId: String, username: String): String?
@@ -91,9 +92,7 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
     override fun savePassword(providerId: String, username: String, password: String) {
         val targetPrefs = prefs
         if (targetPrefs == null) {
-            android.util.Log.w("EncryptedIptvSecureTokenStore", "save: encrypted storage unavailable, falling back to in-memory store")
-            fallbackStore.savePassword(providerId, username, password)
-            return
+            throw IptvSecureStorageUnavailableException()
         }
         synchronized(usernameLock) {
             val uKey = "cs_iptv_secure_usernames:${escape(providerId)}"
@@ -183,8 +182,7 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
     override fun savePortalUrl(providerId: String, portalUrl: String) {
         val targetPrefs = prefs
         if (targetPrefs == null) {
-            fallbackStore.savePortalUrl(providerId, portalUrl)
-            return
+            throw IptvSecureStorageUnavailableException()
         }
         targetPrefs.edit()
             .putString(portalKey(providerId), portalUrl.trim())

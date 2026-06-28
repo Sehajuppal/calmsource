@@ -109,7 +109,10 @@ class Mission23IptvFallbackRegressionTest {
     fun `Xtream live playback request carries cleartext approval without storing raw URL`() {
         val source = readIptvSource("IPTVRepository.kt")
 
-        assertTrue(source.contains("allowInsecureHttp = streamUrl.startsWith(\"xtream://\")"))
+        assertTrue(
+            source.contains("allowInsecureHttp = streamUrl.startsWith(\"xtream://\", ignoreCase = true)") ||
+                source.contains("streamUrl.startsWith(\"http://\", ignoreCase = true)")
+        )
         assertTrue(source.contains("rawUrl = streamUrl"))
     }
 

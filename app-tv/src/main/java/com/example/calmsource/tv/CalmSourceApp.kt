@@ -107,10 +107,8 @@ class CalmSourceApp : Application() {
 
         vaultSyncManager.restoreExtensionsDelegate = { urls ->
             appScope.launch {
-                val errors = com.example.calmsource.feature.extensions.ExtensionRepository.restoreExtensionsFromUrls(urls)
-                if (errors.isNotEmpty()) {
-                    android.util.Log.w("CalmSourceApp", "Vault extension restore had ${errors.size} failure(s)")
-                }
+                com.example.calmsource.feature.extensions.ExtensionRepository.awaitExtensions()
+                com.example.calmsource.feature.extensions.ExtensionRepository.restoreExtensionsFromUrls(urls)
             }
         }
 
