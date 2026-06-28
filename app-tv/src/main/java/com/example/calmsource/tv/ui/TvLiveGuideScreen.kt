@@ -1,5 +1,6 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -78,8 +79,39 @@ fun TvLiveGuideScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(color = t.colors.brand)
-                Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                 Text("Syncing Live TV...", color = t.colors.mutedForeground, fontSize = 16.sp)
+            }
+        }
+        return
+    }
+
+    if (uiState.syncWarnings.isNotEmpty() && uiState.allChannels.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(t.colors.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+            ) {
+                Text("Sync finished with warnings", color = t.colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = uiState.syncWarnings.joinToString("\n"),
+                    color = t.colors.mutedForeground,
+                    fontSize = 14.sp
+                )
+                var isSetupButtonFocused by remember { mutableStateOf(false) }
+                TvFocusable(
+                    onClick = onOpenSetup,
+                    modifier = Modifier.onFocusChanged { isSetupButtonFocused = it.isFocused }
+                ) {
+                    AdaptiveButton(
+                        text = "Configure Providers",
+                        onClick = onOpenSetup,
+                        backdropLuminance = if (isSetupButtonFocused) 1f else 0f
+                    )
+                }
             }
         }
         return
@@ -92,7 +124,7 @@ fun TvLiveGuideScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
                 Text("No live channels yet.", color = t.colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -151,11 +183,11 @@ fun TvLiveGuideScreen(
     var activeSection by rememberSaveable { mutableStateOf("channels") }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(t.colors.background).padding(LumenTokens.Space.lg)
+        modifier = Modifier.fillMaxSize().background(t.colors.background).padding(LumenLegacySpace.lg)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = LumenTokens.Space.md),
-            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+            modifier = Modifier.fillMaxWidth().padding(bottom = LumenLegacySpace.md),
+            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             var isChannelsFocused by remember { mutableStateOf(false) }
@@ -171,7 +203,7 @@ fun TvLiveGuideScreen(
                             isChannelsFocused -> t.colors.muted
                             else -> Color.Transparent
                         })
-                        .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                        .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                 ) {
                     Text(
                         text = "Channels",
@@ -195,7 +227,7 @@ fun TvLiveGuideScreen(
                             isGuideFocused -> t.colors.muted
                             else -> Color.Transparent
                         })
-                        .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                        .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                 ) {
                     Text(
                         text = "Guide (EPG)",
@@ -217,7 +249,7 @@ fun TvLiveGuideScreen(
                     modifier = Modifier
                         .clip(LumenTokens.Shape.sm)
                         .background(if (isSetupFocused) t.colors.muted else Color.Transparent)
-                        .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                        .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                 ) {
                     Text("Setup ⚙", color = t.colors.foreground, fontSize = 14.sp)
                 }

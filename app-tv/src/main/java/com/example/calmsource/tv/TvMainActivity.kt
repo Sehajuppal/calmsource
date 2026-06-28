@@ -9,6 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import com.example.calmsource.core.ui.theme.LumenTheme
+import com.example.calmsource.core.ui.components.PerfMode
+import com.example.calmsource.core.ui.components.ProvidePerfMode
+import android.os.PowerManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -188,6 +191,9 @@ class TvMainActivity : ComponentActivity() {
             _pendingDeepLink.value = intent?.dataString
         }
         setContent {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
+            ProvidePerfMode(perfMode) {
             LumenTheme(isTv = true) {
                 val pendingDeepLink by _pendingDeepLink.collectAsState()
             val appContext = LocalContext.current.applicationContext
@@ -633,6 +639,7 @@ class TvMainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
             }
             }

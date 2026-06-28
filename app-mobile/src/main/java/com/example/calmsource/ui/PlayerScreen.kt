@@ -1,5 +1,8 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import android.os.Handler
@@ -79,8 +82,12 @@ import com.example.calmsource.core.discoveryengine.providers.ProviderManager
 import com.example.calmsource.core.model.ResourcePlaybackState
 import android.util.Log
 import com.example.calmsource.feature.iptv.IPTVRepository
+import com.example.calmsource.feature.player.PlayerChrome
+import com.example.calmsource.feature.player.PlayerActions
+import com.example.calmsource.feature.player.buildPlayerChromeState
 import com.example.calmsource.core.ui.components.*
-import com.example.calmsource.core.ui.theme.*
+import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.theme.glassSurface
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -143,14 +150,8 @@ fun PlayerScreen(
     val progressState by playbackManager.progressState.collectAsStateWithLifecycle()
     val audioTracks by playbackManager.audioTracks.collectAsStateWithLifecycle()
     val subtitleTracks by playbackManager.subtitleTracks.collectAsStateWithLifecycle()
-    var showControls by remember { mutableStateOf(true) }
     var showAdvancedPanel by remember { mutableStateOf(false) }
     var showChannelSwitcher by remember { mutableStateOf(false) }
-    var showTrackSelector by remember { mutableStateOf(false) }
-    var trackSelectorType by remember { mutableStateOf(TrackType.AUDIO) }
-    val showMultipleAudio = remember(audioTracks) { audioTracks.size > 1 }
-    val showSubtitlePicker = remember(subtitleTracks) { subtitleTracks.isNotEmpty() }
-    var userInteractionTrigger by remember { mutableIntStateOf(0) }
     val retryTrigger = remember { mutableIntStateOf(0) }
     
     // Double tap skip feedback state
@@ -187,9 +188,6 @@ fun PlayerScreen(
     val uiStateLatest = rememberUpdatedState(uiState)
 
     LaunchedEffect(uiState.error, currentRequest.source.id) {
-        if (uiState.error != null) {
-            showTrackSelector = false
-        }
         val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(
             com.example.calmsource.core.playback.FallbackPreferences.policy
         )
@@ -375,14 +373,6 @@ fun PlayerScreen(
         currentRequest = IPTVRepository.buildLivePlaybackRequest(channel)
     }
 
-    // Auto-hide controls after 3000ms
-    LaunchedEffect(showControls, userInteractionTrigger, uiState.playerState) {
-        if (showControls && uiState.playerState == PlayerState.PLAYING) {
-            delay(3000)
-            if (!showAdvancedPanel && !showChannelSwitcher && !showTrackSelector) showControls = false
-        }
-    }
-
     LaunchedEffect(uiState.playerState, uiState.source) {
         if (uiState.playerState == PlayerState.PLAYING) {
             uiState.source?.let { newSource ->
@@ -408,13 +398,50 @@ fun PlayerScreen(
 
     fun handleBackPress() {
         when {
-            showTrackSelector -> showTrackSelector = false
             showChannelSwitcher -> showChannelSwitcher = false
             showAdvancedPanel -> showAdvancedPanel = false
-            showControls -> showControls = false
             else -> onBack()
         }
     }
+
+    val playerTitle = uiState.source?.title
+        ?: currentRequest.source.metadata?.title
+        ?: currentRequest.source.title
+    val playerChromeState = buildPlayerChromeState(
+        title = playerTitle,
+        exoState = uiState.playerState,
+        progress = progressState,
+        audioTracks = audioTracks,
+        subtitleTracks = subtitleTracks,
+        isLive = isLive,
+        hasNext = isLive && currentIndex != -1 && iptvChannels.size > 1,
+        hasPrev = isLive && currentIndex != -1 && iptvChannels.size > 1,
+    )
+    val playerChromeActions = PlayerActions(
+        onPlayPause = {
+            if (uiState.playerState == PlayerState.PLAYING) playbackManager.pause()
+            else playbackManager.play()
+        },
+        onSeekTo = playbackManager::seekTo,
+        onSeekRelative = { delta ->
+            val duration = progressState.durationMs
+            val target = progressState.currentPositionMs + delta
+            playbackManager.seekTo(
+                when {
+                    duration > 0L && delta > 0 -> target.coerceAtMost(duration)
+                    else -> target.coerceAtLeast(0L)
+                },
+            )
+        },
+        onSelectAudio = { playbackManager.selectAudioTrack(it.id) },
+        onSelectSubtitle = { track ->
+            if (track.id == "off") playbackManager.disableSubtitles()
+            else playbackManager.selectSubtitleTrack(track.id)
+        },
+        onNext = { switchChannel(1) },
+        onPrev = { switchChannel(-1) },
+        onClose = ::handleBackPress,
+    )
  
     val player by playbackManager.playerFlow.collectAsStateWithLifecycle()
 
@@ -422,44 +449,6 @@ fun PlayerScreen(
         modifier = modifier
             .fillMaxSize()
             .background(LumenTokens.Color.bg)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { offset ->
-                        if (isLive) return@detectTapGestures
-                        if (!playbackManager.isActive) return@detectTapGestures
-                        val halfWidth = size.width / 2
-                        if (offset.x < halfWidth) {
-                            playbackManager.seekTo(
-                                (playbackManager.progressState.value.currentPositionMs - 10_000L).coerceAtLeast(0L)
-                            )
-                            showDoubleTapLeftFeedback = true
-                            coroutineScope.launch {
-                                delay(650)
-                                showDoubleTapLeftFeedback = false
-                            }
-                        } else {
-                            val current = playbackManager.progressState.value.currentPositionMs
-                            val duration = playbackManager.progressState.value.durationMs
-                            val target = current + 10_000L
-                            playbackManager.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
-                            showDoubleTapRightFeedback = true
-                            coroutineScope.launch {
-                                delay(650)
-                                showDoubleTapRightFeedback = false
-                            }
-                        }
-                    },
-                    onTap = {
-                        userInteractionTrigger++
-                        showControls = !showControls
-                        if (!showControls) {
-                            showAdvancedPanel = false
-                            showChannelSwitcher = false
-                            showTrackSelector = false
-                        }
-                    }
-                )
-            }
     ) {
         // Video Player View
         AndroidView(
@@ -528,16 +517,16 @@ fun PlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.md),
                     modifier = t.glassSurface(dropBlur = isLowRam)
                         .clip(LumenTokens.Shape.lg)
-                        .padding(horizontal = LumenTokens.Space.xxxl, vertical = LumenTokens.Space.xxl)
+                        .padding(horizontal = LumenLegacySpace.xxxl, vertical = LumenLegacySpace.xxl)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                     ) {
                         CircularProgressIndicator(
                             color = t.colors.brand,
                             modifier = Modifier.size(LumenTokens.Radius.xl),
-                            strokeWidth = LumenTokens.Color.focusRingWidth
+                            strokeWidth = LumenExtendedColors.focusRingWidth
                         )
                         Text(
                             text = "Switching source...",
@@ -587,223 +576,52 @@ fun PlayerScreen(
                 onRetry = { retryTrigger.intValue++ },
                 modifier = Modifier.align(Alignment.Center)
             )
-        } else if (!isTransitioning && (uiState.playerState == PlayerState.BUFFERING || uiState.playerState == PlayerState.PREPARING)) {
-            LumenBufferingOverlay(
-                isBuffering = true,
-                modifier = Modifier.align(Alignment.Center)
+        } else if (uiState.error == null) {
+            PlayerChrome(
+                state = playerChromeState,
+                actions = playerChromeActions,
+                isTv = false,
+                modifier = Modifier.fillMaxSize(),
             )
-        }
-
-        // Controls overlay
-        AnimatedVisibility(
-            visible = showControls && uiState.error == null,
-            enter = if (isReducedMotion) fadeIn() else PlayerOverlayMotion.fadeIn,
-            exit = if (isReducedMotion) fadeOut() else PlayerOverlayMotion.fadeOut,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                LumenTokens.Color.bg.copy(alpha = 0.8f),
-                                Color.Transparent,
-                                LumenTokens.Color.bg.copy(alpha = 0.9f)
-                            )
-                        )
-                    )
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Top Bar with glass surface
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopStart)
-                        .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.md)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = ::handleBackPress, modifier = Modifier.size(LumenTokens.Layout.iconXl)) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = t.colors.foreground,
-                                modifier = Modifier.size(LumenTokens.Radius.xl)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(LumenTokens.Space.lg))
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = uiState.source?.title ?: currentRequest.source.metadata?.title ?: currentRequest.source.title,
-                                color = t.colors.foreground,
-                                style = MaterialTheme.typography.titleLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = if (isLive) "Live TV" else currentRequest.source.type.name.replace('_', ' '),
-                                color = t.colors.mutedForeground,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                        
-                        // Action buttons
-                        if (isLive) {
-                            IconButton(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    showChannelSwitcher = true
-                                },
-                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Channels", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Radius.xl))
-                            }
-                        }
-                        if (showMultipleAudio) {
-                            IconButton(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    trackSelectorType = TrackType.AUDIO
-                                    showTrackSelector = true
-                                },
-                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
-                            ) {
-                                Icon(Icons.Default.Audiotrack, contentDescription = "Audio", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Layout.playerControlIcon))
-                            }
-                        }
-                        if (showSubtitlePicker) {
-                            IconButton(
-                                onClick = {
-                                    userInteractionTrigger++
-                                    trackSelectorType = TrackType.SUBTITLE
-                                    showTrackSelector = true
-                                },
-                                modifier = Modifier.size(LumenTokens.Layout.iconXl)
-                            ) {
-                                Icon(Icons.Default.Subtitles, contentDescription = "Subtitles", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Layout.playerControlIcon))
-                            }
-                        }
-                        IconButton(
-                            onClick = {
-                                userInteractionTrigger++
-                                showAdvancedPanel = !showAdvancedPanel
-                            },
-                            modifier = Modifier.size(LumenTokens.Layout.iconXl)
-                        ) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = t.colors.foreground, modifier = Modifier.size(LumenTokens.Radius.xl))
-                        }
-                    }
+                IconButton(onClick = ::handleBackPress, modifier = Modifier.size(LumenLayout.iconXl)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = t.colors.foreground,
+                        modifier = Modifier.size(LumenTokens.Radius.xl),
+                    )
                 }
-
-                // Playback controls (Center)
-                Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxxl)
-                ) {
-                    if (isLive && currentIndex != -1) {
-                        IconButton(onClick = { switchChannel(-1) }, modifier = Modifier.size(LumenTokens.Layout.avatarLg)) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Prev Channel", tint = t.colors.foreground, modifier = Modifier.fillMaxSize())
-                        }
-                    } else if (!isLive) {
-                        IconButton(
-                            onClick = {
-                                userInteractionTrigger++
-                                playbackManager.seekTo((progressState.currentPositionMs - 10_000L).coerceAtLeast(0L))
-                            },
-                            modifier = Modifier
-                                .size(LumenTokens.Layout.playerControlSize)
-                                .background(t.colors.muted.copy(alpha = 0.6f), CircleShape)
-                        ) {
-                            Text("-10s", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-
-                    // Contrast-adaptive Play/Pause Button
-                    val isLightBackdrop = playButtonLuminance > 0.55f
-                    val controlBg = if (isLightBackdrop) LumenTokens.Color.controlScrimDark else LumenTokens.Color.controlScrimLight
-                    val controlFg = if (isLightBackdrop) LumenTokens.Color.textPrimary else LumenTokens.Color.bg
-
+                Spacer(modifier = Modifier.weight(1f))
+                if (isLive) {
                     IconButton(
-                        onClick = {
-                            userInteractionTrigger++
-                            if (uiState.playerState == PlayerState.PLAYING) playbackManager.pause()
-                            else playbackManager.play()
-                        },
-                        modifier = Modifier
-                            .size(LumenTokens.Layout.bottomNavPadding)
-                            .background(controlBg, CircleShape)
+                        onClick = { showChannelSwitcher = true },
+                        modifier = Modifier.size(LumenLayout.iconXl),
                     ) {
                         Icon(
-                            imageVector = if (uiState.playerState == PlayerState.PLAYING) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (uiState.playerState == PlayerState.PLAYING) "Pause" else "Play",
-                            tint = controlFg,
-                            modifier = Modifier.size(LumenTokens.Layout.iconXl)
+                            Icons.AutoMirrored.Filled.List,
+                            contentDescription = "Channels",
+                            tint = t.colors.foreground,
+                            modifier = Modifier.size(LumenTokens.Radius.xl),
                         )
-                    }
-
-                    if (isLive && currentIndex != -1) {
-                        IconButton(onClick = { switchChannel(1) }, modifier = Modifier.size(LumenTokens.Layout.avatarLg)) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Next Channel", tint = t.colors.foreground, modifier = Modifier.fillMaxSize())
-                        }
-                    } else if (!isLive) {
-                        IconButton(
-                            onClick = {
-                                userInteractionTrigger++
-                                val duration = progressState.durationMs
-                                val target = progressState.currentPositionMs + 10_000L
-                                playbackManager.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
-                            },
-                            modifier = Modifier
-                                .size(LumenTokens.Layout.playerControlSize)
-                                .background(t.colors.muted.copy(alpha = 0.6f), CircleShape)
-                        ) {
-                            Text("+10s", color = t.colors.foreground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
                     }
                 }
-
-                // Bottom Controls Bar with glass surface
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .then(t.glassSurface(dropBlur = isLowRam))
-                        .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.lg)
+                IconButton(
+                    onClick = { showAdvancedPanel = !showAdvancedPanel },
+                    modifier = Modifier.size(LumenLayout.iconXl),
                 ) {
-                    if (!isLive) {
-                        MobilePlayerProgressBar(
-                            progressState = progressState,
-                            onSeek = { position ->
-                                userInteractionTrigger++
-                                playbackManager.seekTo(position)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(t.colors.destructive, LumenTokens.Shape.md)
-                                    .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xs)
-                            ) {
-                                Text(
-                                    text = "LIVE",
-                                    color = LumenTokens.Color.textPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = t.colors.foreground,
+                        modifier = Modifier.size(LumenTokens.Radius.xl),
+                    )
                 }
             }
         }
@@ -827,25 +645,25 @@ fun PlayerScreen(
 
         // Advanced diagnostics panel
         AnimatedVisibility(
-            visible = showAdvancedPanel && showControls,
+            visible = showAdvancedPanel,
             enter = if (isReducedMotion) fadeIn() else PlayerOverlayMotion.fadeIn,
             exit = if (isReducedMotion) fadeOut() else PlayerOverlayMotion.fadeOut,
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             Card(
                 modifier = Modifier
-                    .width(LumenTokens.Layout.playerMenuWidth)
+                    .width(LumenLayout.playerMenuWidth)
                     .fillMaxHeight()
-                    .padding(LumenTokens.Space.lg),
+                    .padding(LumenLegacySpace.lg),
                 colors = CardDefaults.cardColors(containerColor = t.colors.card.copy(alpha = 0.95f)),
                 border = BorderStroke(1.dp, t.colors.border)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(LumenTokens.Space.lg)
+                        .padding(LumenLegacySpace.lg)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
                 ) {
                     Text("Advanced Options", style = MaterialTheme.typography.titleMedium, color = t.colors.foreground)
                     HorizontalDivider(color = t.colors.border)
@@ -885,7 +703,7 @@ fun PlayerScreen(
                                     fallbackPolicy = policy 
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
-                                .padding(vertical = LumenTokens.Space.xs)
+                                .padding(vertical = LumenLegacySpace.xs)
                         ) {
                             RadioButton(
                                 selected = fallbackPolicy == policy,
@@ -894,7 +712,7 @@ fun PlayerScreen(
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
                             )
-                            Spacer(modifier = Modifier.width(LumenTokens.Space.sm2))
+                            Spacer(modifier = Modifier.width(LumenLegacySpace.sm2))
                             Text(
                                 text = when (policy) {
                                     AutoFallbackPolicy.OFF -> "Off"
@@ -911,31 +729,6 @@ fun PlayerScreen(
             }
         }
 
-        // Subtitles / Audio selector
-        if (showTrackSelector) {
-            ModalBottomSheet(
-                onDismissRequest = { showTrackSelector = false },
-                containerColor = t.colors.card.copy(alpha = 0.95f)
-            ) {
-                PlayerTrackSelectorSheet(
-                    trackType = trackSelectorType,
-                    audioTracks = audioTracks,
-                    subtitleTracks = subtitleTracks,
-                    onAudioTrackSelect = { trackId ->
-                        playbackManager.selectAudioTrack(trackId)
-                        showTrackSelector = false
-                    },
-                    onSubtitleTrackSelect = { trackId ->
-                        playbackManager.selectSubtitleTrack(trackId)
-                        showTrackSelector = false
-                    },
-                    onDisableSubtitles = {
-                        playbackManager.disableSubtitles()
-                        showTrackSelector = false
-                    }
-                )
-            }
-        }
     }
 }
  
@@ -957,7 +750,7 @@ private fun MobilePlayerProgressBar(
                 val newPosition = (newProgress * progressState.durationMs).toLong()
                 onSeek(newPosition)
             },
-            modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.iconXl),
+            modifier = Modifier.fillMaxWidth().height(LumenLayout.iconXl),
             colors = SliderDefaults.colors(
                 thumbColor = t.colors.brand,
                 activeTrackColor = t.colors.brand,
@@ -985,12 +778,12 @@ fun PlayerTrackSelectorSheet(
 ) {
     val t = LocalLumenTokens.current
     val subtitlesOff = remember(subtitleTracks) { subtitleTracks.none { it.isSelected } }
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = LumenTokens.Space.xxl)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = LumenLegacySpace.xxl)) {
         Text(
             text = if (trackType == TrackType.AUDIO) "Audio track" else "Subtitles",
             style = MaterialTheme.typography.titleLarge,
             color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+            modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
         )
         LazyColumn(modifier = Modifier.fillMaxWidth()) {
             if (trackType == TrackType.AUDIO) {
@@ -1072,7 +865,7 @@ fun ChannelSwitcherSheet(
     LazyColumn(modifier = Modifier.fillMaxWidth()) {
         groups.forEach { (category, categoryChannels) ->
             item(key = "category-$category") {
-                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(LumenTokens.Space.lg), color = t.colors.brand)
+                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(LumenLegacySpace.lg), color = t.colors.brand)
             }
             items(categoryChannels, key = { it.id }) { channel ->
                 ListItem(
@@ -1100,13 +893,13 @@ fun ErrorOverlay(
     val t = LocalLumenTokens.current
     LumenCard(
         modifier = modifier
-            .padding(LumenTokens.Space.xxxl)
-            .widthIn(max = LumenTokens.Layout.sheetMaxWidth)
+            .padding(LumenLegacySpace.xxxl)
+            .widthIn(max = LumenLayout.sheetMaxWidth)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+            modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg)
         ) {
             val explanation = when (error) {
                 is PlaybackError.TerminalError -> "Automatic fallback exhausted. All available sources failed to play. Please go back and select a different source manually."
@@ -1143,7 +936,7 @@ fun ErrorOverlay(
                 onClick = onChooseAnother,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(LumenTokens.Layout.buttonHeight)
+                    .height(LumenLayout.buttonHeight)
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -77,7 +78,7 @@ fun LibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.Background)
-            .padding(horizontal = LumenTokens.Space.lg),
+            .padding(horizontal = LumenLegacySpace.lg),
         verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)
     ) {
         item {
@@ -86,12 +87,12 @@ fun LibraryScreen(
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = AppColors.TextMain,
-                modifier = Modifier.padding(top = LumenTokens.Space.lg, bottom = LumenTokens.Space.sm2)
+                modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
             )
             Text(
                 text = "Your saved and recently watched items",
                 color = AppColors.TextSub,
-                modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                modifier = Modifier.padding(bottom = LumenLegacySpace.md)
             )
         }
 
@@ -211,7 +212,7 @@ fun LibraryScreen(
             }
         }
 
-        item { Spacer(modifier = Modifier.height(LumenTokens.Space.xxl)) }
+        item { Spacer(modifier = Modifier.height(LumenLegacySpace.xxl)) }
     }
 }
 
@@ -279,7 +280,7 @@ private fun MemoryRow(
                         color = AppColors.Primary,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = LumenTokens.Space.sm2)
+                            .padding(top = LumenLegacySpace.sm2)
                     )
                 }
             }
@@ -319,7 +320,7 @@ private fun EmptyLibraryRow(message: String) {
     Text(
         text = message,
         color = AppColors.TextSub,
-        modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+        modifier = Modifier.padding(bottom = LumenLegacySpace.md)
     )
 }
 

@@ -26,6 +26,7 @@ class ForbiddenScreenDpLiteral(config: Config) : Rule(config) {
     private val screenFile = Regex("""(Screen|Section)\.kt$""")
 
     override fun visitKtFile(file: KtFile) {
+        if (file.name == "LumenTokens.generated.kt" || file.name == "GlassSurface.kt") return
         if (!screenFile.containsMatchIn(file.name)) return
         super.visitKtFile(file)
     }
@@ -51,6 +52,7 @@ class ForbiddenScreenColorLiteral(config: Config) : Rule(config) {
     private val screenFile = Regex("""(Screen|Section)\.kt$""")
 
     override fun visitKtFile(file: KtFile) {
+        if (file.name == "LumenTokens.generated.kt" || file.name == "GlassSurface.kt") return
         if (!screenFile.containsMatchIn(file.name)) return
         super.visitKtFile(file)
     }
@@ -77,6 +79,7 @@ class ForbiddenScreenMaterialColors(config: Config) : Rule(config) {
     private val screenFile = Regex("""(Screen|Section)\.kt$""")
 
     override fun visitKtFile(file: KtFile) {
+        if (file.name == "LumenTokens.generated.kt" || file.name == "GlassSurface.kt") return
         if (!screenFile.containsMatchIn(file.name)) return
         super.visitKtFile(file)
     }
@@ -100,6 +103,7 @@ class ForbiddenScreenRoundedCornerShape(config: Config) : Rule(config) {
     private val screenFile = Regex("""(Screen|Section)\.kt$""")
 
     override fun visitKtFile(file: KtFile) {
+        if (file.name == "LumenTokens.generated.kt" || file.name == "GlassSurface.kt") return
         if (!screenFile.containsMatchIn(file.name)) return
         super.visitKtFile(file)
     }

@@ -1,5 +1,8 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -410,14 +413,14 @@ fun TvDetailsScreen(
 
     if (showUnavailableDialog) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showUnavailableDialog = false }) {
-            Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenTokens.Space.xxl)) {
+            Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenLegacySpace.xxl)) {
                 Column {
                     Text("Source Unavailable", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                     Text("The selected stream is missing a valid URL. Please choose another option.", fontSize = 14.sp, color = t.colors.mutedForeground)
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     TvFocusable(onClick = { showUnavailableDialog = false }, modifier = Modifier.align(Alignment.End)) {
-                        Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2))
+                        Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2))
                     }
                 }
             }
@@ -426,14 +429,14 @@ fun TvDetailsScreen(
 
     if (showBlockedDialog) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showBlockedDialog = false }) {
-            Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenTokens.Space.xxl)) {
+            Box(modifier = Modifier.clip(LumenTokens.Shape.md).background(t.colors.card).padding(LumenLegacySpace.xxl)) {
                 Column {
                     Text("Configuration Required", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.sm2))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                     Text("This source requires configuration or authentication. Please update your settings.", fontSize = 14.sp, color = t.colors.mutedForeground)
-                    Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                    Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
                     TvFocusable(onClick = { showBlockedDialog = false }, modifier = Modifier.align(Alignment.End)) {
-                        Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2))
+                        Text("OK", color = t.colors.foreground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2))
                     }
                 }
             }
@@ -521,22 +524,22 @@ fun TvDetailsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(LumenTokens.Layout.iconXl),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl)
+                    .padding(LumenLayout.iconXl),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl)
             ) {
-                LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.skeletonTitleWidth).height(LumenTokens.Layout.offsetLg))
+                LumenSkeleton(modifier = Modifier.width(LumenLayout.skeletonTitleWidth).height(LumenLayout.offsetLg))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxxl),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxxl),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    LumenSkeleton(modifier = Modifier.size(LumenTokens.Layout.heroStripHeight, LumenTokens.Layout.posterHeightTv))
+                    LumenSkeleton(modifier = Modifier.size(LumenLayout.heroStripHeight, LumenLayout.posterHeightTv))
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
                     ) {
-                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.iconXl))
-                        LumenSkeleton(modifier = Modifier.width(LumenTokens.Layout.channelPanelWidth).height(LumenTokens.Space.xxl))
-                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenTokens.Layout.inputWidthSm))
+                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenLayout.iconXl))
+                        LumenSkeleton(modifier = Modifier.width(LumenLayout.channelPanelWidth).height(LumenLegacySpace.xxl))
+                        LumenSkeleton(modifier = Modifier.fillMaxWidth().height(LumenLayout.inputWidthSm))
                     }
                 }
             }
@@ -572,9 +575,9 @@ fun TvDetailsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = LumenTokens.Layout.iconXl),
-            contentPadding = PaddingValues(top = LumenTokens.Space.xxxxl, bottom = LumenTokens.Space.xxxxl),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                .padding(horizontal = LumenLayout.iconXl),
+            contentPadding = PaddingValues(top = LumenLegacySpace.xxxxl, bottom = LumenLegacySpace.xxxxl),
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
         ) {
             // Back focus card
             item(key = "back_header") {
@@ -587,14 +590,14 @@ fun TvDetailsScreen(
                         color = t.colors.foreground,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                        modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                     )
                 }
             }
 
             item(key = "details_row") {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxxl),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxxl),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Left column: Poster
@@ -603,9 +606,9 @@ fun TvDetailsScreen(
                         contentDescription = "Poster for ${currentMediaItem.title}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(LumenTokens.Layout.heroStripHeight, LumenTokens.Layout.posterHeightTv)
+                            .size(LumenLayout.heroStripHeight, LumenLayout.posterHeightTv)
                             .clip(LumenTokens.Shape.md)
-                            .background(LumenTokens.Color.glassOverlay)
+                            .background(LumenTokens.Color.glass)
                     )
 
                     // Right column: VOD Info + metadata + actions
@@ -616,8 +619,8 @@ fun TvDetailsScreen(
                                 contentDescription = currentMediaItem.title,
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
-                                    .padding(vertical = LumenTokens.Space.sm2)
-                                    .height(LumenTokens.Layout.bottomNavPadding)
+                                    .padding(vertical = LumenLegacySpace.sm2)
+                                    .height(LumenLayout.bottomNavPadding)
                             )
                         } else {
                             Text(
@@ -629,21 +632,21 @@ fun TvDetailsScreen(
                         }
                         
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = LumenTokens.Space.sm2)
+                            modifier = Modifier.padding(vertical = LumenLegacySpace.sm2)
                         ) {
                             val year = currentMediaItem.releaseDate ?: stremioMeta?.releaseInfo ?: ""
                             Text(text = year, color = t.colors.mutedForeground, fontSize = 14.sp)
                             
                             currentMediaItem.rating?.let {
-                                Text(text = "IMDb: ★ $it", color = LumenTokens.Color.ratingGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "IMDb: ★ $it", color = LumenExtendedColors.ratingGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                             stremioMeta?.rtRating?.let {
-                                Text(text = "RT: 🍅 $it", color = LumenTokens.Color.errorBright, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "RT: 🍅 $it", color = LumenExtendedColors.errorBright, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                             stremioMeta?.metascore?.let {
-                                Text(text = "Metascore: Ⓜ️ $it", color = LumenTokens.Color.statusHealthy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Metascore: Ⓜ️ $it", color = LumenExtendedColors.statusHealthy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -654,7 +657,7 @@ fun TvDetailsScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = t.colors.mutedForeground,
-                                modifier = Modifier.padding(bottom = LumenTokens.Space.sm2)
+                                modifier = Modifier.padding(bottom = LumenLegacySpace.sm2)
                             )
                         }
 
@@ -663,18 +666,18 @@ fun TvDetailsScreen(
                             color = t.colors.mutedForeground,
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
-                            modifier = Modifier.padding(bottom = LumenTokens.Space.md)
+                            modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                         )
 
                         // Action Buttons: Play (Adaptive Contrast) & Favorite
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
+                            modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
                         ) {
                             if (bestMatch != null) {
                                 val isLightBackdrop = backdropLuminance > 0.55f
-                                val controlBg = if (isLightBackdrop) LumenTokens.Color.controlScrimDark else LumenTokens.Color.controlScrimLight
+                                val controlBg = if (isLightBackdrop) LumenExtendedColors.controlScrimDark else LumenExtendedColors.controlScrimLight
                                 val controlFg = if (isLightBackdrop) LumenTokens.Color.textPrimary else LumenTokens.Color.bg
 
                                 TvFocusable(
@@ -685,7 +688,7 @@ fun TvDetailsScreen(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier
                                             .background(controlBg, LumenTokens.Shape.pill)
-                                            .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+                                            .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                                     ) {
                                         Text(
                                             text = "Play Best Match",
@@ -715,7 +718,7 @@ fun TvDetailsScreen(
                                     color = t.colors.foreground,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    modifier = Modifier.padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Space.md)
+                                    modifier = Modifier.padding(horizontal = LumenLegacySpace.xl, vertical = LumenLegacySpace.md)
                                 )
                             }
                         }
@@ -727,7 +730,7 @@ fun TvDetailsScreen(
             if (mediaItem.type == MediaType.SHOW) {
                 item(key = "seasons_row") {
                     if (seasons.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)) {
                             Text("Seasons", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
                                 items(seasons) { season ->
@@ -741,7 +744,7 @@ fun TvDetailsScreen(
                                                     if (isSelected) t.colors.brand else t.colors.muted,
                                                     LumenTokens.Shape.pill
                                                 )
-                                                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                                                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                                         ) {
                                             Text(
                                                 text = seasonDisplayLabel(season),
@@ -759,11 +762,11 @@ fun TvDetailsScreen(
 
                 item(key = "episodes_row") {
                     if (episodesForSelectedSeason.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
                             Text("Episodes", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                             LazyRow(
                                 state = currentSeasonScrollState,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 items(episodesForSelectedSeason, key = { it.id ?: "${it.season}:${it.episode}" }) { video ->
@@ -773,7 +776,7 @@ fun TvDetailsScreen(
 
                                     TvFocusable(
                                         onClick = { selectedEpisode = video },
-                                        modifier = Modifier.width(LumenTokens.Layout.channelPanelWidth)
+                                        modifier = Modifier.width(LumenLayout.channelPanelWidth)
                                     ) {
                                         Column {
                                             PosterCard(
@@ -790,7 +793,7 @@ fun TvDetailsScreen(
                                                 fontWeight = FontWeight.Bold,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(top = LumenTokens.Space.sm2)
+                                                modifier = Modifier.padding(top = LumenLegacySpace.sm2)
                                             )
                                         }
                                     }
@@ -804,9 +807,9 @@ fun TvDetailsScreen(
             // More Like This
             if (similarItems.isNotEmpty()) {
                 item(key = "similar_items_row") {
-                    Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
                         Text("More Like This", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
                             items(similarItems, key = { "similar-${it.id}" }) { item ->
                                 val similarMedia = MediaItem(
                                     id = item.id,
@@ -818,7 +821,7 @@ fun TvDetailsScreen(
                                 )
                                 TvFocusable(
                                     onClick = { onOpenMedia(similarMedia) },
-                                    modifier = Modifier.width(LumenTokens.Layout.epgMinBlockWidthTv)
+                                    modifier = Modifier.width(LumenLayout.epgMinBlockWidthTv)
                                 ) {
                                     Column {
                                         PosterCard(
@@ -833,7 +836,7 @@ fun TvDetailsScreen(
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(top = LumenTokens.Space.sm)
+                                            modifier = Modifier.padding(top = LumenLegacySpace.sm)
                                         )
                                     }
                                 }
@@ -850,13 +853,13 @@ fun TvDetailsScreen(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground,
-                    modifier = Modifier.padding(top = LumenTokens.Space.md)
+                    modifier = Modifier.padding(top = LumenLegacySpace.md)
                 )
             }
 
             item(key = "alternative_options") {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val iptvRes = remember(iptvOption) { iptvOption?.let { com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(it.toRawSourceInput()) } }
@@ -907,7 +910,7 @@ fun TvDetailsScreen(
                     modifier = Modifier.fillMaxWidth().focusRequester(advancedToggleFocusRequester)
                 ) {
                     Row(
-                        modifier = Modifier.padding(LumenTokens.Space.lg),
+                        modifier = Modifier.padding(LumenLegacySpace.lg),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -932,7 +935,7 @@ fun TvDetailsScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = LumenTokens.Space.lg)
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = LumenLegacySpace.lg)
                     ) {
                         Text("Show Raw Details", color = t.colors.foreground, fontSize = 14.sp)
                         Switch(checked = showRawDetails, onCheckedChange = { showRawDetails = it })
@@ -941,8 +944,8 @@ fun TvDetailsScreen(
 
                 item(key = "sort_strategies") {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = LumenTokens.Space.lg)
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = LumenLegacySpace.lg)
                     ) {
                         TvFocusable(
                             onClick = { sortingPreference = SortingPreference.BEST_MATCH }
@@ -953,7 +956,7 @@ fun TvDetailsScreen(
                                         if (sortingPreference == SortingPreference.BEST_MATCH) t.colors.brand else t.colors.muted,
                                         LumenTokens.Shape.sm
                                     )
-                                    .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                                    .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                             ) {
                                 Text("Best Match", color = t.colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
@@ -967,7 +970,7 @@ fun TvDetailsScreen(
                                         if (sortingPreference == SortingPreference.HIGHEST_QUALITY) t.colors.brand else t.colors.muted,
                                         LumenTokens.Shape.sm
                                     )
-                                    .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.sm2)
+                                    .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                             ) {
                                 Text("Highest Quality", color = t.colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
@@ -976,7 +979,7 @@ fun TvDetailsScreen(
                 }
 
                 itemsIndexed(sortedOptionsWithScores, key = { _, pair -> pair.first.id }) { index, (option, score) ->
-                    Box(modifier = Modifier.padding(horizontal = LumenTokens.Space.lg)) {
+                    Box(modifier = Modifier.padding(horizontal = LumenLegacySpace.lg)) {
                         TvManualSourceItem(
                             option = option,
                             score = score,
@@ -1002,11 +1005,11 @@ private fun TvWatchOptionContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(LumenTokens.Space.md),
+            .padding(LumenLegacySpace.md),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = title, fontWeight = FontWeight.Bold, color = t.colors.foreground, fontSize = 14.sp)
-        Text(text = resolution, color = t.colors.mutedForeground, fontSize = 12.sp, modifier = Modifier.padding(top = LumenTokens.Space.xs))
+        Text(text = resolution, color = t.colors.mutedForeground, fontSize = 12.sp, modifier = Modifier.padding(top = LumenLegacySpace.xs))
     }
 }
 
@@ -1029,7 +1032,7 @@ fun TvManualSourceItem(
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg)
+            modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg)
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1046,9 +1049,9 @@ fun TvManualSourceItem(
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = LumenTokens.Space.sm)
+                    modifier = Modifier.padding(top = LumenLegacySpace.sm)
                 ) {
                     TvSourceBadge(type = option.type)
                     
@@ -1058,7 +1061,7 @@ fun TvManualSourceItem(
                             modifier = Modifier
                                 .clip(LumenTokens.Shape.md)
                                 .background(t.colors.brand.copy(alpha = 0.2f))
-                                .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                         ) {
                             Text(
                                 text = extensionName,
@@ -1075,7 +1078,7 @@ fun TvManualSourceItem(
                         modifier = Modifier
                             .clip(LumenTokens.Shape.md)
                             .background(t.colors.muted)
-                            .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                            .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                     ) {
                         Text(
                             text = "[$quality] [$sizeStr]",
@@ -1090,12 +1093,12 @@ fun TvManualSourceItem(
                         Box(
                             modifier = Modifier
                                 .clip(LumenTokens.Shape.md)
-                                .background(LumenTokens.Color.ratingGold.copy(alpha = 0.24f))
-                                .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                .background(LumenExtendedColors.ratingGold.copy(alpha = 0.24f))
+                                .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                         ) {
                             Text(
                                 text = "[$hdrBadge]",
-                                color = LumenTokens.Color.ratingGold,
+                                color = LumenExtendedColors.ratingGold,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1107,12 +1110,12 @@ fun TvManualSourceItem(
                         Box(
                             modifier = Modifier
                                 .clip(LumenTokens.Shape.md)
-                                .background(LumenTokens.Color.cyan.copy(alpha = 0.24f))
-                                .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                .background(LumenExtendedColors.cyan.copy(alpha = 0.24f))
+                                .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                         ) {
                             Text(
                                 text = "[$codecBadge]",
-                                color = LumenTokens.Color.cyan,
+                                color = LumenExtendedColors.cyan,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1124,12 +1127,12 @@ fun TvManualSourceItem(
                         Box(
                             modifier = Modifier
                                 .clip(LumenTokens.Shape.md)
-                                .background(LumenTokens.Color.violet.copy(alpha = 0.24f))
-                                .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+                                .background(LumenExtendedColors.violet.copy(alpha = 0.24f))
+                                .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
                         ) {
                             Text(
                                 text = "[$audioBadge]",
-                                color = LumenTokens.Color.violet,
+                                color = LumenExtendedColors.violet,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1142,10 +1145,10 @@ fun TvManualSourceItem(
                     
                     val tier = health?.reliabilityTier ?: SourceReliabilityTier.EXCELLENT
                     val (labelText, labelColor) = when (tier) {
-                        SourceReliabilityTier.EXCELLENT, SourceReliabilityTier.GOOD -> "Reliable" to LumenTokens.Color.statusHealthy
+                        SourceReliabilityTier.EXCELLENT, SourceReliabilityTier.GOOD -> "Reliable" to LumenExtendedColors.statusHealthy
                         SourceReliabilityTier.UNSTABLE, SourceReliabilityTier.POOR -> "Unstable" to LumenTokens.Color.warning
-                        SourceReliabilityTier.BLOCKED -> "Failed recently" to LumenTokens.Color.errorBright
-                        else -> "Reliable" to LumenTokens.Color.statusHealthy
+                        SourceReliabilityTier.BLOCKED -> "Failed recently" to LumenExtendedColors.errorBright
+                        else -> "Reliable" to LumenExtendedColors.statusHealthy
                     }
                     Text(
                         text = labelText,
@@ -1162,8 +1165,8 @@ fun TvManualSourceItem(
                 
                 if (health != null) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                        modifier = Modifier.padding(top = LumenTokens.Space.xs)
+                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                        modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     ) {
                         Text(text = "Failures: ${health.failureCount}", fontSize = 12.sp, color = t.colors.mutedForeground)
                         Text(text = "Startup: ${health.averageStartupTime}ms", fontSize = 12.sp, color = t.colors.mutedForeground)
@@ -1187,13 +1190,13 @@ fun TvSourceBadge(type: SourceType, modifier: Modifier = Modifier) {
     val (label, bg, fg) = when (type) {
         SourceType.IPTV -> Triple("IPTV", t.colors.brand.copy(alpha = 0.2f), t.colors.brandGlow)
         SourceType.EXTENSION -> Triple("ADDON", t.colors.muted, t.colors.foreground)
-        SourceType.DEBRID -> Triple("DEBRID", LumenTokens.Color.debridTint, LumenTokens.Color.success)
+        SourceType.DEBRID -> Triple("DEBRID", LumenExtendedColors.debridTint, LumenTokens.Color.success)
     }
     Box(
         modifier = modifier
             .clip(LumenTokens.Shape.md)
             .background(bg)
-            .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xxs)
+            .padding(horizontal = LumenLegacySpace.sm, vertical = LumenLegacySpace.xxs)
     ) {
         Text(
             text = label,

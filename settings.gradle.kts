@@ -46,5 +46,8 @@ include(":core:sourceintelligence")
 include(":core:discoveryengine")
 include(":core:data")
 include(":core:ui")
+include(":feature:epg")
+include(":feature:player")
 include(":detekt-rules")
+
 

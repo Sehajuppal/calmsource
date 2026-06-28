@@ -1,5 +1,8 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import android.content.Context
@@ -129,22 +132,22 @@ fun TvSettingsScreens(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenTokens.Space.xxl),
-        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl)
+            .padding(LumenLegacySpace.xxl),
+        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl)
     ) {
         // Left Nav Pane (width = 240dp)
         Column(
             modifier = Modifier
-                .width(LumenTokens.Layout.detailsContentTop)
+                .width(LumenLayout.detailsContentTop)
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
         ) {
             Text(
                 text = "Settings",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
-                modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
+                modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
             )
 
             TvLeftNavItem(
@@ -185,7 +188,7 @@ fun TvSettingsScreens(
                 .weight(1f)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xl)
+            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
         ) {
             when (activeSection) {
                 TvSettingsSection.Profile -> {
@@ -196,16 +199,16 @@ fun TvSettingsScreens(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(LumenTokens.Space.lg)
+                                .padding(LumenLegacySpace.lg)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
                             ) {
                                 val avatar = activeProfile?.avatarUrl
                                 Box(
                                     modifier = Modifier
-                                        .size(LumenTokens.Layout.avatarLg)
+                                        .size(LumenLayout.avatarLg)
                                         .clip(CircleShape)
                                         .background(t.colors.muted)
                                 ) {
@@ -231,7 +234,7 @@ fun TvSettingsScreens(
                                     )
                                 }
                             }
-                            TvFocusable(onClick = onSwitchProfileClick, cornerRadius = LumenTokens.Space.sm2) {
+                            TvFocusable(onClick = onSwitchProfileClick, cornerRadius = LumenLegacySpace.sm2) {
                                 Text(
                                     text = "Switch Profile",
                                     color = t.colors.foreground,
@@ -239,7 +242,7 @@ fun TvSettingsScreens(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .background(t.colors.muted)
-                                        .padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Radius.sm)
+                                        .padding(horizontal = LumenLegacySpace.xl, vertical = LumenTokens.Radius.sm)
                                 )
                             }
                         }
@@ -250,7 +253,7 @@ fun TvSettingsScreens(
                     Text("Playback preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                     ) {
                         TvSettingsInteractiveRow(
                             title = "Autoplay next episode",
@@ -373,7 +376,7 @@ fun TvSettingsScreens(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("IPTV playlists", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                        TvFocusable(onClick = { showProviderTypeSelect = true }, cornerRadius = LumenTokens.Space.sm2) {
+                        TvFocusable(onClick = { showProviderTypeSelect = true }, cornerRadius = LumenLegacySpace.sm2) {
                             Text(
                                 text = "Add provider",
                                 color = t.colors.foreground,
@@ -381,14 +384,14 @@ fun TvSettingsScreens(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
-                                    .padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Radius.sm)
+                                    .padding(horizontal = LumenLegacySpace.xl, vertical = LumenTokens.Radius.sm)
                             )
                         }
                     }
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                     ) {
                         if (providers.isEmpty()) {
                             LumenEmptyState(
@@ -407,11 +410,11 @@ fun TvSettingsScreens(
                                         .fillMaxWidth()
                                         .background(t.colors.card)
                                         .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                        .padding(LumenTokens.Space.lg)
+                                        .padding(LumenLegacySpace.lg)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                                     ) {
                                         Box(
                                             modifier = Modifier
@@ -438,7 +441,7 @@ fun TvSettingsScreens(
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                                     ) {
                                         TvFocusable(
                                             onClick = {
@@ -450,11 +453,11 @@ fun TvSettingsScreens(
                                                     }
                                                 }
                                             },
-                                            cornerRadius = LumenTokens.Space.sm2
+                                            cornerRadius = LumenLegacySpace.sm2
                                         ) {
-                                            Box(modifier = Modifier.padding(LumenTokens.Space.sm2)) {
+                                            Box(modifier = Modifier.padding(LumenLegacySpace.sm2)) {
                                                 if (isSyncing) {
-                                                    CircularProgressIndicator(modifier = Modifier.size(LumenTokens.Layout.iconMd), color = t.colors.brand, strokeWidth = LumenTokens.Space.xxs)
+                                                    CircularProgressIndicator(modifier = Modifier.size(LumenLayout.iconMd), color = t.colors.brand, strokeWidth = LumenLegacySpace.xxs)
                                                 } else {
                                                     Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = t.colors.foreground)
                                                 }
@@ -463,9 +466,9 @@ fun TvSettingsScreens(
 
                                         TvFocusable(
                                             onClick = { providerToDelete = provider },
-                                            cornerRadius = LumenTokens.Space.sm2
+                                            cornerRadius = LumenLegacySpace.sm2
                                         ) {
-                                            Box(modifier = Modifier.padding(LumenTokens.Space.sm2)) {
+                                            Box(modifier = Modifier.padding(LumenLegacySpace.sm2)) {
                                                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                                             }
                                         }
@@ -490,7 +493,7 @@ fun TvSettingsScreens(
                                 addonValidationError = null
                                 showAddonDialog = true
                             },
-                            cornerRadius = LumenTokens.Space.sm2
+                            cornerRadius = LumenLegacySpace.sm2
                         ) {
                             Text(
                                 text = "Add from URL",
@@ -499,14 +502,14 @@ fun TvSettingsScreens(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
-                                    .padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Radius.sm)
+                                    .padding(horizontal = LumenLegacySpace.xl, vertical = LumenTokens.Radius.sm)
                             )
                         }
                     }
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                     ) {
                         if (extensions.isEmpty()) {
                             LumenEmptyState(
@@ -517,10 +520,10 @@ fun TvSettingsScreens(
                         } else {
                             extensions.forEach { addon ->
                                 val healthColor = when (addon.health) {
-                                    ExtensionHealth.ACTIVE -> LumenTokens.Color.statusHealthy
+                                    ExtensionHealth.ACTIVE -> LumenExtendedColors.statusHealthy
                                     ExtensionHealth.DISABLED -> LumenTokens.Color.textMuted
                                     ExtensionHealth.NEEDS_CONFIGURATION, ExtensionHealth.SLOW -> LumenTokens.Color.warning
-                                    ExtensionHealth.FAILED, ExtensionHealth.INVALID_MANIFEST -> LumenTokens.Color.errorBright
+                                    ExtensionHealth.FAILED, ExtensionHealth.INVALID_MANIFEST -> LumenExtendedColors.errorBright
                                     else -> LumenTokens.Color.textMuted
                                 }
 
@@ -531,11 +534,11 @@ fun TvSettingsScreens(
                                         .fillMaxWidth()
                                         .background(t.colors.card)
                                         .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                        .padding(LumenTokens.Space.lg)
+                                        .padding(LumenLegacySpace.lg)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Box(
@@ -554,27 +557,27 @@ fun TvSettingsScreens(
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                                     ) {
                                         TvFocusable(
                                             onClick = {
                                                 ExtensionRepository.toggleExtension(addon.id, !addon.isEnabled)
                                             },
-                                            cornerRadius = LumenTokens.Space.sm2
+                                            cornerRadius = LumenLegacySpace.sm2
                                         ) {
                                             Text(
                                                 text = if (addon.isEnabled) "Disable" else "Enable",
                                                 color = t.colors.foreground,
                                                 fontSize = 12.sp,
-                                                modifier = Modifier.padding(horizontal = LumenTokens.Radius.md, vertical = LumenTokens.Space.sm)
+                                                modifier = Modifier.padding(horizontal = LumenTokens.Radius.md, vertical = LumenLegacySpace.sm)
                                             )
                                         }
 
                                         TvFocusable(
                                             onClick = { addonToRemove = addon },
-                                            cornerRadius = LumenTokens.Space.sm2
+                                            cornerRadius = LumenLegacySpace.sm2
                                         ) {
-                                            Box(modifier = Modifier.padding(LumenTokens.Space.sm2)) {
+                                            Box(modifier = Modifier.padding(LumenLegacySpace.sm2)) {
                                                 Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = Color.Red)
                                             }
                                         }
@@ -589,7 +592,7 @@ fun TvSettingsScreens(
                     Text("About", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
                     ) {
                         val versionName = remember {
                             runCatching {
@@ -614,9 +617,9 @@ fun TvSettingsScreens(
                         val configured = com.example.calmsource.tv.BuildConfig.RELAY_BASE_URL.isNotBlank()
                         TvSettingsAboutRow(label = "Relay sync status", value = if (configured) "Configured" else "Not set")
 
-                        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
+                        Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
 
-                        TvFocusable(onClick = onPairingClick, cornerRadius = LumenTokens.Space.sm2) {
+                        TvFocusable(onClick = onPairingClick, cornerRadius = LumenLegacySpace.sm2) {
                             Text(
                                 text = "Device Pairing",
                                 color = t.colors.foreground,
@@ -624,7 +627,7 @@ fun TvSettingsScreens(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .background(t.colors.muted)
-                                    .padding(horizontal = LumenTokens.Space.xxl, vertical = LumenTokens.Space.md)
+                                    .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
                             )
                         }
                     }
@@ -675,7 +678,7 @@ fun TvSettingsScreens(
             onDismissRequest = { showM3uDialog = false },
             title = { Text(if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
                     OutlinedTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
@@ -972,14 +975,14 @@ fun TvLeftNavItem(
         onClick = onClick,
         modifier = modifier.fillMaxWidth()
             .onFocusChanged { if (it.isFocused) onFocus() },
-        cornerRadius = LumenTokens.Space.sm2
+        cornerRadius = LumenLegacySpace.sm2
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(if (isSelected) t.colors.brand.copy(alpha = 0.15f) else Color.Transparent)
-                .padding(horizontal = LumenTokens.Space.lg, vertical = LumenTokens.Space.md)
+                .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.md)
         ) {
             Text(
                 text = title,
@@ -1003,7 +1006,7 @@ fun TvSettingsInteractiveRow(
     TvFocusable(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        cornerRadius = LumenTokens.Space.sm2
+        cornerRadius = LumenLegacySpace.sm2
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1011,12 +1014,12 @@ fun TvSettingsInteractiveRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(t.colors.card)
-                .padding(LumenTokens.Space.lg)
+                .padding(LumenLegacySpace.lg)
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
                 if (description.isNotEmpty()) {
-                    Text(description, fontSize = 12.sp, color = t.colors.mutedForeground, modifier = Modifier.padding(top = LumenTokens.Space.xxs))
+                    Text(description, fontSize = 12.sp, color = t.colors.mutedForeground, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
                 }
             }
             actionContent()
@@ -1035,7 +1038,7 @@ fun TvSettingsAboutRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(t.colors.card, LumenTokens.Shape.sm)
-            .padding(LumenTokens.Space.lg)
+            .padding(LumenLegacySpace.lg)
     ) {
         Text(label, fontSize = 16.sp, color = t.colors.mutedForeground)
         Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
@@ -1060,7 +1063,7 @@ fun TvSettingsRow(
         ) {
             Column {
                 Text(text = title, color = TvColors.TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(text = description, color = if (isFocused) TvColors.TextMain else TvColors.TextSub, fontSize = 12.sp, modifier = Modifier.padding(top = LumenTokens.Space.xxs))
+                Text(text = description, color = if (isFocused) TvColors.TextMain else TvColors.TextSub, fontSize = 12.sp, modifier = Modifier.padding(top = LumenLegacySpace.xxs))
             }
             Text(text = "Open →", color = TvColors.BorderFocused, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }

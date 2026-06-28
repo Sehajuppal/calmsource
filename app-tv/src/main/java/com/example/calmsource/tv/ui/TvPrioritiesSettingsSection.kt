@@ -1,5 +1,6 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -22,16 +23,16 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(TvColors.Background)
-            .padding(LumenTokens.Space.xxl),
-        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+            .padding(LumenLegacySpace.xxl),
+        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
-            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenTokens.Space.lg)) {
+            TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenLegacySpace.lg)) {
                 Text(text = "← Back", color = TvColors.TextMain)
             }
         }
         item {
-            Text(text = "Priorities Configuration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = LumenTokens.Space.md))
+            Text(text = "Priorities Configuration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TvColors.TextMain, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
         }
 
         item {

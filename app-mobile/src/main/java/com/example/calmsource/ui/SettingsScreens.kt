@@ -1,5 +1,8 @@
 package com.example.calmsource.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenExtendedColors
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import android.content.Context
@@ -107,16 +110,16 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenTokens.Space.lg)
+            .padding(LumenLegacySpace.lg)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xl)
+        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
     ) {
         Text(
             text = "Settings",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = LumenTokens.Space.sm2)
+            modifier = Modifier.padding(bottom = LumenLegacySpace.sm2)
         )
 
         // 1. PROFILE CARD
@@ -124,16 +127,16 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
                 ) {
                     val avatar = activeProfile?.avatarUrl
                     Box(
                         modifier = Modifier
-                            .size(LumenTokens.Layout.channelLogoInner)
+                            .size(LumenLayout.channelLogoInner)
                             .clip(CircleShape)
                             .background(t.colors.muted)
                     ) {
@@ -170,8 +173,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         // 2. PLAYBACK CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
                 Text(
                     text = "Playback",
@@ -244,8 +247,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         // 3. IPTV PROVIDERS CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -281,15 +284,15 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                .padding(LumenTokens.Space.md)
+                                .padding(LumenLegacySpace.md)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(LumenTokens.Space.sm2)
+                                        .size(LumenLegacySpace.sm2)
                                         .clip(CircleShape)
                                         .background(
                                             if (!provider.isEnabled) Color.Gray
@@ -311,7 +314,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                             ) {
                                 IconButton(
                                     onClick = {
@@ -326,7 +329,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     enabled = !isSyncing
                                 ) {
                                     if (isSyncing) {
-                                        CircularProgressIndicator(modifier = Modifier.size(LumenTokens.Layout.iconMd), strokeWidth = LumenTokens.Space.xxs, color = t.colors.brand)
+                                        CircularProgressIndicator(modifier = Modifier.size(LumenLayout.iconMd), strokeWidth = LumenLegacySpace.xxs, color = t.colors.brand)
                                     } else {
                                         Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = t.colors.foreground)
                                     }
@@ -361,8 +364,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         // 4. CATALOG ADD-ONS CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -396,10 +399,10 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 } else {
                     extensions.forEach { addon ->
                         val healthColor = when (addon.health) {
-                            ExtensionHealth.ACTIVE -> LumenTokens.Color.statusHealthy
+                            ExtensionHealth.ACTIVE -> LumenExtendedColors.statusHealthy
                             ExtensionHealth.DISABLED -> LumenTokens.Color.textMuted
                             ExtensionHealth.NEEDS_CONFIGURATION, ExtensionHealth.SLOW -> LumenTokens.Color.warning
-                            ExtensionHealth.FAILED, ExtensionHealth.INVALID_MANIFEST -> LumenTokens.Color.errorBright
+                            ExtensionHealth.FAILED, ExtensionHealth.INVALID_MANIFEST -> LumenExtendedColors.errorBright
                             else -> LumenTokens.Color.textMuted
                         }
 
@@ -409,16 +412,16 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                .padding(LumenTokens.Space.md)
+                                .padding(LumenLegacySpace.md)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2),
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(LumenTokens.Space.sm2)
+                                        .size(LumenLegacySpace.sm2)
                                         .clip(CircleShape)
                                         .background(healthColor)
                                 )
@@ -431,7 +434,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                             ) {
                                 Switch(
                                     checked = addon.isEnabled,
@@ -453,8 +456,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         // 5. ABOUT CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
             ) {
                 Text(
                     text = "About",
@@ -507,7 +510,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         text = if (configured) "Configured" else "Not set",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (configured) LumenTokens.Color.statusHealthy else t.colors.mutedForeground
+                        color = if (configured) LumenExtendedColors.statusHealthy else t.colors.mutedForeground
                     )
                 }
             }
@@ -556,7 +559,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             onDismissRequest = { showM3uDialog = false },
             title = { Text(if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
                     OutlinedTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
@@ -845,7 +848,7 @@ fun SubScreenHeader(title: String, onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = LumenTokens.Space.lg),
+            .padding(bottom = LumenLegacySpace.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
@@ -863,7 +866,7 @@ fun HealthBadge(status: String, color: Color) {
             .clip(LumenTokens.Shape.xs)
             .background(bgColor)
             .border(1.dp, color.copy(alpha = 0.3f), LumenTokens.Shape.xs)
-            .padding(horizontal = LumenTokens.Space.sm2, vertical = LumenTokens.Space.xxs)
+            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xxs)
     ) {
         Text(
             text = status,
@@ -877,7 +880,7 @@ fun HealthBadge(status: String, color: Color) {
 @Composable
 fun PreferenceSwitchRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = LumenTokens.Space.sm2),
+        modifier = Modifier.fillMaxWidth().padding(vertical = LumenLegacySpace.sm2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

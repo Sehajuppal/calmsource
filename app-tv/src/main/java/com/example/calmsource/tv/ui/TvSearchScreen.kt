@@ -1,5 +1,7 @@
 package com.example.calmsource.tv.ui
 
+import com.example.calmsource.core.ui.theme.LumenLegacySpace
+import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
 
 import androidx.compose.foundation.background
@@ -40,8 +42,8 @@ import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.feature.search.SearchDisplayResult
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateMapOf
+import com.example.calmsource.core.ui.tv.rememberTvFocusMemory
+import com.example.calmsource.core.ui.tv.TvFocusScope
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -80,9 +82,7 @@ fun TvSearchScreen(
         initialFirstVisibleItemScrollOffset = scrollPosition.second
     )
 
-    // Focus Memory
-    val focusedItemKeys = rememberSaveable { mutableStateMapOf<String, String>() }
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val focusMemory = rememberTvFocusMemory()
     val searchFieldFocusRequester = remember { FocusRequester() }
 
     fun submitQuery() {
@@ -103,12 +103,9 @@ fun TvSearchScreen(
     }
 
     LaunchedEffect(Unit) {
-        val lastFocusedRow = focusedItemKeys["active_row"]
-        val lastFocusedId = lastFocusedRow?.let { focusedItemKeys[it] }
-        if (lastFocusedRow != null && lastFocusedId != null) {
-            val key = "$lastFocusedRow:$lastFocusedId"
-            focusRequesters[key]?.requestFocus()
-        } else {
+        val hasRowMemory = listOf("search/titles", "search/channels", "search/chips")
+            .any { focusMemory.lastFocusedId(it) != null }
+        if (!hasRowMemory) {
             searchFieldFocusRequester.requestFocus()
         }
     }
@@ -127,14 +124,14 @@ fun TvSearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenTokens.Space.xxl)
+            .padding(LumenLegacySpace.xxl)
     ) {
         Text(
             text = "Search",
             fontSize = 38.sp,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = LumenTokens.Space.lg)
+            modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
         )
 
         TvTextField(
@@ -147,7 +144,7 @@ fun TvSearchScreen(
             shape = LumenTokens.Shape.sm,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = LumenTokens.Space.lg)
+                .padding(bottom = LumenLegacySpace.lg)
                 .focusRequester(searchFieldFocusRequester)
         )
 
@@ -157,16 +154,16 @@ fun TvSearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(LumenTokens.Space.lg),
-                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg)
+                        .padding(LumenLegacySpace.lg),
+                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
                 ) {
                     repeat(3) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
-                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenTokens.Layout.epgMinBlockWidth))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenLayout.epgMinBlockWidth))
+                            LumenSkeleton(modifier = Modifier.weight(1f).height(LumenLayout.epgMinBlockWidth))
                         }
                     }
                 }
@@ -203,41 +200,40 @@ fun TvSearchScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(bottom = LumenTokens.Space.sm2)
+                        modifier = Modifier.padding(bottom = LumenLegacySpace.sm2),
                     )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(bottom = LumenTokens.Space.lg)
-                    ) {
-                        suggestedTags.forEach { label ->
-                            val requester = focusRequesters.getOrPut("suggested_chips:$label") { FocusRequester() }
-                            TvFocusable(
-                                onClick = {
-                                    viewModel.search(label)
-                                    viewModel.submitSearch(label)
-                                },
-                                cornerRadius = LumenTokens.Space.sm2,
-                                modifier = Modifier
-                                    .focusRequester(requester)
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused) {
-                                            focusedItemKeys["active_row"] = "suggested_chips"
-                                            focusedItemKeys["suggested_chips"] = label
-                                        }
-                                    }
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = t.colors.foreground,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier
-                                        .background(t.colors.card)
-                                        .padding(horizontal = LumenTokens.Radius.md, vertical = LumenTokens.Space.sm2)
-                                )
+                    TvFocusScope(
+                        memory = focusMemory,
+                        scopeId = "search/chips",
+                        itemIds = suggestedTags,
+                    ) { restorer ->
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = LumenLegacySpace.sm2),
+                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = LumenLegacySpace.lg),
+                        ) {
+                            items(suggestedTags, key = { it }) { label ->
+                                TvFocusable(
+                                    onClick = {
+                                        viewModel.search(label)
+                                        viewModel.submitSearch(label)
+                                    },
+                                    cornerRadius = LumenLegacySpace.sm2,
+                                    onFocused = { restorer.remember(label) },
+                                    modifier = restorer.itemModifier(label),
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = t.colors.foreground,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier
+                                            .background(t.colors.card)
+                                            .padding(horizontal = LumenTokens.Radius.md, vertical = LumenLegacySpace.sm2),
+                                    )
+                                }
                             }
                         }
                     }
@@ -259,7 +255,7 @@ fun TvSearchScreen(
             else -> {
                 LazyColumn(
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.xxl),
+                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xxl),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -267,35 +263,32 @@ fun TvSearchScreen(
                     if (titlesGroup.isNotEmpty()) {
                         item(key = "titles-section") {
                             RowSection(title = "Titles") {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.sm2),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    itemsIndexed(titlesGroup, key = { index, result -> tvSearchResultLazyKey("titles", index, result) }) { index, result ->
-                                        val itemKey = "titles:${result.id}"
-                                        val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
-                                        PosterCard(
-                                            imageUrl = result.posterUrl,
-                                            orientation = PosterOrientation.Portrait,
-                                            onClick = {
-                                                val selectedQuery = query.trim()
-                                                if (selectedQuery.isNotEmpty()) {
-                                                    scope.launch {
-                                                        viewModel.recordSearchInterest(selectedQuery, result)
+                                TvFocusScope(
+                                    memory = focusMemory,
+                                    scopeId = "search/titles",
+                                    itemIds = titlesGroup.map { it.id },
+                                ) { restorer ->
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = LumenLegacySpace.sm2),
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        itemsIndexed(titlesGroup, key = { index, result -> tvSearchResultLazyKey("titles", index, result) }) { _, result ->
+                                            PosterCard(
+                                                imageUrl = result.posterUrl,
+                                                orientation = PosterOrientation.Portrait,
+                                                onClick = {
+                                                    val selectedQuery = query.trim()
+                                                    if (selectedQuery.isNotEmpty()) {
+                                                        scope.launch {
+                                                            viewModel.recordSearchInterest(selectedQuery, result)
+                                                        }
                                                     }
-                                                }
-                                                onMediaClick(result.toTvMediaItem())
-                                            },
-                                            modifier = Modifier
-                                                .focusRequester(requester)
-                                                .onFocusChanged { focusState ->
-                                                    if (focusState.isFocused) {
-                                                        focusedItemKeys["active_row"] = "titles"
-                                                        focusedItemKeys["titles"] = result.id
-                                                    }
-                                                }
-                                        )
+                                                    onMediaClick(result.toTvMediaItem())
+                                                },
+                                                modifier = restorer.itemModifier(result.id),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -304,28 +297,25 @@ fun TvSearchScreen(
                     if (channelsGroup.isNotEmpty()) {
                         item(key = "channels-section") {
                             RowSection(title = "Live Channels") {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.sm2),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.lg),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    itemsIndexed(channelsGroup, key = { index, result -> tvSearchResultLazyKey("channels", index, result) }) { index, result ->
-                                        val itemKey = "channels:${result.id}"
-                                        val requester = focusRequesters.getOrPut(itemKey) { FocusRequester() }
-                                        TvLiveChannelCard(
-                                            channelName = result.title,
-                                            logoUrl = result.posterUrl,
-                                            category = result.sourceLabel,
-                                            onClick = { onChannelClick(result.id) },
-                                            modifier = Modifier
-                                                .focusRequester(requester)
-                                                .onFocusChanged { focusState ->
-                                                    if (focusState.isFocused) {
-                                                        focusedItemKeys["active_row"] = "channels"
-                                                        focusedItemKeys["channels"] = result.id
-                                                    }
-                                                }
-                                        )
+                                TvFocusScope(
+                                    memory = focusMemory,
+                                    scopeId = "search/channels",
+                                    itemIds = channelsGroup.map { it.id },
+                                ) { restorer ->
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = LumenLegacySpace.sm2),
+                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        itemsIndexed(channelsGroup, key = { index, result -> tvSearchResultLazyKey("channels", index, result) }) { _, result ->
+                                            TvLiveChannelCard(
+                                                channelName = result.title,
+                                                logoUrl = result.posterUrl,
+                                                category = result.sourceLabel,
+                                                onClick = { onChannelClick(result.id) },
+                                                modifier = restorer.itemModifier(result.id),
+                                            )
+                                        }
                                     }
                                 }
                             }
