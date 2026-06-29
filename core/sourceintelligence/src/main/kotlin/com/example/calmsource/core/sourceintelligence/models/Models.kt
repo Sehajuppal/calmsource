@@ -202,10 +202,21 @@ data class RawSourceInput(
  * Mapping functions to convert StreamSource and WatchOption into RawSourceMetadata inputs for parsing.
  */
 fun StreamSource.toRawSourceInput(): RawSourceInput {
+    val sizeHint = sizeBytes?.takeIf { it > 0L }?.let { bytes ->
+        val gb = bytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+        String.format(java.util.Locale.US, "%.2f GB", gb)
+    }
+    val combinedTitle = rawTitle ?: listOfNotNull(
+        name.takeIf { it.isNotBlank() },
+        resolution.takeIf { it.isNotBlank() },
+        videoCodec,
+        audioCodec,
+        sizeHint
+    ).joinToString(" ").ifBlank { null }
     return RawSourceInput(
-        rawFilename = this.name,
-        rawTitle = null,
-        rawUrl = this.url
+        rawFilename = name,
+        rawTitle = combinedTitle,
+        rawUrl = url
     )
 }
 

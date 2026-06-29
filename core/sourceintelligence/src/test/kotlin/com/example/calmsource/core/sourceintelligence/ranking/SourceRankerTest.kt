@@ -1,5 +1,6 @@
 package com.example.calmsource.core.sourceintelligence.ranking
 
+import com.example.calmsource.core.model.SortingPreference
 import com.example.calmsource.core.model.PlaybackSourceType
 import com.example.calmsource.core.sourceintelligence.models.ParsedSource
 import org.junit.Assert.assertEquals
@@ -44,7 +45,7 @@ class SourceRankerTest {
     fun `4K ranks above 1080p`() {
         val s1 = source("Movie A", "4K", rawUrl = "https://example.com/4k")
         val s2 = source("Movie B", "1080p", rawUrl = "https://example.com/fhd")
-        val result = ranker.rank(listOf(s1, s2))
+        val result = ranker.rank(listOf(s1, s2), strategy = SortingPreference.HIGHEST_QUALITY)
         assertEquals("Movie A", result.first().title)
     }
 
@@ -57,11 +58,14 @@ class SourceRankerTest {
     }
 
     @Test
-    fun `REMUX ranks above BluRay`() {
-        val remux = source("Movie A", "REMUX", rawUrl = "https://example.com/remux")
-        val br = source("Movie B", "BluRay", rawUrl = "https://example.com/bluray")
-        val result = ranker.rank(listOf(remux, br))
-        assertEquals("Movie A", result.first().title)
+    fun `REMUX ranks above BluRay in highest quality mode`() {
+        val remux = source("Movie A REMUX 4K", "REMUX", rawUrl = "https://example.com/remux")
+        val br = source("Movie B BluRay 1080p", "BluRay", rawUrl = "https://example.com/bluray")
+        val result = ranker.rank(
+            listOf(remux, br),
+            strategy = SortingPreference.HIGHEST_QUALITY
+        )
+        assertEquals("Movie A REMUX 4K", result.first().title)
     }
 
     @Test

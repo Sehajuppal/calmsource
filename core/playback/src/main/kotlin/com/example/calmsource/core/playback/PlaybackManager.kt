@@ -32,6 +32,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.SourceHealthRepository
+import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.UserMemoryRepository
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
@@ -442,6 +443,27 @@ class PlaybackManager(
                 providerId = providerId,
                 sourceType = source.type
             )
+            trackStreamPlaybackEvent(source, status = "success")
+        }
+    }
+
+    private fun trackStreamPlaybackEvent(
+        source: PlaybackSource,
+        status: String,
+        reason: String? = null,
+    ) {
+        if (source.type == PlaybackSourceType.IPTV) return
+        val mediaId = activeRequest?.userMemoryReference?.itemKey?.takeIf { it.isNotBlank() } ?: return
+        coroutineScope.launch(Dispatchers.IO) {
+            runCatching {
+                DiscoveryEngine.trackPlaybackEvent(
+                    streamId = source.safeSourceId,
+                    mediaId = mediaId,
+                    source = source.resolveProviderIdForHealth(),
+                    status = status,
+                    reason = reason
+                )
+            }
         }
     }
 
@@ -899,6 +921,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             handleFailure(mapError(e), e.errorCodeName)
@@ -910,6 +933,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             handleFailure(PlaybackError.PermissionRequired(cause = e, message = e.message ?: "Unsafe scheme rejected"), "SECURITY_VIOLATION")
@@ -921,6 +945,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             val sanitizedCause = Exception(PlaybackSanitizer.sanitize(e.message))
@@ -1059,6 +1084,10 @@ class PlaybackManager(
 
     @MainThread
     fun release() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { release() }
+            return
+        }
         if (isReleased) return
         isReleased = true
         // Bump the session id so any in-flight stream race aborts instead of resurrecting a
@@ -1330,6 +1359,11 @@ class PlaybackManager(
                     errorCategory = rawErrorCode
                 )
             }
+            trackStreamPlaybackEvent(
+                source = currentSource,
+                status = "failure",
+                reason = rawErrorCode
+            )
         }
     }
 

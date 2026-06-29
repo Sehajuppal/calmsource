@@ -12,12 +12,15 @@ import com.example.calmsource.core.discoveryengine.ranking.TasteProfileBuilder
 import com.example.calmsource.core.discoveryengine.ranking.HybridRecommendationRanker
 import com.example.calmsource.core.discoveryengine.ranking.SimilarityFinder
 import com.example.calmsource.core.discoveryengine.ranking.LiveTvRecommender
+import com.example.calmsource.core.discoveryengine.ranking.toStreamSource
 import com.example.calmsource.core.discoveryengine.providers.ProviderManager
 import com.example.calmsource.core.model.ContinueWatchingItem
 import com.example.calmsource.core.model.FavoriteItem
 import com.example.calmsource.core.model.WatchHistoryItem
 import com.example.calmsource.core.model.UserPreferenceSignal
 import com.example.calmsource.core.model.SortingPreference
+import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityResult
+import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityScorer
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -628,6 +631,40 @@ class DiscoveryEngineRepository(
         seriesId: String,
         threshold: Double = 0.85
     ): NextEpisodeResult = withContext(Dispatchers.IO) {
+        try {
+            val backendMeta = com.example.calmsource.core.network.BackendApiClient.getMeta("series", seriesId)
+            val videos = backendMeta?.meta?.videos
+            if (!videos.isNullOrEmpty()) {
+                val entities = videos.map { video ->
+                    val episodeId = video.id ?: "${seriesId}:${video.season ?: 1}:${video.episode ?: 1}"
+                    MediaItemEntity(
+                        id = episodeId,
+                        type = "episode",
+                        title = video.title ?: "Episode ${video.episode}",
+                        overview = video.overview,
+                        posterUrl = null,
+                        rating = null,
+                        releaseYear = null,
+                        genres = "",
+                        cast = "",
+                        director = null,
+                        language = null,
+                        durationMs = null,
+                        externalId = null,
+                        externalIdsJson = "{}",
+                        source = "backend_tmdb",
+                        seriesId = seriesId,
+                        seasonNumber = video.season,
+                        episodeNumber = video.episode,
+                        normalizedTitle = com.example.calmsource.core.discoveryengine.normalization.MetadataNormalizer.normalizeTitle(video.title ?: ""),
+                        updatedAt = System.currentTimeMillis()
+                    )
+                }
+                dao.upsertMediaItems(entities)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("DiscoveryEngineRepository", "Failed to enrich episodes from backend for $seriesId: ${e.message}")
+        }
         SmartNextEpisodeFinder.findNextEpisode(dao, profileId, seriesId, threshold)
     }
 
@@ -928,6 +965,9 @@ class DiscoveryEngineRepository(
                     ),
                     subtitle = "${media.type.replaceFirstChar { it.uppercase() }}${media.releaseYear?.let { " - $it" } ?: ""}",
                     posterUrl = media.posterUrl,
+                    genres = media.genres.toGenreList(),
+                    resumePositionMs = state.progressMs,
+                    durationMs = state.durationMs,
                     source = media.source,
                     externalIds = media.externalIds()
                 )
@@ -1022,6 +1062,7 @@ class DiscoveryEngineRepository(
                     ),
                     subtitle = media.releaseYear?.toString(),
                     posterUrl = media.posterUrl,
+                    genres = media.genres.toGenreList(),
                     source = media.source,
                     externalIds = media.externalIds()
                 )
@@ -1058,6 +1099,7 @@ class DiscoveryEngineRepository(
                     ),
                     subtitle = media.rating?.let { "Rating $it" },
                     posterUrl = media.posterUrl,
+                    genres = media.genres.toGenreList(),
                     source = media.source,
                     externalIds = media.externalIds()
                 )
@@ -1161,17 +1203,24 @@ class DiscoveryEngineRepository(
             true
         }
         val candidatesById = filteredCandidates.associateBy { it.id }
+        val streamAvailabilityByMedia = batchMediaAvailability(filteredCandidates.map { it.id }, preferredAudio, preferredSub)
 
         val ranked = HybridRecommendationRanker.rank(
             tasteProfile = tasteProfile,
             candidates = filteredCandidates,
             userItemStates = states,
             limit = filteredCandidates.size,
-            enrichmentFeatures = { mediaId -> ProviderManager.extractFeatures(mediaId) }
+            enrichmentFeatures = { mediaId ->
+                val provider = ProviderManager.extractFeatures(mediaId)
+                val streamSignal = streamAvailabilityByMedia[mediaId]?.normalizedSignal ?: 0.0
+                provider.copy(streamRankAvailability = streamSignal)
+            }
         )
 
         val rankedIds = ranked.map { it.id }
-        val availScores = batchAvailabilityScores(rankedIds, preferredAudio, preferredSub)
+        val availScores = rankedIds.associateWith { mediaId ->
+            streamAvailabilityByMedia[mediaId]?.additiveScore ?: 0.0
+        }
 
         ranked.map { recItem ->
             val media = candidatesById[recItem.id]
@@ -1184,6 +1233,7 @@ class DiscoveryEngineRepository(
                 score = recItem.score + availabilityScore,
                 subtitle = media?.releaseYear?.toString(),
                 posterUrl = media?.posterUrl,
+                genres = media?.genres?.toGenreList().orEmpty(),
                 source = media?.source,
                 externalIds = media?.externalIds().orEmpty(),
                 scoreBreakdown = recItem.scoreBreakdown.copy(
@@ -1265,6 +1315,7 @@ class DiscoveryEngineRepository(
                 score = item.score + availabilityScore,
                 subtitle = media?.releaseYear?.toString(),
                 posterUrl = media?.posterUrl,
+                genres = media?.genres?.toGenreList().orEmpty(),
                 source = media?.source,
                 externalIds = media?.externalIds().orEmpty(),
                 scoreBreakdown = item.scoreBreakdown.copy(
@@ -1656,6 +1707,7 @@ class DiscoveryEngineRepository(
                 ),
                 subtitle = item.releaseYear?.toString(),
                 posterUrl = item.posterUrl,
+                genres = item.genres.toGenreList(),
                 source = item.source,
                 externalIds = item.externalIds()
             )
@@ -1702,9 +1754,19 @@ class DiscoveryEngineRepository(
             scoreBreakdown = ScoreBreakdown(reasons = listOf(reason)),
             subtitle = releaseYear?.toString(),
             posterUrl = posterUrl,
+            genres = genres.toGenreList(),
             source = source,
             externalIds = externalIds()
         )
+    }
+
+    private fun String.toGenreList(): List<String> = split(',')
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .distinctBy(String::lowercase)
+
+    suspend fun lookupMediaPosterUrl(mediaId: String): String? = withContext(Dispatchers.IO) {
+        dao.getMediaItem(mediaId)?.posterUrl?.takeIf { it.isNotBlank() }
     }
 
     suspend fun calculateSearchQuality(profileId: String, query: String, targetItemId: String): SearchQualityMetrics = withContext(Dispatchers.IO) {
@@ -1744,7 +1806,6 @@ class DiscoveryEngineRepository(
             profileId = profileId,
             streams = streamEntities,
             strategy = strategy,
-            availabilityScoreProvider = { id -> ProviderManager.extractFeatures(id).availabilityScore }
         )
         ranked.map { entity ->
             MediaStream(
@@ -1800,22 +1861,20 @@ class DiscoveryEngineRepository(
     }
 
     /**
-     * Batch-computes availability scores for a set of media IDs.
+     * Batch-computes unified stream availability for a set of media IDs.
      * Uses 3 total queries instead of 2N+1 per item (where N = number of streams per item).
      * Chunks large ID lists to stay within SQLITE_MAX_VARIABLE_NUMBER (999).
      */
-    private fun batchAvailabilityScores(
+    private fun batchMediaAvailability(
         mediaIds: List<String>,
         preferredAudio: List<String>,
-        preferredSub: List<String>
-    ): Map<String, Double> {
+        preferredSub: List<String>,
+    ): Map<String, MediaAvailabilityResult> {
         if (mediaIds.isEmpty()) return emptyMap()
 
-        // 1. Batch fetch all streams for all media IDs (chunked for SQLite safety)
         val allStreams = mediaIds.chunkedFlatMap(SQLITE_MAX_VARS) { dao.getStreamsForMediaItems(it) }
         val streamsByMedia = allStreams.groupBy { it.mediaId }
 
-        // 2. Batch fetch playback counts for all stream IDs (chunked)
         val allStreamIds = allStreams.map { it.id }
         val successCountMap = if (allStreamIds.isNotEmpty()) {
             allStreamIds.chunkedFlatMap(SQLITE_MAX_VARS) { dao.getPlaybackSuccessCounts(it) }
@@ -1826,57 +1885,33 @@ class DiscoveryEngineRepository(
                 .associate { it.streamId to it.count }
         } else emptyMap()
 
-        // 3. Compute score per media ID
         return mediaIds.associateWith { mediaId ->
-            val providerAvailabilityScore = ProviderManager.extractFeatures(mediaId).availabilityScore * 20.0
-            val streams = streamsByMedia[mediaId]
-            if (streams.isNullOrEmpty()) {
-                providerAvailabilityScore
-            } else {
-                computeAvailabilityScore(streams, successCountMap, failureCountMap, preferredAudio, preferredSub, providerAvailabilityScore)
-            }
+            val providerCacheAvailability = ProviderManager.extractFeatures(mediaId).availabilityScore
+            val streams = streamsByMedia[mediaId].orEmpty()
+            MediaAvailabilityScorer.scoreFromStreams(
+                streams = streams.map { it.toStreamSource() },
+                preferredAudio = preferredAudio,
+                preferredSub = preferredSub,
+                streamSuccessCount = { streamId -> successCountMap[streamId] ?: 0 },
+                streamFailureCount = { streamId -> failureCountMap[streamId] ?: 0 },
+                providerCacheAvailability = providerCacheAvailability,
+            )
         }
     }
 
-    private fun computeAvailabilityScore(
-        streams: List<MediaStreamEntity>,
-        successCountMap: Map<String, Int>,
-        failureCountMap: Map<String, Int>,
+    private fun batchAvailabilityScores(
+        mediaIds: List<String>,
         preferredAudio: List<String>,
         preferredSub: List<String>,
-        providerAvailabilityScore: Double
-    ): Double {
-        val addonHasStream = 15.0
-        val streamCount = streams.size.toDouble().coerceAtMost(10.0)
-        val totalSuccesses = streams.sumOf { successCountMap[it.id] ?: 0 }
-        val totalFailures = streams.sumOf { failureCountMap[it.id] ?: 0 }
-        val recentStreamSuccess = minOf(totalSuccesses * 5.0, 20.0)
-        val failedStreamPenalty = minOf(totalFailures * 10.0, 50.0)
-
-        val preferredQualityAvailable = if (streams.any { 
-            val res = it.resolution?.lowercase() ?: ""
-            res.contains("1080p") || res.contains("4k") || res.contains("2160p") || res.contains("uhd") || res.contains("fhd")
-        }) 15.0 else 0.0
-
-        val preferredLanguageAvailable = if (preferredAudio.isNotEmpty() && streams.any { stream ->
-            val lang = stream.language?.lowercase() ?: ""
-            val titleLower = stream.title.lowercase()
-            preferredAudio.contains(lang) || (stream.isSubbed && preferredSub.any { titleLower.contains(it) })
-        }) 20.0 else 0.0
-
-        return addonHasStream +
-            streamCount +
-            recentStreamSuccess +
-            preferredQualityAvailable +
-            preferredLanguageAvailable +
-            providerAvailabilityScore -
-            failedStreamPenalty
+    ): Map<String, Double> {
+        return batchMediaAvailability(mediaIds, preferredAudio, preferredSub)
+            .mapValues { it.value.additiveScore }
     }
 
     private fun getAvailabilityScore(
         mediaId: String,
         preferredAudio: List<String>,
-        preferredSub: List<String>
+        preferredSub: List<String>,
     ): Double {
         return batchAvailabilityScores(listOf(mediaId), preferredAudio, preferredSub)[mediaId] ?: 0.0
     }

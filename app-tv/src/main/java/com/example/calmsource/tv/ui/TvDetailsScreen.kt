@@ -36,7 +36,11 @@ import coil.compose.AsyncImage
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.models.MediaItem as DiscoveryMediaItem
 import com.example.calmsource.core.model.*
+import com.example.calmsource.core.database.SourceHealthRepository
 import com.example.calmsource.core.sourceintelligence.models.toRawSourceInput
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
+import com.example.calmsource.core.sourceintelligence.ranking.ScoredWatchOption
+import com.example.calmsource.core.sourceintelligence.ranking.WatchOptionScoring
 import com.example.calmsource.feature.search.SearchEngine
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import com.example.calmsource.feature.extensions.ExtensionRepository
@@ -83,11 +87,12 @@ fun TvDetailsScreen(
     var similarItems by remember(mediaItem.id) {
         mutableStateOf<List<com.example.calmsource.core.discoveryengine.models.RecommendationItem>>(emptyList())
     }
+    val profileId = rememberActiveProfileId()
 
-    LaunchedEffect(mediaItem.id) {
+    LaunchedEffect(mediaItem.id, profileId) {
         similarItems = runCatching {
             withContext(Dispatchers.IO) {
-                DiscoveryEngine.getMoreLikeThis(profileId = "default", itemId = mediaItem.id)
+                DiscoveryEngine.getMoreLikeThis(profileId = profileId, itemId = mediaItem.id)
             }
         }.getOrDefault(emptyList())
     }
@@ -176,29 +181,91 @@ fun TvDetailsScreen(
             ?.toUserMemoryReference()
             ?: mediaItem.toUserMemoryReference()
     }
-    val isFavorite by memoryRepository.observeIsFavorite(memoryReference.itemKey)
-        .collectAsState(initial = false)
+    val isFavorite by remember(profileId, memoryReference.itemKey) {
+        memoryRepository.observeIsFavorite(memoryReference.itemKey, profileId)
+    }.collectAsState(initial = false)
     val memoryScope = rememberCoroutineScope()
 
-    val continueWatchingItems by memoryRepository.observeContinueWatching().collectAsState(initial = emptyList())
+    val continueWatchingItems by remember(profileId) {
+        memoryRepository.observeContinueWatching(profileId)
+    }.collectAsState(initial = emptyList())
     val progressMap = remember(continueWatchingItems) {
         continueWatchingItems.associate { it.reference.itemKey to (it.progressMs.toFloat() / it.durationMs.coerceAtLeast(1L)) }
     }
 
     var sortingPreference by remember { mutableStateOf(SortingPreference.BEST_MATCH) }
     val preferences by UserPreferencesRepository.preferences.collectAsState(initial = UserPreferences())
-    var sortedOptionsWithScores by remember { mutableStateOf<List<Pair<WatchOption, Int>>>(emptyList()) }
+    var sortedOptionsWithScores by remember { mutableStateOf<List<ScoredWatchOption>>(emptyList()) }
     var sortedOptions by remember { mutableStateOf<List<WatchOption>>(emptyList()) }
 
-    val watchOptionsList = watchOptions.toList()
-    LaunchedEffect(watchOptionsList, preferences, sortingPreference) {
-        val calculated = withContext(Dispatchers.Default) {
-            watchOptionsList.map { option ->
-                option to WatchOptionResolver.calculateScore(option.source, sortingPreference).toInt()
-            }.sortedByDescending { it.second }
+    val watchOptionsList = remember(watchOptions, mediaItem.type, selectedEpisode) {
+        val list = watchOptions.toList()
+        val episode = selectedEpisode
+        if (mediaItem.type == MediaType.SHOW && episode != null) {
+            val s = episode.season
+            val e = episode.episode
+            val sZero = s.toString().padStart(2, '0')
+            val eZero = e.toString().padStart(2, '0')
+            val patterns = listOf(
+                "s${sZero}e${eZero}",
+                "s${s}e${e}",
+                "${s}x${eZero}",
+                "${s}x${e}",
+                "season $s episode $e"
+            )
+            list.filter { option ->
+                if (option.source.extensionId.startsWith("iptv-") || option.source.extensionId == "iptv") {
+                    val nameLower = option.title.lowercase()
+                    patterns.any { nameLower.contains(it) }
+                } else {
+                    true
+                }
+            }
+        } else {
+            list
+        }
+    }
+    LaunchedEffect(watchOptionsList, preferences, sortingPreference, sourceHealths) {
+        val calculated = withContext(Dispatchers.IO) {
+            val extensions = ExtensionRepository.getExtensions().associateBy { it.id }
+            val healthByOptionId = watchOptionsList.associate { option ->
+                val healthKey = StreamScoringSupport.healthKeyForWatchOption(option)
+                option.id to (
+                    sourceHealths[option.id]
+                        ?: SourceHealthRepository.getSourceHealth(healthKey, readonly = true)
+                    )
+            }
+            val providerHealthByExtension = watchOptionsList
+                .map { it.source.extensionId }
+                .distinct()
+                .associateWith { extensionId ->
+                    SourceHealthRepository.getProviderHealth(extensionId, readonly = true)
+                }
+            WatchOptionScoring.scoreWatchOptionsDetailed(
+                options = watchOptionsList,
+                strategy = sortingPreference,
+                prefs = preferences,
+                signalsFor = { option ->
+                    val extension = extensions[option.source.extensionId]
+                    val providerHealth = when (extension?.health) {
+                        ExtensionHealth.ACTIVE -> ProviderHealth.HEALTHY
+                        ExtensionHealth.SLOW -> ProviderHealth.SLOW
+                        ExtensionHealth.FAILED,
+                        ExtensionHealth.DISABLED,
+                        ExtensionHealth.INVALID_MANIFEST -> ProviderHealth.FAILED
+                        else -> ProviderHealth.HEALTHY
+                    }
+                    StreamScoringSupport.signalsFromHealth(
+                        sourceHealth = healthByOptionId[option.id],
+                        providerHealth = providerHealth,
+                        providerPriority = extension?.priority,
+                        providerHealthScore = providerHealthByExtension[option.source.extensionId]?.healthScore,
+                    )
+                }
+            )
         }
         sortedOptionsWithScores = calculated
-        sortedOptions = calculated.map { it.first }
+        sortedOptions = calculated.map { it.option }
     }
 
     val handlePlayOption = { option: WatchOption, playBestIntent: Boolean ->
@@ -751,7 +818,7 @@ fun TvDetailsScreen(
                                     val wasFavorite = isFavorite
                                     memoryScope.launch {
                                         runCatching {
-                                            memoryRepository.toggleFavorite(memoryReference)
+                                            memoryRepository.toggleFavorite(memoryReference, profileId = profileId)
                                         }
                                         if (!wasFavorite) {
                                             recordTasteSignals(memoryRepository, currentMediaItem, stremioMeta)
@@ -825,36 +892,34 @@ fun TvDetailsScreen(
                                     )
                                     val episodeLabel = video.episodeDisplayLabel(selectedSeason)
 
-                                    TvFocusable(
-                                        onClick = { selectedEpisode = video },
+                                    Column(
                                         modifier = Modifier.width(LumenLayout.channelPanelWidth)
                                     ) {
-                                        Column {
-                                            PosterCard(
-                                                imageUrl = episodeImage,
-                                                orientation = PosterOrientation.Landscape,
-                                                progress = progress,
-                                                onClick = { selectedEpisode = video },
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
+                                        PosterCard(
+                                            imageUrl = episodeImage,
+                                            orientation = PosterOrientation.Landscape,
+                                            progress = progress,
+                                            contentLabel = episodeLabel,
+                                            onClick = { selectedEpisode = video },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Text(
+                                            text = episodeLabel,
+                                            color = if (isSelected) t.colors.brand else t.colors.foreground,
+                                            fontSize = LumenType.size13,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(top = LumenLegacySpace.sm2)
+                                        )
+                                        video.overview?.takeIf { it.isNotBlank() }?.let { overview ->
                                             Text(
-                                                text = episodeLabel,
-                                                color = if (isSelected) t.colors.brand else t.colors.foreground,
-                                                fontSize = LumenType.size13,
-                                                fontWeight = FontWeight.Bold,
+                                                text = overview,
+                                                color = t.colors.mutedForeground,
+                                                fontSize = LumenType.size11,
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(top = LumenLegacySpace.sm2)
                                             )
-                                            video.overview?.takeIf { it.isNotBlank() }?.let { overview ->
-                                                Text(
-                                                    text = overview,
-                                                    color = t.colors.mutedForeground,
-                                                    fontSize = LumenType.size11,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                            }
                                         }
                                     }
                                 }
@@ -879,26 +944,24 @@ fun TvDetailsScreen(
                                     posterUrl = item.posterUrl,
                                     externalIds = item.externalIds
                                 )
-                                TvFocusable(
-                                    onClick = { onOpenMedia(similarMedia) },
+                                Column(
                                     modifier = Modifier.width(LumenLayout.epgMinBlockWidthTv)
                                 ) {
-                                    Column {
-                                        PosterCard(
-                                            imageUrl = similarMedia.posterUrl,
-                                            onClick = { onOpenMedia(similarMedia) },
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                        Text(
-                                            text = similarMedia.title,
-                                            color = t.colors.foreground,
-                                            fontSize = LumenType.size13,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(top = LumenLegacySpace.sm)
-                                        )
-                                    }
+                                    PosterCard(
+                                        imageUrl = similarMedia.posterUrl,
+                                        contentLabel = similarMedia.title,
+                                        onClick = { onOpenMedia(similarMedia) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Text(
+                                        text = similarMedia.title,
+                                        color = t.colors.foreground,
+                                        fontSize = LumenType.size13,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = LumenLegacySpace.sm)
+                                    )
                                 }
                             }
                         }
@@ -1038,15 +1101,16 @@ fun TvDetailsScreen(
                     }
                 }
 
-                itemsIndexed(sortedOptionsWithScores, key = { _, pair -> pair.first.id }) { index, (option, score) ->
+                itemsIndexed(sortedOptionsWithScores, key = { _, scored -> scored.option.id }) { index, scored ->
                     Box(modifier = Modifier.padding(horizontal = LumenLegacySpace.lg)) {
                         TvManualSourceItem(
-                            option = option,
-                            score = score,
-                            health = sourceHealths[option.id],
+                            option = scored.option,
+                            score = scored.score,
+                            scoreReasons = scored.breakdown.topReasons,
+                            health = sourceHealths[scored.option.id],
                             showRawDetails = showRawDetails,
                             modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
-                            onClick = { handlePlayOption(option, false) }
+                            onClick = { handlePlayOption(scored.option, false) }
                         )
                     }
                 }
@@ -1077,6 +1141,7 @@ private fun TvWatchOptionContent(
 fun TvManualSourceItem(
     option: WatchOption,
     score: Int,
+    scoreReasons: List<String> = emptyList(),
     health: SourceHealth?,
     showRawDetails: Boolean,
     modifier: Modifier = Modifier,
@@ -1240,6 +1305,16 @@ fun TvManualSourceItem(
                 fontSize = LumenType.size14,
                 fontWeight = FontWeight.Bold
             )
+            if (showRawDetails && scoreReasons.isNotEmpty()) {
+                Text(
+                    text = scoreReasons.joinToString(" · "),
+                    color = t.colors.mutedForeground,
+                    fontSize = LumenType.size11,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = LumenLegacySpace.xs),
+                )
+            }
         }
     }
 }

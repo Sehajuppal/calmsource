@@ -27,7 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.animation.SharedTransitionScope.ResizeMode.Companion.scaleToBounds
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,7 +51,11 @@ import com.example.calmsource.core.discoveryengine.models.MediaItem as Discovery
 import com.example.calmsource.core.discoveryengine.models.RecommendationItem as DiscoveryRecommendationItem
 import com.example.calmsource.core.model.*
 import com.example.calmsource.core.model.isResourceSupported
+import com.example.calmsource.core.database.SourceHealthRepository
 import com.example.calmsource.core.sourceintelligence.models.toRawSourceInput
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
+import com.example.calmsource.core.sourceintelligence.ranking.ScoredWatchOption
+import com.example.calmsource.core.sourceintelligence.ranking.WatchOptionScoring
 import com.example.calmsource.feature.search.SearchEngine
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import com.example.calmsource.feature.extensions.ExtensionRepository
@@ -57,13 +70,18 @@ import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.ui.components.*
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun DetailsScreen(
     mediaItem: MediaItem,
     startPositionMs: Long = 0L,
     onBack: () -> Unit,
     onPlayOption: (PlaybackRequest, List<PlaybackSource>, Boolean) -> Unit,
-    onOpenMedia: (MediaItem) -> Unit = {}
+    onOpenMedia: (MediaItem) -> Unit = {},
+    onOpenDebridSettings: () -> Unit = {},
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedPosterKey: String? = null,
 ) {
     val t = LocalLumenTokens.current
     var isAdvancedExpanded by remember { mutableStateOf(false) }
@@ -90,10 +108,12 @@ fun DetailsScreen(
     var stremioMeta by remember(mediaItem.id) { mutableStateOf<com.example.calmsource.core.model.StremioMeta?>(null) }
     var similarItems by remember(mediaItem.id) { mutableStateOf<List<DiscoveryRecommendationItem>>(emptyList()) }
 
-    LaunchedEffect(mediaItem.id) {
+    val profileId = rememberActiveProfileId()
+
+    LaunchedEffect(mediaItem.id, profileId) {
         similarItems = runCatching {
             withContext(Dispatchers.IO) {
-                DiscoveryEngine.getMoreLikeThis(profileId = "default", itemId = mediaItem.id)
+                DiscoveryEngine.getMoreLikeThis(profileId = profileId, itemId = mediaItem.id)
             }
         }.getOrDefault(emptyList())
     }
@@ -186,29 +206,91 @@ fun DetailsScreen(
             ?.toUserMemoryReference()
             ?: mediaItem.toUserMemoryReference()
     }
-    val isFavorite by memoryRepository.observeIsFavorite(memoryReference.itemKey)
-        .collectAsState(initial = false)
+    val isFavorite by remember(profileId, memoryReference.itemKey) {
+        memoryRepository.observeIsFavorite(memoryReference.itemKey, profileId)
+    }.collectAsState(initial = false)
     val memoryScope = rememberCoroutineScope()
 
-    val continueWatchingItems by memoryRepository.observeContinueWatching().collectAsState(initial = emptyList())
+    val continueWatchingItems by remember(profileId) {
+        memoryRepository.observeContinueWatching(profileId)
+    }.collectAsState(initial = emptyList())
     val progressMap = remember(continueWatchingItems) {
         continueWatchingItems.associate { it.reference.itemKey to (it.progressMs.toFloat() / it.durationMs.coerceAtLeast(1L)) }
     }
 
     var sortingPreference by remember { mutableStateOf(SortingPreference.BEST_MATCH) }
     val preferences by UserPreferencesRepository.preferences.collectAsState(initial = UserPreferences())
-    var sortedOptionsWithScores by remember { mutableStateOf<List<Pair<WatchOption, Int>>>(emptyList()) }
+    var sortedOptionsWithScores by remember { mutableStateOf<List<ScoredWatchOption>>(emptyList()) }
     var sortedOptions by remember { mutableStateOf<List<WatchOption>>(emptyList()) }
 
-    val watchOptionsList = watchOptions.toList()
-    LaunchedEffect(watchOptionsList, preferences, sortingPreference) {
-        val calculated = withContext(Dispatchers.Default) {
-            watchOptionsList.map { option ->
-                option to WatchOptionResolver.calculateScore(option.source, sortingPreference).toInt()
-            }.sortedByDescending { it.second }
+    val watchOptionsList = remember(watchOptions, mediaItem.type, selectedEpisode) {
+        val list = watchOptions.toList()
+        val episode = selectedEpisode
+        if (mediaItem.type == MediaType.SHOW && episode != null) {
+            val s = episode.season
+            val e = episode.episode
+            val sZero = s.toString().padStart(2, '0')
+            val eZero = e.toString().padStart(2, '0')
+            val patterns = listOf(
+                "s${sZero}e${eZero}",
+                "s${s}e${e}",
+                "${s}x${eZero}",
+                "${s}x${e}",
+                "season $s episode $e"
+            )
+            list.filter { option ->
+                if (option.source.extensionId.startsWith("iptv-") || option.source.extensionId == "iptv") {
+                    val nameLower = option.title.lowercase()
+                    patterns.any { nameLower.contains(it) }
+                } else {
+                    true
+                }
+            }
+        } else {
+            list
+        }
+    }
+    LaunchedEffect(watchOptionsList, preferences, sortingPreference, sourceHealths) {
+        val calculated = withContext(Dispatchers.IO) {
+            val extensions = ExtensionRepository.getExtensions().associateBy { it.id }
+            val healthByOptionId = watchOptionsList.associate { option ->
+                val healthKey = StreamScoringSupport.healthKeyForWatchOption(option)
+                option.id to (
+                    sourceHealths[option.id]
+                        ?: SourceHealthRepository.getSourceHealth(healthKey, readonly = true)
+                    )
+            }
+            val providerHealthByExtension = watchOptionsList
+                .map { it.source.extensionId }
+                .distinct()
+                .associateWith { extensionId ->
+                    SourceHealthRepository.getProviderHealth(extensionId, readonly = true)
+                }
+            WatchOptionScoring.scoreWatchOptionsDetailed(
+                options = watchOptionsList,
+                strategy = sortingPreference,
+                prefs = preferences,
+                signalsFor = { option ->
+                    val extension = extensions[option.source.extensionId]
+                    val providerHealth = when (extension?.health) {
+                        ExtensionHealth.ACTIVE -> ProviderHealth.HEALTHY
+                        ExtensionHealth.SLOW -> ProviderHealth.SLOW
+                        ExtensionHealth.FAILED,
+                        ExtensionHealth.DISABLED,
+                        ExtensionHealth.INVALID_MANIFEST -> ProviderHealth.FAILED
+                        else -> ProviderHealth.HEALTHY
+                    }
+                    StreamScoringSupport.signalsFromHealth(
+                        sourceHealth = healthByOptionId[option.id],
+                        providerHealth = providerHealth,
+                        providerPriority = extension?.priority,
+                        providerHealthScore = providerHealthByExtension[option.source.extensionId]?.healthScore,
+                    )
+                }
+            )
         }
         sortedOptionsWithScores = calculated
-        sortedOptions = calculated.map { it.first }
+        sortedOptions = calculated.map { it.option }
     }
 
     LaunchedEffect(watchOptions.toList()) {
@@ -437,10 +519,20 @@ fun DetailsScreen(
     if (showBlockedDialog) {
         AlertDialog(
             onDismissRequest = { showBlockedDialog = false },
-            title = { Text("Configuration Required") },
-            text = { Text("This source requires configuration or authentication. Please update your settings.") },
+            title = { Text(stringResource(CoreUiR.string.details_blocked_title)) },
+            text = { Text(stringResource(CoreUiR.string.details_blocked_body)) },
             confirmButton = {
-                TextButton(onClick = { showBlockedDialog = false }) { Text("OK") }
+                TextButton(onClick = {
+                    showBlockedDialog = false
+                    onOpenDebridSettings()
+                }) {
+                    Text(stringResource(CoreUiR.string.details_connect_debrid))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBlockedDialog = false }) {
+                    Text(stringResource(CoreUiR.string.cta_dismiss))
+                }
             }
         )
     }
@@ -481,8 +573,8 @@ fun DetailsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 LumenErrorState(
-                    title = "Failed to load details",
-                    body = metadataError ?: "Unknown error",
+                    title = stringResource(CoreUiR.string.error_load_details),
+                    body = metadataError ?: stringResource(CoreUiR.string.error_load_feed_body),
                     onRetry = { retryTrigger.value++ }
                 )
             }
@@ -504,10 +596,28 @@ fun DetailsScreen(
             }
         } else {
             // Full-bleed Backdrop Hero with bottom-up gradient scrim
+            val backdropSharedModifier =
+                if (
+                    sharedTransitionScope != null &&
+                    animatedVisibilityScope != null &&
+                    sharedPosterKey != null &&
+                    sharedPosterKey == currentMediaItem.id
+                ) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            rememberSharedContentState(key = "poster-$sharedPosterKey"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            resizeMode = scaleToBounds(),
+                        )
+                    }
+                } else {
+                    Modifier
+                }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(LumenLayout.detailsHeroHeight)
+                    .then(backdropSharedModifier)
             ) {
                 AsyncImage(
                     model = currentMediaItem.backdropUrl ?: currentMediaItem.posterUrl,
@@ -543,7 +653,10 @@ fun DetailsScreen(
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = LumenLayout.detailsContentTop, bottom = LumenLegacySpace.xxxl)
+                contentPadding = PaddingValues(
+                    top = LumenLayout.detailsContentTop,
+                    bottom = LumenLegacySpace.xxxl + 88.dp,
+                )
             ) {
                 item(key = "title_block") {
                     Column(
@@ -615,7 +728,8 @@ fun DetailsScreen(
                             }
                         }
 
-                        // Action Row
+                        // Stream status (play actions live in sticky bottom bar)
+                        if (bestMatch == null) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -623,29 +737,7 @@ fun DetailsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
                         ) {
-                            // Back Button
-                            IconButton(
-                                onClick = onBack,
-                                modifier = Modifier
-                                    .clip(LumenTokens.Shape.pill)
-                                    .background(t.colors.muted)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = t.colors.foreground
-                                )
-                            }
-
-                            // Play Button
-                            if (bestMatch != null) {
-                                AdaptiveButton(
-                                    text = if (startPositionMs > 0L) "Resume" else "Play",
-                                    onClick = { handlePlayOption(bestMatch, true) },
-                                    backdropLuminance = backdropLuminance,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            } else if (isLoadingSources) {
+                            if (isLoadingSources) {
                                 Row(
                                     modifier = Modifier.weight(1f),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -657,7 +749,7 @@ fun DetailsScreen(
                                         strokeWidth = 2.dp,
                                     )
                                     Text(
-                                        text = "Finding streams…",
+                                        text = stringResource(CoreUiR.string.details_finding_streams),
                                         color = t.colors.mutedForeground,
                                         fontSize = LumenType.size14,
                                     )
@@ -668,7 +760,7 @@ fun DetailsScreen(
                                     verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm),
                                 ) {
                                     Text(
-                                        text = "No playable streams found",
+                                        text = stringResource(CoreUiR.string.details_no_streams),
                                         color = t.colors.foreground,
                                         fontSize = LumenType.size14,
                                         fontWeight = FontWeight.SemiBold,
@@ -686,22 +778,7 @@ fun DetailsScreen(
                                     }
                                 }
                             }
-
-                            // Watchlist Toggle
-                            LumenGhostButton(
-                                text = if (isFavorite) "✓ My List" else "+ My List",
-                                onClick = {
-                                    val wasFavorite = isFavorite
-                                    memoryScope.launch {
-                                        runCatching {
-                                            memoryRepository.toggleFavorite(memoryReference)
-                                        }
-                                        if (!wasFavorite) {
-                                            recordTasteSignals(memoryRepository, currentMediaItem, stremioMeta)
-                                        }
-                                    }
-                                }
-                            )
+                        }
                         }
 
                         // Synopsis (Expandable)
@@ -738,16 +815,17 @@ fun DetailsScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.sm2)
+                                    .padding(vertical = LumenLegacySpace.sm2)
                             ) {
                                 Text(
                                     text = "Seasons",
                                     fontSize = LumenType.size18,
                                     fontWeight = FontWeight.Bold,
                                     color = t.colors.foreground,
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.md)
+                                    modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenLegacySpace.md)
                                 )
                                 LazyRow(
+                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
                                     horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -1018,14 +1096,15 @@ fun DetailsScreen(
                         }
                     }
 
-                    items(sortedOptionsWithScores, key = { it.first.id }) { (option, score) ->
+                    items(sortedOptionsWithScores, key = { it.option.id }) { scored ->
                         Box(modifier = Modifier.padding(start = LumenLegacySpace.xxl, end = LumenLegacySpace.xxl, bottom = LumenTokens.Radius.sm)) {
                             ManualSourceItem(
-                                option = option,
-                                score = score,
-                                health = sourceHealths[option.id],
+                                option = scored.option,
+                                score = scored.score,
+                                scoreReasons = scored.breakdown.topReasons,
+                                health = sourceHealths[scored.option.id],
                                 showRawDetails = showRawDetails,
-                                onClick = { handlePlayOption(option, false) }
+                                onClick = { handlePlayOption(scored.option, false) }
                             )
                         }
                     }
@@ -1033,6 +1112,75 @@ fun DetailsScreen(
                     item(key = "advanced_bottom_spacer") {
                         Spacer(modifier = Modifier.height(LumenLayout.spacerMd))
                     }
+                }
+            }
+        }
+
+        val showDetailsChrome = !(isLoadingMeta && stremioMeta == null && metadataError == null)
+        if (showDetailsChrome) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(LumenLegacySpace.md),
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .clip(LumenTokens.Shape.pill)
+                        .background(t.colors.muted.copy(alpha = 0.9f)),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = t.colors.foreground,
+                    )
+                }
+            }
+
+            if (bestMatch != null && metadataError == null) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, t.colors.background.copy(alpha = 0.98f)),
+                            ),
+                        )
+                        .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md),
+                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AdaptiveButton(
+                            text = if (startPositionMs > 0L) {
+                                stringResource(CoreUiR.string.cta_resume)
+                            } else {
+                                stringResource(CoreUiR.string.cta_play)
+                            },
+                        onClick = { handlePlayOption(bestMatch, true) },
+                        backdropLuminance = backdropLuminance,
+                        modifier = Modifier.weight(1f),
+                    )
+                        LumenGhostButton(
+                            text = if (isFavorite) {
+                                stringResource(CoreUiR.string.details_my_list_saved)
+                            } else {
+                                stringResource(CoreUiR.string.details_my_list_add)
+                            },
+                        onClick = {
+                            val wasFavorite = isFavorite
+                            memoryScope.launch {
+                                runCatching {
+                                    memoryRepository.toggleFavorite(memoryReference, profileId = profileId)
+                                }
+                                if (!wasFavorite) {
+                                    recordTasteSignals(memoryRepository, currentMediaItem, stremioMeta, profileId)
+                                }
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -1078,7 +1226,7 @@ private fun EpisodeRow(
             imageUrl = video.displayImageUrl(backdropUrl),
             orientation = PosterOrientation.Landscape,
             progress = progress,
-            onClick = onClick,
+            enabled = false,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
@@ -1097,6 +1245,7 @@ private fun EpisodeRow(
 fun ManualSourceItem(
     option: WatchOption,
     score: Int,
+    scoreReasons: List<String> = emptyList(),
     health: SourceHealth?,
     showRawDetails: Boolean,
     onClick: () -> Unit
@@ -1266,6 +1415,15 @@ fun ManualSourceItem(
                     fontWeight = FontWeight.Bold
                 )
             }
+            if (showRawDetails && scoreReasons.isNotEmpty()) {
+                Text(
+                    text = scoreReasons.joinToString(" · "),
+                    fontSize = LumenType.size10,
+                    color = t.colors.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (health != null) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
@@ -1306,7 +1464,8 @@ private fun MediaItem.toDiscoveryMediaItem(): DiscoveryMediaItem {
 private suspend fun recordTasteSignals(
     memoryRepository: com.example.calmsource.core.database.repository.UserMemoryRepository,
     mediaItem: MediaItem,
-    stremioMeta: StremioMeta?
+    stremioMeta: StremioMeta?,
+    profileId: String,
 ) {
     runCatching {
         stremioMeta?.genres?.forEach { genre ->
@@ -1314,13 +1473,15 @@ private suspend fun recordTasteSignals(
             if (key.isNotBlank()) {
                 memoryRepository.incrementPreferenceSignal(
                     signalType = UserPreferenceSignalType.GENRE,
-                    signalKey = key
+                    signalKey = key,
+                    profileId = profileId,
                 )
             }
         }
         memoryRepository.incrementPreferenceSignal(
             signalType = UserPreferenceSignalType.CONTENT_TYPE,
-            signalKey = if (mediaItem.type == MediaType.SHOW) "series" else "movie"
+            signalKey = if (mediaItem.type == MediaType.SHOW) "series" else "movie",
+            profileId = profileId,
         )
     }
 }

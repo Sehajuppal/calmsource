@@ -6,7 +6,7 @@ import com.example.calmsource.core.discoveryengine.models.SearchResult
 import com.example.calmsource.core.discoveryengine.normalization.MetadataNormalizer
 import com.example.calmsource.core.discoveryengine.normalization.Vectorizer
 import kotlinx.serialization.json.Json
-import com.example.calmsource.core.sourceintelligence.parsers.LanguageAndAudioParser
+import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityScorer
 
 object SearchRanker {
 
@@ -226,47 +226,23 @@ object SearchRanker {
                 return@mapNotNull null
             }
 
-            // 7. Stream Availability Scoring
-            var availabilityScore = 0.0
-            if (type == "channel") {
-                availabilityScore = 20.0
+            // 7. Stream Availability Scoring (unified top-stream signal)
+            val availabilityScore = if (type == "channel") {
+                MediaAvailabilityScorer.channelAvailability().additiveScore
             } else {
                 val streams = streamsMap[id] ?: emptyList()
-                val addonHasStream = if (streams.isNotEmpty()) 15.0 else 0.0
-                val streamCount = streams.size.toDouble().coerceAtMost(10.0)
-                val totalSuccesses = streams.sumOf { successCounts[it.id] ?: 0 }
-                val totalFailures = streams.sumOf { failureCounts[it.id] ?: 0 }
-                val recentStreamSuccess = minOf(totalSuccesses * 5.0, 20.0)
-                val failedStreamPenalty = minOf(totalFailures * 10.0, 50.0)
-
-                val preferredQualityAvailable = if (streams.any { 
-                    val res = it.resolution?.lowercase() ?: ""
-                    res.contains("1080p") || res.contains("4k") || res.contains("2160p") || res.contains("uhd") || res.contains("fhd")
-                }) 15.0 else 0.0
-
-                val preferredLanguageAvailable = if (preferredAudio.isNotEmpty() && streams.any { stream ->
-                    val lang = stream.language?.lowercase() ?: ""
-                    val titleLower = stream.title.lowercase()
-                    preferredAudio.contains(lang) || (stream.isSubbed && preferredSub.any { sub ->
-                        val fullName = LanguageAndAudioParser.getLanguageFullName(sub)
-                        if (fullName != null) {
-                            if (sub.length <= 2) {
-                                titleLower.contains(fullName) || LanguageAndAudioParser.parseLanguage(stream.title).languages.any { it.equals(fullName, ignoreCase = true) }
-                            } else {
-                                titleLower.contains(sub) || titleLower.contains(fullName)
-                            }
-                        } else {
-                            false
-                        }
-                    })
-                }) 20.0 else 0.0
-
-                availabilityScore = addonHasStream + streamCount + recentStreamSuccess + preferredQualityAvailable + preferredLanguageAvailable - failedStreamPenalty
-                if (availabilityScore > 0.0) {
-                    reasons.add("Playable streams available: +${availabilityScore.toInt()}")
-                } else if (availabilityScore < 0.0) {
-                    reasons.add("Playback issues detected: ${availabilityScore.toInt()}")
-                }
+                MediaAvailabilityScorer.scoreFromStreams(
+                    streams = streams.map { it.toStreamSource() },
+                    preferredAudio = preferredAudio,
+                    preferredSub = preferredSub,
+                    streamSuccessCount = { streamId -> successCounts[streamId] ?: 0 },
+                    streamFailureCount = { streamId -> failureCounts[streamId] ?: 0 },
+                ).additiveScore
+            }
+            if (availabilityScore > 0.0) {
+                reasons.add("Playable streams available: +${availabilityScore.toInt()}")
+            } else if (availabilityScore < 0.0) {
+                reasons.add("Playback issues detected: ${availabilityScore.toInt()}")
             }
 
             val totalScore = ftsScore + vectorScore + exactPrefixBoost + aliasBoost + qualityBoost + profileBoost + liveNowBoost + availabilityScore - penalty
