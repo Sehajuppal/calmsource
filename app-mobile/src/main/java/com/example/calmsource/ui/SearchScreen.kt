@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,8 +28,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -38,7 +39,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
@@ -64,7 +71,8 @@ import com.example.calmsource.feature.search.SearchDisplayResult
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.example.calmsource.core.ui.components.GlassSurface
@@ -72,7 +80,9 @@ import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.ChipRow
 import com.example.calmsource.core.ui.components.LumenSkeleton
 import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.ui.components.LumenErrorState
 import com.example.calmsource.core.ui.components.PosterCard
+import com.example.calmsource.core.ui.components.LumenHorizontalRowFade
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,8 +97,12 @@ fun SearchScreen(
     val query by viewModel.query.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
     val filters by viewModel.filters.collectAsState()
-    val scrollPosition by viewModel.scrollPosition.collectAsState()
+    // Read scroll position once for initial composition; snapshotFlow below
+    // pushes updates to the ViewModel. Collecting it as State would create a
+    // recomposition loop on every scroll pixel.
+    val scrollPosition = remember { viewModel.scrollPosition.value }
     
     val titlesGroup = remember(searchResults) { searchResults.filter { it.type != "channel" } }
     val channelsGroup = remember(searchResults) { searchResults.filter { it.type == "channel" } }
@@ -100,6 +114,7 @@ fun SearchScreen(
         initialFirstVisibleItemScrollOffset = scrollPosition.second
     )
     val focusRequester = remember { FocusRequester() }
+    var requestInitialFocus by remember { mutableStateOf(initialQuery.isNotBlank()) }
 
     fun submitQuery() {
         val submittedQuery = query.trim()
@@ -118,8 +133,11 @@ fun SearchScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    LaunchedEffect(requestInitialFocus) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+            requestInitialFocus = false
+        }
     }
 
     LaunchedEffect(listState) {
@@ -136,25 +154,26 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenLegacySpace.lg)
+            .statusBarsPadding()
+            .padding(LumenTokens.Space.md)
     ) {
         Text(
-            text = "Search",
+            text = stringResource(CoreUiR.string.search_title),
             style = LumenType.H1.toTextStyle(),
             color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.md)
         )
 
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = LumenLegacySpace.md),
+                .padding(bottom = LumenTokens.Space.s5),
             shape = LumenTokens.Shape.md,
         ) {
             TextField(
                 value = query,
                 onValueChange = viewModel::search,
-                placeholder = { Text("Search a title, channel, genre, or mood…", color = t.colors.mutedForeground) },
+                placeholder = { Text(stringResource(CoreUiR.string.search_placeholder), color = t.colors.mutedForeground) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -190,7 +209,7 @@ fun SearchScreen(
             )
         }
 
-        if (query.isNotEmpty()) {
+        if (query.isNotEmpty() || filters.isNotEmpty()) {
             SearchFilterBar(
                 filters = filters,
                 onSelectType = { viewModel.setFilter("type", it) },
@@ -204,12 +223,12 @@ fun SearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(LumenLegacySpace.lg),
-                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                        .padding(LumenTokens.Space.md),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
                 ) {
                     repeat(3) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             LumenSkeleton(modifier = Modifier.weight(1f).height(LumenLayout.epgMinBlockWidth))
@@ -218,7 +237,21 @@ fun SearchScreen(
                     }
                 }
             }
-            searchResults.isEmpty() && query.isNotEmpty() -> {
+            searchResults.isEmpty() && (query.isNotEmpty() || filters.isNotEmpty()) && searchError != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    LumenErrorState(
+                        title = "Search failed",
+                        body = searchError ?: "Check your connection and try again.",
+                        onRetry = { viewModel.submitSearch(query) },
+                    )
+                }
+            }
+            searchResults.isEmpty() && (query.isNotEmpty() || filters.isNotEmpty()) -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -226,13 +259,13 @@ fun SearchScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     LumenEmptyState(
-                        title = "Nothing matched '$query'",
+                        title = if (query.isNotEmpty()) "Nothing matched '$query'" else "Nothing matched the active filters",
                         body = "Try checking the spelling or look for different keywords.",
                         icon = Icons.Default.Search
                     )
                 }
             }
-            query.isEmpty() -> {
+            query.isEmpty() && filters.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -250,7 +283,7 @@ fun SearchScreen(
                         fontSize = LumenType.size13,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
-                        modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
+                        modifier = Modifier.padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm)
                     )
                     ChipRow(
                         items = suggestedTags,
@@ -259,7 +292,7 @@ fun SearchScreen(
                             viewModel.search(tag)
                             viewModel.submitSearch(tag)
                         },
-                        modifier = Modifier.padding(start = LumenLegacySpace.lg, end = LumenLegacySpace.lg, bottom = LumenLegacySpace.lg)
+                        modifier = Modifier.padding(start = LumenTokens.Space.md, end = LumenTokens.Space.md, bottom = LumenTokens.Space.md)
                     )
                 }
             }
@@ -267,8 +300,8 @@ fun SearchScreen(
                 LazyVerticalGrid(
                     state = listState,
                     columns = GridCells.Adaptive(minSize = LumenLayout.epgMinBlockWidth),
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         bottom = LumenTokens.Space.sectionGapMobile,
                     ),
@@ -284,7 +317,7 @@ fun SearchScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
                                 letterSpacing = LumenType.line1_6,
-                                modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
+                                modifier = Modifier.padding(top = LumenTokens.Space.md, bottom = LumenTokens.Space.sm)
                             )
                         }
                         gridItemsIndexed(
@@ -313,7 +346,7 @@ fun SearchScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = t.colors.mutedForeground,
                                 letterSpacing = LumenType.line1_6,
-                                modifier = Modifier.padding(top = LumenLegacySpace.lg, bottom = LumenLegacySpace.sm2)
+                                modifier = Modifier.padding(top = LumenTokens.Space.md, bottom = LumenTokens.Space.sm)
                             )
                         }
                         gridItemsIndexed(
@@ -356,11 +389,11 @@ private fun SearchFilterBar(
     val activeType = filters["type"]
     val activeGenre = filters["genre"]
     Row(
-        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm),
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(bottom = LumenLegacySpace.md)
+            .padding(bottom = LumenTokens.Space.s5)
     ) {
         SEARCH_TYPE_FILTERS.forEach { (label, value) ->
             val selected = activeType == value || (value == null && activeType == null)
@@ -431,7 +464,7 @@ fun DiscoverySearchResultItem(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
         ) {
             AsyncImage(
                 model = result.posterUrl,
@@ -469,7 +502,7 @@ fun DiscoverySearchResultItem(
                     color = t.colors.mutedForeground.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = LumenLegacySpace.xxs)
+                    modifier = Modifier.padding(top = LumenTokens.Space.s1)
                 )
 
                 Text(
@@ -478,7 +511,7 @@ fun DiscoverySearchResultItem(
                     color = t.colors.mutedForeground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = LumenLegacySpace.xs)
+                    modifier = Modifier.padding(top = LumenTokens.Space.xs)
                 )
             }
         }
@@ -491,10 +524,20 @@ private fun VisualSearchResultItem(
     onClick: () -> Unit,
 ) {
     val t = LocalLumenTokens.current
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(LumenTokens.Shape.md)
+            .clickable(onClick = onClick)
+            .padding(LumenTokens.Space.s5)
+            .semantics(mergeDescendants = true) {
+                contentDescription = result.title
+            }
+    ) {
         PosterCard(
             imageUrl = result.posterUrl,
-            onClick = onClick,
+            contentLabel = result.title,
+            enabled = false,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
@@ -504,7 +547,7 @@ private fun VisualSearchResultItem(
             color = t.colors.foreground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = LumenLegacySpace.sm2),
+            modifier = Modifier.padding(top = LumenTokens.Space.sm),
         )
         val meta = remember(result) {
             buildString {
@@ -529,7 +572,7 @@ private fun VisualSearchResultItem(
                 color = t.colors.mutedForeground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = LumenLegacySpace.xs),
+                modifier = Modifier.padding(top = LumenTokens.Space.xs),
             )
         }
     }

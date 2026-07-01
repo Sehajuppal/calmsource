@@ -32,6 +32,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.SourceHealthRepository
+import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.UserMemoryRepository
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
@@ -52,11 +53,13 @@ import com.example.calmsource.core.playback.recovery.PlaybackRecoveryEngine
 import com.example.calmsource.core.playback.recovery.RecoveryAction
 import com.example.calmsource.core.playback.recovery.RecoveryContext
 import com.example.calmsource.core.playback.recovery.RecoveryDecision
+import android.content.pm.PackageManager
 import com.example.calmsource.core.playback.session.DefaultStreamRaceFactory
 import com.example.calmsource.core.playback.session.PlaybackSessionStore
 import com.example.calmsource.core.playback.session.SessionPhase
 import com.example.calmsource.core.playback.session.StreamRaceFactory
 import com.example.calmsource.core.playback.watchdog.PlaybackWatchdogController
+import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CancellationException
@@ -115,6 +118,7 @@ class PlaybackManager(
     internal var currentBackend: PlayerBackend? = null
         private set
     private var backendStateCollectionJob: Job? = null
+    private var streamRaceJob: Job? = null
     private var hasRenderedFirstFrame = false
     private var consecutiveFallbackCount = 0
     private var consecutiveBufferingCount = 0
@@ -301,8 +305,11 @@ class PlaybackManager(
 
     // Surface and Deferred Preparation
     var isSurfaceRequired: Boolean = false
-    var playerView: androidx.media3.ui.PlayerView? = null
-        private set
+    private var playerViewRef: WeakReference<androidx.media3.ui.PlayerView>? = null
+    @set:JvmName("_setPlayerViewRef")
+    var playerView: androidx.media3.ui.PlayerView?
+        get() = playerViewRef?.get()
+        private set(value) { playerViewRef = value?.let { WeakReference(it) } }
 
     private data class PendingPrepare(
         val request: PlaybackRequest,
@@ -442,6 +449,27 @@ class PlaybackManager(
                 providerId = providerId,
                 sourceType = source.type
             )
+            trackStreamPlaybackEvent(source, status = "success")
+        }
+    }
+
+    private fun trackStreamPlaybackEvent(
+        source: PlaybackSource,
+        status: String,
+        reason: String? = null,
+    ) {
+        if (source.type == PlaybackSourceType.IPTV) return
+        val mediaId = activeRequest?.userMemoryReference?.itemKey?.takeIf { it.isNotBlank() } ?: return
+        coroutineScope.launch(Dispatchers.IO) {
+            runCatching {
+                DiscoveryEngine.trackPlaybackEvent(
+                    streamId = source.safeSourceId,
+                    mediaId = mediaId,
+                    source = source.resolveProviderIdForHealth(),
+                    status = status,
+                    reason = reason
+                )
+            }
         }
     }
 
@@ -760,7 +788,8 @@ class PlaybackManager(
             phase = if (willRace) SessionPhase.Racing else SessionPhase.Preparing,
         )
         if (willRace) {
-            coroutineScope.launch(Dispatchers.Main) {
+            streamRaceJob?.cancel()
+            streamRaceJob = coroutineScope.launch(Dispatchers.Main) {
                 if (!isSessionCurrent(sessionId)) return@launch
                 updateState { it.copy(playerState = PlayerState.PREPARING) }
                 val raceCandidates = if (useLiteRacing) allCandidates.take(3) else allCandidates
@@ -899,6 +928,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             handleFailure(mapError(e), e.errorCodeName)
@@ -910,6 +940,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             handleFailure(PlaybackError.PermissionRequired(cause = e, message = e.message ?: "Unsafe scheme rejected"), "SECURITY_VIOLATION")
@@ -921,6 +952,7 @@ class PlaybackManager(
                 onPlayerAboutToBeReleased?.invoke()
                 player?.release()
                 player = null
+                playerView?.player = null
             }
             updateState { it.copy(source = source) }
             val sanitizedCause = Exception(PlaybackSanitizer.sanitize(e.message))
@@ -1059,12 +1091,18 @@ class PlaybackManager(
 
     @MainThread
     fun release() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { release() }
+            return
+        }
         if (isReleased) return
         isReleased = true
         // Bump the session id so any in-flight stream race aborts instead of resurrecting a
         // released session (#4), drop any deferred prepare so a re-attached surface can't run a
         // prepare for this released session (#6), and clear the failure-dedup guard.
         sessionStore.invalidate()
+        streamRaceJob?.cancel()
+        streamRaceJob = null
         pendingPrepare = null
         lastHandledBackendError = null
         onPlayerAboutToBeReleased?.invoke()
@@ -1330,6 +1368,11 @@ class PlaybackManager(
                     errorCategory = rawErrorCode
                 )
             }
+            trackStreamPlaybackEvent(
+                source = currentSource,
+                status = "failure",
+                reason = rawErrorCode
+            )
         }
     }
 
@@ -1397,7 +1440,11 @@ class PlaybackManager(
                 updateState { it.copy(isTransitioningSource = false) }
                 return@launch
             }
-            val nextCandidate = fallbackManager.selectNextBestCandidate()
+            val isTelevision = runCatching {
+                val pm = context.packageManager
+                pm != null && (pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) || pm.hasSystemFeature(PackageManager.FEATURE_TELEVISION))
+            }.getOrDefault(false)
+            val nextCandidate = fallbackManager.selectNextBestCandidate(isTelevision = isTelevision)
             if (!isSessionCurrent(sessionId)) {
                 updateState { it.copy(isTransitioningSource = false) }
                 return@launch

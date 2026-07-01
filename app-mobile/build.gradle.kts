@@ -72,6 +72,13 @@ kotlin {
 }
 
 dependencies {
+    implementation("androidx.compose.material:material-icons-core")
+    // TODO: Replace material-icons-extended (~10 000 icons) with local XML vector
+    //  drawables for the ~7 extended icons actually used in app-mobile:
+    //   LiveTv, CleaningServices, ArrowUpward, ArrowDownward, ReportProblem,
+    //   PictureInPictureAlt, Refresh
+    //  This will cut compile time and reduce DEX size significantly.
+    implementation("androidx.compose.material:material-icons-extended")
   implementation(libs.kotlinx.collections.immutable)
   implementation(project(":core:sourceintelligence"))
   implementation(libs.firebase.crashlytics)
@@ -92,6 +99,7 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
+  implementation("androidx.compose.animation:animation")
   // Tooling
   debugImplementation(libs.androidx.compose.ui.tooling)
   // Instrumented tests
@@ -139,7 +147,6 @@ dependencies {
   // Coil, Icons & Media3
   implementation("androidx.palette:palette-ktx:1.0.0")
   implementation(libs.coil.compose)
-  implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.media3.exoplayer)
   implementation(libs.media3.exoplayer.hls)
   implementation(libs.media3.exoplayer.dash)

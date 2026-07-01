@@ -21,6 +21,8 @@
  */
 package com.example.calmsource.core.model
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import kotlinx.serialization.Serializable
 
 /** The broad content type for a media item. */
@@ -37,6 +39,7 @@ enum class MediaType { MOVIE, SHOW }
  * @property id Stable identifier, prefixed by content type (e.g. `"movie-inception"`)
  * @property rating Average rating on a 0–10 scale, or `null` if unavailable
  */
+@Stable
 @Serializable
 data class MediaItem(
     val id: String,
@@ -51,6 +54,7 @@ data class MediaItem(
 )
 
 /** A movie wrapper combining [MediaItem] metadata with movie-specific fields. */
+@Immutable
 data class Movie(
     val mediaItem: MediaItem,
     val durationMin: Int? = null,
@@ -58,6 +62,7 @@ data class Movie(
 )
 
 /** A TV show wrapper combining [MediaItem] metadata with show-specific fields. */
+@Immutable
 data class Show(
     val mediaItem: MediaItem,
     val seasonsCount: Int = 1,
@@ -65,6 +70,7 @@ data class Show(
 )
 
 /** A single episode within a [Show], keyed by [showId] + season/episode numbers. */
+@Immutable
 data class Episode(
     val id: String,
     val showId: String,
@@ -77,6 +83,7 @@ data class Episode(
 )
 
 /** A live TV channel for the channel guide. Simplified view of [IPTVChannel]. */
+@Immutable
 data class Channel(
     val id: String,
     val name: String,
@@ -86,6 +93,7 @@ data class Channel(
 )
 
 /** A scheduled broadcast within a live TV [Channel]'s electronic program guide. */
+@Immutable
 data class Program(
     val id: String,
     val channelId: String,
@@ -798,6 +806,7 @@ data class IPTVPlaylist(
  * @property tvgName The `tvg-name` attribute; fallback display name
  * @property rawAttributes All key-value pairs parsed from the `#EXTINF` line
  */
+@Stable
 data class IPTVChannel(
     val id: String,
     val tvgId: String? = null,
@@ -826,6 +835,7 @@ data class IPTVChannel(
 }
 
 /** A group of IPTV channels sharing the same `group-title` attribute. */
+@Stable
 data class IPTVChannelGroup(
     val title: String,
     val providerId: String,

@@ -13,6 +13,7 @@ import javax.xml.parsers.SAXParserFactory
  * Parses large XML streams in chunks to prevent memory allocation spikes.
  */
 object XmlTvParser {
+    var bypassTimeWindowing: Boolean = false
 
     /**
      * Parses the EPG XML stream and emits programs in chunks.
@@ -106,6 +107,18 @@ object XmlTvParser {
                 // DE-BUG-7: Skip programs with unparseable dates instead of inserting garbage epoch-0 rows
                 if (startMs <= 0L) return
                 
+                // EPG Time-windowing filter: [now - 4 hours, now + 24 hours]
+                val resolvedEndMs = if (endMs > 0L) endMs else startMs
+                if (!bypassTimeWindowing) {
+                    val now = System.currentTimeMillis()
+                    val minTime = now - 4 * 60 * 60 * 1000L
+                    val maxTime = now + 24 * 60 * 60 * 1000L
+                    
+                    if (resolvedEndMs < minTime || startMs > maxTime) {
+                        return
+                    }
+                }
+                
                 val program = EpgProgram(
                     id = currentProgramId,
                     channelId = channelId,
@@ -113,7 +126,7 @@ object XmlTvParser {
                     description = descBuilder.toString().trim().takeIf { it.isNotEmpty() },
                     category = categoryBuilder.toString().trim().takeIf { it.isNotEmpty() },
                     startTimeMs = startMs,
-                    endTimeMs = if (endMs > 0L) endMs else startMs,
+                    endTimeMs = resolvedEndMs,
                     language = titleLang.takeIf { it.isNotEmpty() } ?: descLang.takeIf { it.isNotEmpty() }
                 )
                 

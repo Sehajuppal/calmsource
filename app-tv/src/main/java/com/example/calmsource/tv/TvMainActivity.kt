@@ -41,7 +41,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -54,6 +56,7 @@ import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.tv.ui.OptimizedAppleTvSidebar
 import com.example.calmsource.tv.ui.TvDetailsScreen
 import com.example.calmsource.tv.ui.TvFocusCard
+import com.example.calmsource.core.ui.components.LumenSyncCatalogOverlay
 import com.example.calmsource.tv.ui.TvHomeScreen
 import com.example.calmsource.tv.ui.TvLibraryScreen
 import com.example.calmsource.tv.ui.TvLiveGuideScreen
@@ -198,8 +201,12 @@ class TvMainActivity : ComponentActivity() {
         setContent {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
+            var useOledTheme by remember { mutableStateOf(UiAppearancePreferences.isOledTheme(this@TvMainActivity, default = true)) }
             ProvidePerfMode(perfMode) {
-            LumenTheme(variant = LumenVariant.Oled, isTv = true) {
+            LumenTheme(
+                variant = if (useOledTheme) LumenVariant.Oled else LumenVariant.Standard,
+                isTv = true,
+            ) {
                 val t = LocalLumenTokens.current
                 val pendingDeepLink by _pendingDeepLink.collectAsState()
             val appContext = LocalContext.current.applicationContext
@@ -257,6 +264,9 @@ class TvMainActivity : ComponentActivity() {
             var searchSeed by remember { mutableStateOf("") }
             var inlineMessage by remember { mutableStateOf<String?>(null) }
             val tvNavigationScope = rememberCoroutineScope()
+            val channelUnavailableMsg = stringResource(CoreUiR.string.error_channel_unavailable)
+            val channelNotFoundMsg = stringResource(CoreUiR.string.error_channel_not_found)
+            val syncIptvCatalogMsg = stringResource(CoreUiR.string.sync_iptv_catalog)
 
             LaunchedEffect(inlineMessage) {
                 inlineMessage ?: return@LaunchedEffect
@@ -273,7 +283,7 @@ class TvMainActivity : ComponentActivity() {
                             parentScreen = parent
                         )
                     } else {
-                        inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing."
+                        inlineMessage = channelUnavailableMsg
                     }
                 }
             }
@@ -330,7 +340,7 @@ class TvMainActivity : ComponentActivity() {
                                 parentScreen = TvScreen.Home
                             )
                         } else {
-                            inlineMessage = "Channel not found"
+                            inlineMessage = channelNotFoundMsg
                         }
                     }
                     is CalmSourceDeepLink.Search -> {
@@ -361,6 +371,7 @@ class TvMainActivity : ComponentActivity() {
                 }
             }
 
+            val providers by IPTVRepository.providers.collectAsState()
             val syncStates by IPTVRepository.syncStates.collectAsState()
             val activeSync = syncStates.values.firstOrNull { it.status == ProviderSyncStatus.SYNCING }
             val xtreamProgress by IPTVRepository.xtreamSyncProgress.collectAsState()
@@ -371,12 +382,14 @@ class TvMainActivity : ComponentActivity() {
                 syncOverlayDismissed = false
             }
             val showSyncOverlay = activeSync != null &&
-                liveChannelCount == 0 &&
+                providers.isEmpty() &&
                 !syncOverlayDismissed &&
                 currentScreen !is TvScreen.Settings
-            val showSyncBanner = activeSync != null && liveChannelCount > 0 && !syncOverlayDismissed
+            val showSyncBanner = activeSync != null &&
+                !syncOverlayDismissed &&
+                (liveChannelCount > 0 || providers.isNotEmpty())
             val syncStageLabel = xtreamProgress?.stage?.userLabel()
-                ?: "Syncing IPTV catalog…"
+                ?: syncIptvCatalogMsg
 
             val topLevel = currentScreen is TvScreen.Home ||
                 currentScreen is TvScreen.Library ||
@@ -438,6 +451,16 @@ class TvMainActivity : ComponentActivity() {
                                     }
                                 },
                         ) {
+                            val openSidebar: () -> Unit = {
+                                sidebarVisible = true
+                                focusScope.launch {
+                                    kotlinx.coroutines.delay(80)
+                                    try {
+                                        tabFocusRequesters[activeTab].requestFocus()
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            }
                             when (val screen = currentScreen) {
                             TvScreen.ProfileSelection -> TvProfileSelectionScreen(
                                 onProfileSelected = {
@@ -459,16 +482,7 @@ class TvMainActivity : ComponentActivity() {
                                     activeTab = 4
                                     currentScreen = TvScreen.Settings
                                 },
-                                onOpenSidebar = {
-                                    sidebarVisible = true
-                                    focusScope.launch {
-                                        kotlinx.coroutines.delay(80)
-                                        try {
-                                            tabFocusRequesters[activeTab].requestFocus()
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                },
+                                onOpenSidebar = openSidebar,
                             )
                             TvScreen.Library -> TvLibraryScreen(
                                 onOpenMedia = { reference, progress ->
@@ -476,7 +490,7 @@ class TvMainActivity : ComponentActivity() {
                                 },
                                 onOpenChannel = { reference ->
                                     reference.sourceId?.let { navigateToChannel(it, TvScreen.Library) }
-                                        ?: run { inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing." }
+                                        ?: run { inlineMessage = channelUnavailableMsg }
                                 },
                                 onSearch = { query ->
                                     searchSeed = query
@@ -491,12 +505,14 @@ class TvMainActivity : ComponentActivity() {
                                     activeTab = 1
                                     currentScreen = TvScreen.LiveGuide
                                 },
+                                onOpenSidebar = openSidebar,
                             )
                             TvScreen.Search -> TvSearchScreen(
                                 initialQuery = searchSeed,
                                 onInitialQueryConsumed = { searchSeed = "" },
                                 onMediaClick = { currentScreen = TvScreen.Details(it) },
-                                onChannelClick = { channelId -> navigateToChannel(channelId, TvScreen.Search) }
+                                onChannelClick = { channelId -> navigateToChannel(channelId, TvScreen.Search) },
+                                onOpenSidebar = openSidebar,
                             )
                             TvScreen.LiveGuide -> TvLiveGuideScreen(
                                 onChannelSelect = { channel, program ->
@@ -513,21 +529,27 @@ class TvMainActivity : ComponentActivity() {
                                                 parentScreen = TvScreen.LiveGuide
                                             )
                                         } else {
-                                            inlineMessage = "Channel unavailable — its provider may be disabled. Try re-syncing."
+                                            inlineMessage = channelUnavailableMsg
                                         }
                                     }
                                 },
                                 onOpenSetup = {
                                     activeTab = 4
                                     currentScreen = TvScreen.Settings
-                                }
+                                },
+                                onOpenSidebar = openSidebar,
                             )
                             TvScreen.Settings -> TvSettingsScreens(
                                 onPairingClick = { currentScreen = TvScreen.Onboarding },
                                 onSwitchProfileClick = {
                                     activeTab = 0
                                     currentScreen = TvScreen.ProfileSelection
-                                }
+                                },
+                                onOledThemeChanged = { enabled ->
+                                    useOledTheme = enabled
+                                    UiAppearancePreferences.setOledTheme(this@TvMainActivity, enabled)
+                                },
+                                onOpenSidebar = openSidebar,
                             )
                             TvScreen.Onboarding -> TvOnboardingScreen(
                                 onComplete = {
@@ -583,7 +605,7 @@ class TvMainActivity : ComponentActivity() {
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        text = "Progress: ${syncing.progressPercent}% — Live channels are ready to browse",
+                                        text = stringResource(CoreUiR.string.sync_live_ready, syncing.progressPercent),
                                         color = t.colors.mutedForeground,
                                         fontSize = 13.sp,
                                     )
@@ -591,7 +613,7 @@ class TvMainActivity : ComponentActivity() {
                                 TvFocusCard(onClick = { syncOverlayDismissed = true }) { isFocused ->
                                     val bannerTokens = LocalLumenTokens.current
                                     Text(
-                                        text = "Dismiss",
+                                        text = stringResource(CoreUiR.string.cta_dismiss),
                                         color = if (isFocused) bannerTokens.colors.background else bannerTokens.colors.brand,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
@@ -620,7 +642,7 @@ class TvMainActivity : ComponentActivity() {
                                 .zIndex(1f),
                             visible = sidebarVisible,
                             activeTab = activeTab,
-                            profileName = bootGate.activeProfile?.name ?: "Profile",
+                            profileName = bootGate.activeProfile?.name ?: stringResource(CoreUiR.string.profiles_default_name),
                             profileAvatarUrl = bootGate.activeProfile?.avatarUrl,
                             tabFocusRequesters = tabFocusRequesters,
                             onNavigate = { tab ->
@@ -661,64 +683,12 @@ class TvMainActivity : ComponentActivity() {
 
                 if (showSyncOverlay) {
                     val syncing = activeSync!!
-                    val buttonFocusRequester = remember { FocusRequester() }
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(100)
-                        try {
-                            buttonFocusRequester.requestFocus()
-                        } catch (_: Exception) {
-                            // Focus requesting might fail if node is not yet attached/focusable
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(2f)
-                            .background(t.colors.background.copy(alpha = 0.9f))
-                            .pointerInput(Unit) {},
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = t.colors.brand
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = syncStageLabel,
-                                color = t.colors.foreground,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Progress: ${syncing.progressPercent}%",
-                                color = t.colors.mutedForeground,
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Sync continues in the background. Press Back to browse.",
-                                color = t.colors.mutedForeground,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            TvFocusCard(
-                                modifier = Modifier.focusRequester(buttonFocusRequester),
-                                onClick = { syncOverlayDismissed = true }
-                            ) { isFocused ->
-                                Text(
-                                    text = "Browse now",
-                                    color = if (isFocused) t.colors.background else Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                                )
-                            }
-                        }
-                    }
+                    LumenSyncCatalogOverlay(
+                        stageLabel = syncStageLabel,
+                        progressPercent = syncing.progressPercent,
+                        onDismiss = { syncOverlayDismissed = true },
+                        modifier = Modifier.zIndex(2f),
+                    )
                 }
 
                 }

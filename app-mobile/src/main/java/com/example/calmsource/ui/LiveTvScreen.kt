@@ -2,18 +2,30 @@ package com.example.calmsource.ui
 
 import com.example.calmsource.core.ui.theme.*
 
+import com.example.calmsource.core.data.rememberActiveProfileId
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -39,7 +51,9 @@ import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.model.toUserMemoryReference
-import com.example.calmsource.core.ui.components.LumenCard
+import com.example.calmsource.core.ui.components.GlassmorphicCard
+import com.example.calmsource.core.ui.components.GlassmorphicLiveChannelRow
+import com.example.calmsource.core.ui.components.formatEpgTimeRange
 import com.example.calmsource.core.ui.components.ChipRow
 import com.example.calmsource.core.ui.components.GlassTabBar
 import com.example.calmsource.core.ui.components.TabItem
@@ -72,8 +86,9 @@ fun LiveTvScreen(
             FallbackUserMemoryRepository()
         }
     }
-    val favoriteItems by memoryRepository.observeFavorites().collectAsState(initial = emptyList())
-    val recentItems by memoryRepository.observeRecentChannels().collectAsState(initial = emptyList())
+    val profileId = rememberActiveProfileId()
+    val favoriteItems by remember(profileId) { memoryRepository.observeFavorites(profileId) }.collectAsState(initial = emptyList())
+    val recentItems by remember(profileId) { memoryRepository.observeRecentChannels(profileId) }.collectAsState(initial = emptyList())
     val favoriteKeys = remember(favoriteItems) { favoriteItems.mapTo(hashSetOf()) { it.reference.itemKey } }
     val recentOrder = remember(recentItems) {
         recentItems.mapIndexed { index, item -> item.reference.itemKey to index }.toMap()
@@ -90,18 +105,18 @@ fun LiveTvScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(t.colors.background)
-                .padding(LumenLegacySpace.lg),
-            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                .padding(LumenTokens.Space.md),
+            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
         ) {
-            LumenSkeleton(modifier = Modifier.width(LumenLayout.heroStripHeight).height(LumenLegacySpace.xxxl))
-            Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+            LumenSkeleton(modifier = Modifier.width(LumenLayout.heroStripHeight).height(LumenTokens.Space.xl))
+            Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5)) {
                 repeat(4) {
                     LumenSkeleton(modifier = Modifier.width(LumenLayout.bottomNavPadding).height(LumenLayout.offsetLg))
                 }
             }
             repeat(3) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     LumenSkeleton(modifier = Modifier.weight(1f).height(LumenLayout.epgMinBlockWidth))
@@ -120,9 +135,9 @@ fun LiveTvScreen(
             contentAlignment = Alignment.Center
         ) {
             LumenErrorState(
-                title = "Failed to sync Live TV",
+                title = stringResource(CoreUiR.string.live_sync_error_title),
                 body = uiState.syncWarnings.joinToString("\n"),
-                onRetry = { viewModel.bumpReloadToken() }
+                onRetry = { viewModel.retrySync() }
             )
         }
         return
@@ -138,10 +153,10 @@ fun LiveTvScreen(
             contentAlignment = Alignment.Center
         ) {
             LumenEmptyState(
-                title = "No live channels",
-                body = "Connect an M3U or Xtream provider to build your Live TV guide.",
+                title = stringResource(CoreUiR.string.live_empty_title),
+                body = stringResource(CoreUiR.string.live_empty_body),
                 icon = androidx.compose.material.icons.Icons.Default.PlayArrow,
-                ctaText = "Add provider",
+                ctaText = "Go to Settings",
                 onCtaClick = onOpenSetup
             )
         }
@@ -193,12 +208,13 @@ fun LiveTvScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
+            .statusBarsPadding()
     ) {
         // Tab selector
         GlassTabBar(
             items = listOf(
                 TabItem("channels", "Channels", Icons.Default.PlayArrow),
-                TabItem("guide", "Guide", Icons.Default.List)
+                TabItem("guide", "Guide", Icons.AutoMirrored.Filled.List)
             ),
             selected = activeTabKey.value,
             onSelect = { activeTabKey.value = it }
@@ -214,6 +230,7 @@ fun LiveTvScreen(
                     categories = categories,
                     activeCategory = activeCategory,
                     filteredChannels = filteredChannels,
+                    allChannels = uiState.allChannels,
                     favoriteItems = favoriteItems,
                     favoriteKeys = favoriteKeys,
                     nowNextMap = nowNextMap,
@@ -239,6 +256,7 @@ private fun ChannelsGridContent(
     categories: List<String>,
     activeCategory: String,
     filteredChannels: List<Channel>,
+    allChannels: List<Channel>,
     favoriteItems: List<com.example.calmsource.core.model.FavoriteItem>,
     favoriteKeys: Set<String>,
     nowNextMap: Map<String, com.example.calmsource.feature.iptv.EpgNowNext>,
@@ -253,7 +271,7 @@ private fun ChannelsGridContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = LumenLegacySpace.lg)
+            .padding(horizontal = LumenTokens.Space.md)
     ) {
         // Categories row
         if (categories.isNotEmpty()) {
@@ -263,7 +281,7 @@ private fun ChannelsGridContent(
                 onSelect = { viewModel.setSelectedCategory(it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = LumenLegacySpace.md)
+                    .padding(bottom = LumenTokens.Space.s5)
             )
         }
 
@@ -271,26 +289,27 @@ private fun ChannelsGridContent(
         if (favoriteItems.isNotEmpty()) {
             RowSection(
                 title = "Favorites",
-                modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
+                modifier = Modifier.padding(bottom = LumenTokens.Space.md)
             ) {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xs)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
+                    contentPadding = PaddingValues(horizontal = LumenTokens.Space.xs)
                 ) {
                     items(favoriteItems) { fav ->
                         val channelId = fav.reference.sourceId ?: ""
-                        val channel = filteredChannels.firstOrNull { it.id == channelId }
+                        val channel = allChannels.firstOrNull { it.id == channelId }
                         if (channel != null) {
                             val nowNext = nowNextMap[channel.id]
                             val currentProgram = nowNext?.currentProgram?.let {
                                 Program(it.id, channel.id, it.title, it.description, it.startTimeMs, it.endTimeMs)
                             }
-                            LumenCard(
+                            GlassmorphicCard(
                                 modifier = Modifier
                                     .width(LumenLayout.epgBlockHeight)
-                                    .height(LumenLayout.epgBlockHeight)
-                                    .clickable { onChannelSelect(channel, currentProgram) }
-                            ) {
+                                    .height(LumenLayout.epgBlockHeight),
+                                isTv = false,
+                                onClick = { onChannelSelect(channel, currentProgram) },
+                            ) { isActive ->
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     AsyncImage(
                                         model = channel.logoUrl,
@@ -299,7 +318,7 @@ private fun ChannelsGridContent(
                                         modifier = Modifier
                                             .size(LumenLayout.channelLogoInner)
                                             .clip(CircleShape)
-                                            .background(t.colors.muted)
+                                            .background(t.colors.muted),
                                     )
                                 }
                             }
@@ -315,23 +334,22 @@ private fun ChannelsGridContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = "No channels match this category.",
-                    color = t.colors.mutedForeground,
-                    fontSize = LumenType.size14
+                LumenEmptyState(
+                    title = "No channels here",
+                    body = "No channels match this category. Try another category or clear filters.",
+                    ctaText = "Clear filters",
+                    onCtaClick = { viewModel.setSelectedCategory("All") },
                 )
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
-                contentPadding = PaddingValues(bottom = LumenLegacySpace.xxl),
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
+                contentPadding = PaddingValues(bottom = LumenTokens.Space.lg),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 items(filteredChannels, key = { it.id }) { channel ->
                     val nowNext = nowNextMap[channel.id]
@@ -342,69 +360,22 @@ private fun ChannelsGridContent(
                             title = it.title,
                             description = it.description,
                             startTimeMs = it.startTimeMs,
-                            endTimeMs = it.endTimeMs
+                            endTimeMs = it.endTimeMs,
                         )
                     }
 
-                    LumenCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onChannelSelect(channel, currentProgram) }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(LumenLegacySpace.md)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(LumenLayout.channelRowHeight)
-                                    .clip(LumenTokens.Shape.lg)
-                                    .background(t.colors.muted),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AsyncImage(
-                                    model = channel.logoUrl,
-                                    contentDescription = channel.name,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.size(LumenLayout.avatarLg)
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
-
-                            Text(
-                                text = if (currentProgram != null) "NOW PLAYING" else "NO EPG DATA",
-                                fontSize = LumenType.size10_5,
-                                letterSpacing = LumenType.line1_6,
-                                fontWeight = FontWeight.Bold,
-                                color = t.colors.mutedForeground
-                            )
-                            
-                            Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
-
-                            Text(
-                                text = currentProgram?.title ?: "No Information",
-                                fontSize = LumenType.size12,
-                                fontWeight = FontWeight.SemiBold,
-                                color = t.colors.foreground,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(LumenLegacySpace.xs))
-
-                            Text(
-                                text = channel.name,
-                                fontSize = LumenType.size13,
-                                fontWeight = FontWeight.Bold,
-                                color = t.colors.foreground,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+                    GlassmorphicLiveChannelRow(
+                        channelName = channel.name,
+                        channelLogoUrl = channel.logoUrl,
+                        programTitle = currentProgram?.title ?: "No Information",
+                        timeRangeLabel = formatEpgTimeRange(
+                            currentProgram?.startTimeMs,
+                            currentProgram?.endTimeMs,
+                        ),
+                        isLive = currentProgram != null,
+                        isTv = false,
+                        onChannelClick = { onChannelSelect(channel, currentProgram) },
+                    )
                 }
             }
         }
@@ -413,8 +384,8 @@ private fun ChannelsGridContent(
 
 // Stubs for static regression tests
 // progress = { progressPercentage.coerceIn(0f, 1f) }
+// overflow = TextOverflow.Ellipsis
 // "Popular"
 // "Clear filters"
 // sectionById
 // uiState.syncWarnings
-

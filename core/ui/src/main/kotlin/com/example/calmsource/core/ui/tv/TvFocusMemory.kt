@@ -84,7 +84,7 @@ class TvFocusRestorer internal constructor(
         .focusRequester(requester(id))
         .onFocusChanged { if (it.isFocused) memory.remember(scope, id) }
 
-    internal fun targetId(allIds: List<String>): String? {
+    fun targetId(allIds: List<String>): String? {
         val last = memory.lastFocusedId(scope)
         return if (last != null && allIds.contains(last)) last else allIds.firstOrNull()
     }
@@ -94,9 +94,10 @@ class TvFocusRestorer internal constructor(
         val target = targetId(allIds) ?: return
         // Wait until the requester is attached to its node before requesting.
         LaunchedEffect(target, allIds.size) {
-            // microtask-style yield to let LazyRow compose the item
-            kotlinx.coroutines.delay(16)
-            runCatching { requester(target).requestFocus() }
+            repeat(8) { attempt ->
+                if (attempt > 0) kotlinx.coroutines.delay(16L * attempt)
+                runCatching { requester(target).requestFocus() }
+            }
         }
     }
 }

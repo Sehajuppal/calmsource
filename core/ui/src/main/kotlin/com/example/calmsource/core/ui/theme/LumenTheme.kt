@@ -19,6 +19,7 @@ fun LumenTheme(
     }
     val tokens = LumenTokenBundle(colors = colors)
     val scale = if (isTv) LumenType.TV_SCALE else 1f
+    val reducedMotion = isReducedMotionEnabled(androidx.compose.ui.platform.LocalContext.current)
 
     val material = androidx.compose.material3.darkColorScheme(
         background = colors.background,
@@ -39,17 +40,19 @@ fun LumenTheme(
     CompositionLocalProvider(
         LocalLumenTokens provides tokens,
         LocalLumenIsTv provides isTv,
+        LocalReducedMotion provides reducedMotion,
         androidx.compose.material3.LocalContentColor provides LumenTokens.Color.textPrimary,
     ) {
+        val shapes = androidx.compose.material3.Shapes(
+            small = LumenTokens.Shape.sm,
+            medium = LumenTokens.Shape.md,
+            large = LumenTokens.Shape.lg,
+            extraLarge = LumenTokens.Shape.xl,
+        )
         androidx.compose.material3.MaterialTheme(
             colorScheme = material,
             typography = lumenTypography(scale),
-            shapes = androidx.compose.material3.Shapes(
-                small = LumenTokens.Shape.sm,
-                medium = LumenTokens.Shape.md,
-                large = LumenTokens.Shape.lg,
-                extraLarge = LumenTokens.Shape.xl,
-            ),
+            shapes = shapes,
             content = content,
         )
     }

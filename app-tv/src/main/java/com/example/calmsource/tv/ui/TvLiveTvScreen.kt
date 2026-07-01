@@ -24,7 +24,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,7 +82,7 @@ fun TvLiveTvScreen(
                 .padding(vertical = LumenLegacySpace.lg, horizontal = LumenLegacySpace.sm2)
         ) {
             Text(
-                text = "Categories",
+                text = stringResource(CoreUiR.string.live_categories),
                 fontSize = LumenType.size18,
                 fontWeight = FontWeight.Bold,
                 color = t.colors.foreground,
@@ -115,8 +117,9 @@ fun TvLiveTvScreen(
                                 .clip(LumenTokens.Shape.sm)
                                 .background(
                                     when {
-                                        isSelected -> t.colors.brand
+                                        isCategoryFocused && isSelected -> t.colors.brandGlow
                                         isCategoryFocused -> t.colors.muted
+                                        isSelected -> t.colors.brand
                                         else -> Color.Transparent
                                     }
                                 )
@@ -124,7 +127,12 @@ fun TvLiveTvScreen(
                         ) {
                             Text(
                                 text = category,
-                                color = if (isSelected) t.colors.brandForeground else t.colors.foreground,
+                                color = when {
+                                    isCategoryFocused && isSelected -> t.colors.background
+                                    isCategoryFocused -> t.colors.foreground
+                                    isSelected -> t.colors.brandForeground
+                                    else -> t.colors.foreground
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = LumenType.size14
                             )
@@ -147,8 +155,8 @@ fun TvLiveTvScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     LumenEmptyState(
-                        title = "No channels in this category",
-                        body = "Connect provider playlists to access content.",
+                        title = stringResource(CoreUiR.string.live_no_channels_category_tv),
+                        body = stringResource(CoreUiR.string.live_connect_playlists),
                         icon = androidx.compose.material.icons.Icons.Default.PlayArrow
                     )
                 }
@@ -211,7 +219,11 @@ fun TvLiveTvScreen(
                                     }
                                     Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                                     Text(
-                                        text = if (currentProgram != null) "AIRING NOW" else "NO EPG INFO",
+                                        text = if (currentProgram != null) {
+                                            stringResource(CoreUiR.string.live_airing_now)
+                                        } else {
+                                            stringResource(CoreUiR.string.live_no_epg)
+                                        },
                                         fontSize = LumenType.size12,
                                         letterSpacing = LumenType.size1_4,
                                         fontWeight = FontWeight.Bold,
@@ -219,7 +231,7 @@ fun TvLiveTvScreen(
                                     )
                                     Spacer(modifier = Modifier.height(LumenLegacySpace.xxs))
                                     Text(
-                                        text = currentProgram?.title ?: "No program data",
+                                        text = currentProgram?.title ?: stringResource(CoreUiR.string.live_no_program_data),
                                         fontSize = LumenType.size11_5,
                                         color = t.colors.foreground,
                                         maxLines = 1,

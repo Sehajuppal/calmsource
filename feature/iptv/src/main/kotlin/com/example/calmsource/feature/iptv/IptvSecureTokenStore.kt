@@ -18,6 +18,7 @@ interface IptvSecureTokenStore {
     fun hasPassword(providerId: String, username: String): Boolean
     fun savePortalUrl(providerId: String, portalUrl: String) {}
     fun readPortalUrl(providerId: String): String? = null
+    fun deletePortalUrl(providerId: String) {}
     val isEncryptedStorageAvailable: Boolean get() = true
 }
 
@@ -69,7 +70,7 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
         fun masterKey(context: Context): MasterKey {
             cached?.let { return it }
             return synchronized(this) {
-                cached ?: MasterKey.Builder(context)
+                cached ?: MasterKey.Builder(context.applicationContext)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .build()
                     .also { cached = it }
@@ -86,8 +87,6 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
         "cs_iptv_portal:${escape(providerId)}"
 
     override val isEncryptedStorageAvailable: Boolean get() = prefs != null
-
-    private val fallbackStore by lazy { FakeInMemoryIptvSecureTokenStore() }
 
     override fun savePassword(providerId: String, username: String, password: String) {
         val targetPrefs = prefs
@@ -107,24 +106,17 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
 
     override fun readPassword(providerId: String, username: String): String? {
         return try {
-            val targetPrefs = prefs ?: run {
-                android.util.Log.w("EncryptedIptvSecureTokenStore", "read: encrypted storage unavailable, falling back to in-memory store")
-                return fallbackStore.readPassword(providerId, username)
-            }
+            val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
             synchronized(usernameLock) {
-                val uKey = "cs_iptv_secure_usernames:${escape(providerId)}"
-                val current = targetPrefs.getStringSet(uKey, null)
-                if (current?.contains(username) == true) {
-                    targetPrefs.getString(key(providerId, username), null)
-                } else {
-                    null
-                }
+                targetPrefs.getString(key(providerId, username), null)
             }
+        } catch (e: IptvSecureStorageUnavailableException) {
+            throw e
         } catch (e: Exception) {
             try {
                 android.util.Log.e("EncryptedIptvSecureTokenStore",
                     "Failed to read secure keys for provider $providerId. " +
-                    "KeyStore may be corrupted. User may need to re-enter setup keys.", e)
+                    "KeyStore may be corrupted. User may need to re-enter setup keys.")
             } catch (_: Throwable) {}
             null
         }
@@ -132,12 +124,7 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
 
     override fun deletePassword(providerId: String, username: String) {
         try {
-            val targetPrefs = prefs
-            if (targetPrefs == null) {
-                android.util.Log.w("EncryptedIptvSecureTokenStore", "delete: encrypted storage unavailable, falling back to in-memory store")
-                fallbackStore.deletePassword(providerId, username)
-                return
-            }
+            val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
             synchronized(usernameLock) {
                 val uKey = "cs_iptv_secure_usernames:${escape(providerId)}"
                 val current = targetPrefs.getStringSet(uKey, null)?.toMutableSet()
@@ -151,6 +138,8 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
                 }
                 editor.apply()
             }
+        } catch (e: IptvSecureStorageUnavailableException) {
+            throw e
         } catch (e: Exception) {
             // Silently fail
         }
@@ -158,22 +147,20 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
 
     override fun clearProvider(providerId: String) {
         try {
-            val targetPrefs = prefs
-            if (targetPrefs == null) {
-                fallbackStore.clearProvider(providerId)
-                return
-            }
+            val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
             val uKey = "cs_iptv_secure_usernames:${escape(providerId)}"
-            val usernames = synchronized(usernameLock) {
-                targetPrefs.getStringSet(uKey, null)?.toSet() ?: emptySet()
+            synchronized(usernameLock) {
+                val usernames = targetPrefs.getStringSet(uKey, null)?.toSet() ?: emptySet()
+                val editor = targetPrefs.edit()
+                for (username in usernames) {
+                    editor.remove(key(providerId, username))
+                }
+                editor.remove(uKey)
+                editor.remove(portalKey(providerId))
+                editor.apply()
             }
-            val editor = targetPrefs.edit()
-            for (username in usernames) {
-                editor.remove(key(providerId, username))
-            }
-            editor.remove(uKey)
-            editor.remove(portalKey(providerId))
-            editor.apply()
+        } catch (e: IptvSecureStorageUnavailableException) {
+            throw e
         } catch (e: Exception) {
             // Silently fail
         }
@@ -190,18 +177,23 @@ class EncryptedIptvSecureTokenStore @VisibleForTesting internal constructor(
     }
 
     override fun readPortalUrl(providerId: String): String? {
-        val targetPrefs = prefs ?: return fallbackStore.readPortalUrl(providerId)
+        val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
         return targetPrefs.getString(portalKey(providerId), null)?.trim()?.takeIf { it.isNotBlank() }
+    }
+
+    override fun deletePortalUrl(providerId: String) {
+        val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
+        targetPrefs.edit().remove(portalKey(providerId)).apply()
     }
 
     override fun hasPassword(providerId: String, username: String): Boolean {
         return try {
-            val targetPrefs = prefs ?: return fallbackStore.hasPassword(providerId, username)
+            val targetPrefs = prefs ?: throw IptvSecureStorageUnavailableException()
             synchronized(usernameLock) {
-                val uKey = "cs_iptv_secure_usernames:${escape(providerId)}"
-                val current = targetPrefs.getStringSet(uKey, null)
-                current?.contains(username) == true && targetPrefs.contains(key(providerId, username))
+                targetPrefs.contains(key(providerId, username))
             }
+        } catch (e: IptvSecureStorageUnavailableException) {
+            throw e
         } catch (e: Exception) {
             false
         }
@@ -262,6 +254,12 @@ class FakeInMemoryIptvSecureTokenStore : IptvSecureTokenStore {
     override fun readPortalUrl(providerId: String): String? {
         synchronized(lock) {
             return portalUrls[providerId]?.trim()?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    override fun deletePortalUrl(providerId: String) {
+        synchronized(lock) {
+            portalUrls.remove(providerId)
         }
     }
 

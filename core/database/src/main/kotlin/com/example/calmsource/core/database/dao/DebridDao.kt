@@ -13,11 +13,11 @@ interface DebridDao {
     fun getAccountById(id: String): Flow<DebridAccountEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertAccount(account: DebridAccountEntity)
+    fun insertAccount(account: DebridAccountEntity): Long
 
     @Update
-    fun updateAccount(account: DebridAccountEntity)
+    fun updateAccount(account: DebridAccountEntity): Int
 
     @Delete
-    fun deleteAccount(account: DebridAccountEntity)
+    fun deleteAccount(account: DebridAccountEntity): Int
 }

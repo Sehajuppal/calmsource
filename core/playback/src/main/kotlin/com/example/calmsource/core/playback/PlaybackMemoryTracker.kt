@@ -110,7 +110,7 @@ internal class PlaybackMemoryTracker(
             current.metadataDurationMs > 0L -> current.metadataDurationMs
             else -> 0L
         }
-        var safePosition = max(positionMs.coerceAtLeast(0L), current.startPositionMs)
+        var safePosition = positionMs.coerceAtLeast(current.startPositionMs)
         if (safeDuration > 0L) {
             safePosition = safePosition.coerceAtMost(safeDuration)
         }

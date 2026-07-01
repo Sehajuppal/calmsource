@@ -5,6 +5,7 @@ import com.example.calmsource.core.discoveryengine.database.UserItemStateEntity
 import com.example.calmsource.core.discoveryengine.models.RecommendationItem
 import com.example.calmsource.core.discoveryengine.models.ScoreBreakdown
 import com.example.calmsource.core.discoveryengine.models.SearchResult
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -20,7 +21,7 @@ class QualityEvaluationTest {
     }
 
     @Test
-    fun testEvaluateSearchRankingQuality() {
+    fun testEvaluateSearchRankingQuality() = runTest {
         val profileId = "prof-1"
         val query = "Inception"
 

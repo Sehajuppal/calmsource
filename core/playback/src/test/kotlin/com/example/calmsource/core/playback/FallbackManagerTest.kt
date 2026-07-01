@@ -446,7 +446,7 @@ class FallbackManagerTest {
     }
 
     @Test
-    fun `selectNextBestCandidate queries run concurrently on specified dispatcher`() = kotlinx.coroutines.runBlocking {
+    fun `selectNextBestCandidate queries run on specified dispatcher`() = kotlinx.coroutines.runBlocking {
         val fm = FallbackManager()
         val sources = listOf(source1, source2, source3)
         fm.reset(sources)
@@ -462,39 +462,30 @@ class FallbackManagerTest {
         val originalInstance = instanceField.get(null)
         instanceField.set(null, mockDb)
 
-        val activeQueries = java.util.concurrent.atomic.AtomicInteger(0)
-        val maxConcurrency = java.util.concurrent.atomic.AtomicInteger(0)
-        val latch = java.util.concurrent.CountDownLatch(3)
-
-        Mockito.`when`(mockDao.getSourceHealth(Mockito.anyString())).thenAnswer { invocation ->
-            val active = activeQueries.incrementAndGet()
-            synchronized(maxConcurrency) {
-                if (active > maxConcurrency.get()) {
-                    maxConcurrency.set(active)
-                }
-            }
-            latch.countDown()
-            try {
-                latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
-            } catch (_: InterruptedException) {
-            }
-            activeQueries.decrementAndGet()
-
-            val sourceId = invocation.arguments[0] as String
-            com.example.calmsource.core.database.entity.SourceHealthEntity().apply {
-                this.sourceId = sourceId
-                this.healthScore = 100
+        var dispatched = false
+        val threadPool = java.util.concurrent.Executors.newFixedThreadPool(3)
+        val testDispatcher = object : kotlinx.coroutines.CoroutineDispatcher() {
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+                dispatched = true
+                threadPool.asCoroutineDispatcher().dispatch(context, block)
             }
         }
-
-        val threadPool = java.util.concurrent.Executors.newFixedThreadPool(3)
-        val testDispatcher = threadPool.asCoroutineDispatcher()
         SourceHealthRepository.dispatcher = testDispatcher
+
+        Mockito.`when`(mockDao.getSourceHealths(Mockito.anyList())).thenAnswer { invocation ->
+            val sourceIds = invocation.arguments[0] as List<String>
+            sourceIds.map { id ->
+                com.example.calmsource.core.database.entity.SourceHealthEntity().apply {
+                    this.sourceId = id
+                    this.healthScore = 100
+                }
+            }
+        }
 
         try {
             val candidate = fm.selectNextBestCandidate()
             assertNotNull(candidate)
-            assertTrue("Expected concurrent execution, max concurrency was: ${maxConcurrency.get()}", maxConcurrency.get() > 1)
+            assertTrue("Expected execution on specified dispatcher", dispatched)
         } finally {
             instanceField.set(null, originalInstance)
             threadPool.shutdown()

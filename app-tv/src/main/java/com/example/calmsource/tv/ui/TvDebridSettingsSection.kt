@@ -28,9 +28,25 @@ import kotlinx.coroutines.launch
 fun TvDebridScreen(onBack: () -> Unit) {
     val t = LocalLumenTokens.current
     val stableFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        try {
+            stableFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
     val accounts by DebridRepository.accounts.collectAsState()
     var selectedAccountForConfig by remember { mutableStateOf<DebridAccount?>(null) }
     var selectedProviderForConnect by remember { mutableStateOf<DebridProviderType?>(null) }
+
+    androidx.activity.compose.BackHandler(enabled = selectedProviderForConnect != null || selectedAccountForConfig != null) {
+        if (selectedProviderForConnect != null) {
+            selectedProviderForConnect = null
+            runCatching { stableFocusRequester.requestFocus() }
+        } else if (selectedAccountForConfig != null) {
+            selectedAccountForConfig = null
+            runCatching { stableFocusRequester.requestFocus() }
+        }
+    }
 
     Row(
         modifier = Modifier
@@ -57,12 +73,12 @@ fun TvDebridScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                Text(text = "Debrid Connect", fontSize = LumenType.size28, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                Text(text = "Connect premium debrid servers for source availability", fontSize = LumenType.size12, color = t.colors.mutedForeground, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
+                Text(text = "Debrid Connect", style = lumenH2Style(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                Text(text = "Connect premium debrid servers for source availability", style = lumenCaptionStyle(), color = t.colors.mutedForeground, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
             }
 
             item {
-                Text(text = "Connect Provider", fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                Text(text = "Connect Provider", style = lumenBodyStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
             }
             items(DebridProviderType.values().filter { it != DebridProviderType.FAKE_DEMO }) { type ->
                 val name = when (type) {
@@ -82,7 +98,7 @@ fun TvDebridScreen(onBack: () -> Unit) {
                         text = "Connect $name",
                         color = if (isFocused) t.colors.background else t.colors.brand,
                         fontWeight = FontWeight.Bold,
-                        fontSize = LumenType.size14
+                        style = lumenCaptionStyle()
                     )
                 }
             }
@@ -92,12 +108,12 @@ fun TvDebridScreen(onBack: () -> Unit) {
             }
 
             item {
-                Text(text = "Connected Accounts", fontSize = LumenType.size16, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                Text(text = "Connected Accounts", style = lumenBodyStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
             }
             val connectedAccounts = accounts.filter { it.isConnected }
             if (connectedAccounts.isEmpty()) {
                 item {
-                    Text(text = "No accounts connected.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text(text = "No accounts connected.", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 }
             } else {
                 items(connectedAccounts, key = { it.id }) { acc ->
@@ -123,13 +139,13 @@ fun TvDebridScreen(onBack: () -> Unit) {
                                 Text(
                                     text = acc.providerName,
                                     color = if (isSelected || isFocused) t.colors.foreground else t.colors.mutedForeground,
-                                    fontSize = LumenType.size16,
+                                    style = lumenBodyStyle(),
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "Status: Ready",
                                     color = LumenExtendedColors.statusHealthy,
-                                    fontSize = LumenType.size12,
+                                    style = lumenCaptionStyle(),
                                     modifier = Modifier.padding(top = LumenLegacySpace.xxs)
                                 )
                             }
@@ -142,7 +158,7 @@ fun TvDebridScreen(onBack: () -> Unit) {
                                 Text(
                                     text = acc.health.name,
                                     color = healthColor,
-                                    fontSize = LumenType.size10,
+                                    style = LumenType.Eyebrow.toTextStyle(lumenTextScale()),
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -188,7 +204,7 @@ fun TvDebridScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillParentMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "Select a provider to connect or account to configure", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                        Text(text = "Select a provider to connect or account to configure", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                     }
                 }
             }
@@ -237,10 +253,10 @@ fun TvDebridConnectFlow(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)) {
-        Text(text = "Connect to $providerName", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+        Text(text = "Connect to $providerName", style = lumenTitleStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
 
         if (connectionError != null) {
-            Text(text = "Connection failed: $connectionError", color = LumenExtendedColors.errorBright, fontSize = LumenType.size14)
+            Text(text = "Connection failed: $connectionError", color = LumenExtendedColors.errorBright, style = lumenCaptionStyle())
             val retryFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
             LaunchedEffect(connectionError) {
                 retryFocusRequester.requestFocus()
@@ -258,16 +274,16 @@ fun TvDebridConnectFlow(
                     text = "Retry",
                     color = if (isFocused) t.colors.background else t.colors.foreground,
                     fontWeight = FontWeight.Bold,
-                    fontSize = LumenType.size14,
+                    style = lumenCaptionStyle(),
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
         } else if (providerType == DebridProviderType.PREMIUMIZE) {
-            Text(text = "Please connect via API Key (Premiumize API Key flow to be implemented).", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+            Text(text = "Please connect via API Key (Premiumize API Key flow to be implemented).", color = t.colors.mutedForeground, style = lumenCaptionStyle())
         } else if (authSession != null) {
             when (val session = authSession!!) {
                 is com.example.calmsource.core.model.DebridAuthSession.DeviceCode -> {
-                    Text(text = "Please authorize using the code below from your couch:", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text(text = "Please authorize using the code below from your couch:", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                     
                     Box(
                         modifier = Modifier
@@ -284,8 +300,8 @@ fun TvDebridConnectFlow(
                         )
                     }
 
-                    Text(text = "1. Scan QR code or open: ${session.details.verificationUrl}", color = t.colors.foreground, fontSize = LumenType.size14)
-                    Text(text = "2. Enter the large code shown above.", color = t.colors.foreground, fontSize = LumenType.size14)
+                    Text(text = "1. Scan QR code or open: ${session.details.verificationUrl}", color = t.colors.foreground, style = lumenCaptionStyle())
+                    Text(text = "2. Enter the large code shown above.", color = t.colors.foreground, style = lumenCaptionStyle())
 
                     Box(
                         modifier = Modifier
@@ -294,7 +310,7 @@ fun TvDebridConnectFlow(
                             .align(Alignment.CenterHorizontally),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "[QR Code]", color = LumenTokens.Color.bg, fontSize = LumenType.size12, fontWeight = FontWeight.Bold)
+                        Text(text = "[QR Code]", color = LumenTokens.Color.bg, style = lumenCaptionStyle(), fontWeight = FontWeight.Bold)
                     }
 
                     TvFocusCard(
@@ -319,13 +335,13 @@ fun TvDebridConnectFlow(
                             text = if (isPolling) "Connecting..." else "I have authorized on browser",
                             color = if (isFocused) t.colors.background else t.colors.foreground,
                             fontWeight = FontWeight.Bold,
-                            fontSize = LumenType.size14,
+                            style = lumenCaptionStyle(),
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
                 }
                 is com.example.calmsource.core.model.DebridAuthSession.Pin -> {
-                    Text(text = "Please enter this PIN code at AllDebrid authorization page:", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text(text = "Please enter this PIN code at AllDebrid authorization page:", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -340,7 +356,7 @@ fun TvDebridConnectFlow(
                             color = t.colors.brand
                         )
                     }
-                    Text(text = "Enter pin code at: ${session.details.pinUrl}", color = t.colors.foreground, fontSize = LumenType.size14)
+                    Text(text = "Enter pin code at: ${session.details.pinUrl}", color = t.colors.foreground, style = lumenCaptionStyle())
 
                     TvFocusCard(
                         onClick = {
@@ -364,20 +380,19 @@ fun TvDebridConnectFlow(
                             text = if (isPolling) "Connecting..." else "I have authorized PIN",
                             color = if (isFocused) t.colors.background else t.colors.foreground,
                             fontWeight = FontWeight.Bold,
-                            fontSize = LumenType.size14,
+                            style = lumenCaptionStyle(),
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
                 }
                 is com.example.calmsource.core.model.DebridAuthSession.ApiKey -> {
-                    Text(text = "Connect with API Key.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text(text = "Connect with API Key.", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 }
             }
         } else {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .focusable(),
+                    .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "Initializing auth session...", color = t.colors.mutedForeground)
@@ -405,11 +420,11 @@ fun TvDebridAccountDetails(
         if (raw.length > 8) raw.take(4) + "..." + raw.takeLast(4) else "••••••••"
     }
 
-    Text(text = account.providerName, fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-    Text(text = "Status: Ready", fontSize = LumenType.size14, color = LumenExtendedColors.statusHealthy)
+    Text(text = account.providerName, style = lumenTitleStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
+    Text(text = "Status: Ready", style = lumenCaptionStyle(), color = LumenExtendedColors.statusHealthy)
     
     Row(horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = "Account Health:", color = t.colors.mutedForeground, fontSize = LumenType.size13)
+        Text(text = "Account Health:", color = t.colors.mutedForeground, style = lumenCaptionStyle())
         Box(
             modifier = Modifier
                 .clip(LumenTokens.Shape.md)
@@ -419,19 +434,19 @@ fun TvDebridAccountDetails(
             Text(
                 text = account.health.name,
                 color = healthColor,
-                fontSize = LumenType.size11,
+                style = LumenType.Meta.toTextStyle(lumenTextScale()),
                 fontWeight = FontWeight.Bold
             )
         }
     }
 
     if (status != null) {
-        Text(text = "Username: ${status.username}", color = t.colors.foreground, fontSize = LumenType.size14)
-        Text(text = "Email: ${status.email}", color = t.colors.foreground, fontSize = LumenType.size14)
-        Text(text = "Premium Days: ${status.premiumDaysRemaining} remaining", color = t.colors.brand, fontSize = LumenType.size14, fontWeight = FontWeight.Bold)
+        Text(text = "Username: ${status.username}", color = t.colors.foreground, style = lumenCaptionStyle())
+        Text(text = "Email: ${status.email}", color = t.colors.foreground, style = lumenCaptionStyle())
+        Text(text = "Premium Days: ${status.premiumDaysRemaining} remaining", color = t.colors.brand, style = lumenCaptionStyle(), fontWeight = FontWeight.Bold)
     }
 
-    Text(text = "Auth Key/Token: $maskedToken", color = t.colors.mutedForeground, fontSize = LumenType.size13)
+    Text(text = "Auth Key/Token: $maskedToken", color = t.colors.mutedForeground, style = lumenCaptionStyle())
 
     TvFocusCard(
         onClick = { showRawJson = !showRawJson },
@@ -440,7 +455,7 @@ fun TvDebridAccountDetails(
         Text(
             text = if (showRawJson) "Hide raw response" else "Advanced details",
             color = if (isFocused) t.colors.background else t.colors.foreground,
-            fontSize = LumenType.size13,
+            style = lumenCaptionStyle(),
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }
@@ -468,7 +483,7 @@ fun TvDebridAccountDetails(
             Text(
                 text = rawJson,
                 color = LumenTokens.Color.success,
-                fontSize = LumenType.size11,
+                style = LumenType.Meta.toTextStyle(lumenTextScale()),
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
             )
         }
@@ -482,7 +497,7 @@ fun TvDebridAccountDetails(
             text = "Disconnect Account",
             color = if (isFocused) LumenTokens.Color.textPrimary else LumenExtendedColors.errorBright,
             fontWeight = FontWeight.Bold,
-            fontSize = LumenType.size13,
+            style = lumenCaptionStyle(),
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }

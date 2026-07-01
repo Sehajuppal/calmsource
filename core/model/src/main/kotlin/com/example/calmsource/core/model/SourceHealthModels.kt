@@ -1,4 +1,4 @@
-﻿package com.example.calmsource.core.model
+package com.example.calmsource.core.model
 
 import java.security.MessageDigest
 
@@ -283,6 +283,20 @@ data class SourceFallbackCandidate(
     val reliabilityTier: SourceReliabilityTier
 )
 
+/** Hex lookup table for fast byte→hex conversion (PERF: avoids String.format per byte). */
+private val HEX_CHARS = "0123456789abcdef".toCharArray()
+
+/** Fast hex encoding without String.format overhead. */
+private fun ByteArray.toHexString(): String {
+    val result = CharArray(size * 2)
+    for (i in indices) {
+        val v = this[i].toInt() and 0xFF
+        result[i * 2] = HEX_CHARS[v ushr 4]
+        result[i * 2 + 1] = HEX_CHARS[v and 0x0F]
+    }
+    return String(result)
+}
+
 /**
  * Utility to generate a safe, privacy-preserving source identifier from an arbitrary URL.
  * Ensures raw URLs, secret tokens, or credentials are never exposed in logs or UI models.
@@ -291,7 +305,7 @@ fun generateSafeSourceId(url: String): String {
     return try {
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(url.toByteArray(Charsets.UTF_8))
-        hashBytes.joinToString("") { "%02x".format(it) }.take(16)
+        hashBytes.toHexString().take(16)
     } catch (e: Exception) {
         "safe-id-${url.hashCode()}"
     }

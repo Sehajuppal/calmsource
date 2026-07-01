@@ -26,8 +26,10 @@ internal object PlaybackSanitizer {
         val message = throwable.message ?: return throwable
         val sanitized = sanitize(message)
         if (sanitized == message) return throwable
-        return throwable.javaClass.getConstructor(String::class.java, Throwable::class.java).newInstance(sanitized, throwable.cause)
-            .takeUnless { it == null }
-            ?: Exception(sanitized, throwable.cause)
+        return runCatching {
+            throwable.javaClass
+                .getConstructor(String::class.java, Throwable::class.java)
+                .newInstance(sanitized, throwable.cause) as Throwable
+        }.getOrElse { Exception(sanitized, throwable.cause) }
     }
 }

@@ -1,18 +1,30 @@
 package com.example.calmsource.feature.iptv
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import com.example.calmsource.core.model.ProviderSyncStatus
 import com.example.calmsource.core.model.ProviderSyncState
+import com.example.calmsource.core.model.IPTVChannel
 
 class IPTVRepositoryChaosTest {
 
     @Before
     fun setup() {
         resetRepositoryState()
+    }
+
+    private suspend fun waitUntil(timeoutMs: Long = 5000L, condition: suspend () -> Boolean) {
+        val start = System.currentTimeMillis()
+        while (!condition()) {
+            if (System.currentTimeMillis() - start > timeoutMs) {
+                throw AssertionError("Timeout waiting for condition")
+            }
+            delay(10)
+        }
     }
 
     private fun waitForSettled() {
@@ -25,7 +37,7 @@ class IPTVRepositoryChaosTest {
                 var lastTick = tickFlow.value
                 var stableCount = 0
                 while (stableCount < 5) {
-                    kotlinx.coroutines.delay(100)
+                    kotlinx.coroutines.delay(10)
                     val currentTick = tickFlow.value
                     if (currentTick == lastTick) {
                         stableCount++
@@ -199,8 +211,8 @@ class IPTVRepositoryChaosTest {
         val p = IPTVRepository.addProvider("Test Cache", "http://fake.com")
         IPTVRepository.syncPlaylist(p.id, m3u.byteInputStream())
         
-        // Wait for Dispatchers.IO to finish caching
-        kotlinx.coroutines.delay(1000)
+        // Wait for Dispatchers.IO to finish caching using waitUntil
+        waitUntil { IPTVRepository.getChannels().any { it.name == "Channel 1" } }
         
         val updatedChannels = IPTVRepository.getChannels()
         // If sorting was updated properly, it should reflect the newly parsed channels without blocking
@@ -219,8 +231,8 @@ class IPTVRepositoryChaosTest {
         """.trimIndent()
         IPTVRepository.syncPlaylist(p.id, m3u.byteInputStream())
         
-        // Wait for parsedChannels to update
-        kotlinx.coroutines.delay(1000)
+        // Wait for parsedChannels to update using waitUntil
+        waitUntil { IPTVRepository.getChannels().any { it.name == "Health Channel 1" } }
         
         // Find the inserted channel to get its ID
         val ch = IPTVRepository.getChannels().find { it.name == "Health Channel 1" }
@@ -229,10 +241,9 @@ class IPTVRepositoryChaosTest {
         // Trigger health failure which hits updateProviderHealthInDb
         IPTVRepository.recordPlaybackFailure(ch!!.id, "TIMEOUT")
         
-        // Because we're in runBlocking, it'll process synchronously (if isTest=true)
-        kotlinx.coroutines.delay(1000)
+        // Ensure that provider health score actually updated using waitUntil
+        waitUntil { com.example.calmsource.core.database.SourceHealthRepository.getProviderHealth(p.id) != null }
         
-        // Ensure that provider health score actually updated
         val providerHealth = com.example.calmsource.core.database.SourceHealthRepository.getProviderHealth(p.id)
         assertNotNull(providerHealth)
         assertEquals(1, providerHealth?.failureCount)

@@ -11,6 +11,8 @@ import io.ktor.client.statement.use
 import io.ktor.client.plugins.ResponseException
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -85,6 +87,11 @@ class RealDebridHttpClient(
     private val client: HttpClient = NetworkClient.client
 ) : DebridProviderClient {
 
+    // Mutex to serialize token refresh requests. Real-Debrid rotates refresh
+    // tokens on every use, so concurrent refreshes cause the second request
+    // to fail with an invalid token.
+    private val refreshMutex = Mutex()
+
     override val providerType = DebridProviderType.REAL_DEBRID
     override val displayName = "Real-Debrid"
     override val capabilities = setOf(
@@ -93,6 +100,8 @@ class RealDebridHttpClient(
         DebridCapability.LINK_RESOLVE,
         DebridCapability.DEVICE_CODE_AUTH
     )
+
+
 
     private fun getClientId(): String {
         // Public OAuth client ID for Real-Debrid device code flow.
@@ -262,6 +271,28 @@ class RealDebridHttpClient(
         return newTokens
     }
 
+    /**
+     * Serializes token refresh through [refreshMutex] so that concurrent
+     * requests don't each try to rotate the single-use refresh token.
+     */
+    private suspend fun safeRefreshAccessToken(tokenSet: DebridTokenSet): DebridTokenSet {
+        return refreshMutex.withLock {
+            // Another coroutine may have already refreshed while we waited.
+            // Re-read the stored token and compare to detect this.
+            val accountId = DebridRepository.listAccounts()
+                .find { account ->
+                    val tokens = DebridRepository.tokenStore.getTokensForAccount(DebridProviderType.REAL_DEBRID, account.id)
+                    tokens?.refreshToken == tokenSet.refreshToken
+                }?.id ?: SecureTokenStore.DEFAULT_ACCOUNT_ID
+            val stored = DebridRepository.tokenStore.getTokensForAccount(DebridProviderType.REAL_DEBRID, accountId)
+            if (stored != null && stored.accessToken != tokenSet.accessToken && !isTokenExpiredOrNearExpiry(stored)) {
+                // Already refreshed by another coroutine
+                return@withLock stored
+            }
+            refreshAccessToken(tokenSet)
+        }
+    }
+
     private suspend fun <T> executeWithTokenRefresh(
         tokenSet: DebridTokenSet,
         block: suspend (DebridTokenSet) -> T
@@ -272,7 +303,7 @@ class RealDebridHttpClient(
             !currentTokenSet.clientSecret.isNullOrBlank()
         ) {
             try {
-                currentTokenSet = refreshAccessToken(currentTokenSet)
+                currentTokenSet = safeRefreshAccessToken(currentTokenSet)
             } catch (e: Exception) {
                 android.util.Log.e("RealDebridHttpClient", "Pre-emptive token refresh failed", e)
             }
@@ -287,7 +318,7 @@ class RealDebridHttpClient(
             ) {
                 android.util.Log.d("RealDebridHttpClient", "Received 401 Unauthorized, attempting token refresh")
                 try {
-                    currentTokenSet = refreshAccessToken(currentTokenSet)
+                    currentTokenSet = safeRefreshAccessToken(currentTokenSet)
                     return block(currentTokenSet)
                 } catch (refreshEx: Exception) {
                     android.util.Log.e("RealDebridHttpClient", "Token refresh retry failed", refreshEx)
@@ -497,7 +528,7 @@ class RealDebridHttpClient(
         const val TORRENT_RESOLVE_POLL_INTERVAL_MS = 1_000L
         const val TORRENT_RESOLVE_TIMEOUT_MS = 20_000L
 
-        // In-memory session state storage to keep credentials between pollAuth and completeAuth
-        private val sessionStates = ConcurrentHashMap<String, RealDebridSessionState>()
+        @JvmField
+        internal val sessionStates = ConcurrentHashMap<String, RealDebridSessionState>()
     }
 }

@@ -88,6 +88,15 @@ class UniversalSearchEngineImpl(
                         val limit = timeoutPolicy.providerTimeoutsMs[provider.id]
                             ?: timeoutPolicy.defaultTimeoutMs
                         try {
+                            val isTier2 = provider.id == "prov-extensions" || 
+                                          provider.id == "prov-subtitles" || 
+                                          provider.id == "prov-debrid-availability" ||
+                                          provider.id.contains("extension") ||
+                                          provider.id.contains("subtitle") ||
+                                          provider.id.contains("debrid")
+                            if (isTier2) {
+                                delay(250L) // Deferred Tier 2 start
+                            }
                             withTimeout(limit) {
                                 provider.search(searchQuery, prefs).collect { emit(it) }
                             }
@@ -124,8 +133,10 @@ class UniversalSearchEngineImpl(
                 val trigger = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
 
                 launch {
+                    val isLowSpec = isTvDevice() || isLowRamDevice()
+                    val batchDelay = if (isLowSpec) 180L else 50L
                     for (event in trigger) {
-                        delay(50L) // batch rapid provider result completions
+                        delay(batchDelay) // batch rapid provider result completions dynamically
                         val currentResults = mutex.withLock { accumulatedResults.toList() }
                         val mergedGroups = withContext(Dispatchers.Default) {
                             SearchResultMerger.merge(
@@ -157,6 +168,18 @@ class UniversalSearchEngineImpl(
         }
 
         recordCompletedQuery(query)
+    }
+
+    private fun isTvDevice(): Boolean {
+        val ctx = com.example.calmsource.core.database.DatabaseProvider.context ?: return false
+        val uiModeManager = ctx.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
+        return uiModeManager?.currentModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
+    private fun isLowRamDevice(): Boolean {
+        val ctx = com.example.calmsource.core.database.DatabaseProvider.context ?: return false
+        val activityManager = ctx.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        return activityManager?.isLowRamDevice == true || Runtime.getRuntime().maxMemory() <= 256L * 1024 * 1024
     }
 
     private suspend fun loadMemorySignals(): SearchMemorySignals {

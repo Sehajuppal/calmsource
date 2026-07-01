@@ -10,6 +10,13 @@ internal object IptvProviderSyncCoordinator {
 
     suspend fun <T> withProviderLock(providerId: String, block: suspend () -> T): T {
         require(providerId.isNotBlank()) { "providerId must not be blank" }
-        return providerLocks.getOrPut(providerId) { Mutex() }.withLock { block() }
+        val mutex = synchronized(providerLocks) {
+            providerLocks.getOrPut(providerId) { Mutex() }
+        }
+        return mutex.withLock { block() }
+    }
+
+    fun removeProviderLock(providerId: String) {
+        providerLocks.remove(providerId)
     }
 }

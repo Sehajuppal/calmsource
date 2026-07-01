@@ -38,7 +38,7 @@ class ModelsTest {
         val rawInput = streamSource.toRawSourceInput()
         assertEquals("Inception.2010.1080p.BluRay.x264.mkv", rawInput.rawFilename)
         assertEquals("http://example.com/stream", rawInput.rawUrl)
-        assertEquals(null, rawInput.rawTitle)
+        assertEquals("Inception.2010.1080p.BluRay.x264.mkv 1080p", rawInput.rawTitle)
     }
 
     @Test

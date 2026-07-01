@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -161,14 +163,13 @@ fun TvPlayerScreen(
     val uiStateLatest = rememberUpdatedState(uiState)
 
     LaunchedEffect(uiState.error, activeRequest.source.id) {
-        val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(
-            com.example.calmsource.core.playback.FallbackPreferences.policy
-        )
+        val policy = com.example.calmsource.core.playback.FallbackPreferences.policy
+        val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(policy)
         val isLive = activeRequest.source.metadata?.isLive == true
         if (uiState.error != null && isLive && channels.isNotEmpty() && channelSwitchFails < maxLiveSwitches) {
-            delay(1500)
+            delay(LiveChannelRecovery.AUTO_SWITCH_SETTLE_MS)
             val latest = uiStateLatest.value
-            if (latest.isTransitioningSource || latest.error == null) return@LaunchedEffect
+            if (!LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(latest, policy)) return@LaunchedEffect
             if (activeRequestState.value.source.id != activeRequest.source.id) return@LaunchedEffect
             val bestCandidate = LiveChannelRecovery.suggestNextChannel(
                 currentChannelId = activeRequest.source.id,
@@ -445,10 +446,21 @@ fun TvPlayerScreen(
         }
     }
 
+    val playerFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+
+    LaunchedEffect(showChannelSwitcher) {
+        if (!showChannelSwitcher) {
+            kotlinx.coroutines.delay(100)
+            runCatching { playerFocusRequester.requestFocus() }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(LumenTokens.Color.bg)
+            .focusRequester(playerFocusRequester)
+            .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
@@ -780,11 +792,12 @@ fun TvErrorOverlay(
                 else -> error.message
             }
 
-            // Dummy style variables to satisfy TvAuditRegressionTest's static code check:
-            // fontSize = LumenType.size28
-            // fontSize = LumenType.size16
             LumenErrorState(
-                title = if (isTerminal) "All Sources Failed" else "Playback Failed",
+                title = if (isTerminal) {
+                    stringResource(CoreUiR.string.player_all_sources_failed)
+                } else {
+                    stringResource(CoreUiR.string.player_playback_failed)
+                },
                 body = explanation + (if (!resolutionError.isNullOrBlank()) "\n$resolutionError" else ""),
                 onRetry = onRetry,
                 modifier = Modifier.fillMaxWidth()

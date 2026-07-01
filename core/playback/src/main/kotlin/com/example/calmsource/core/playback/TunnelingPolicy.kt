@@ -131,9 +131,7 @@ object TunnelingPolicy {
         decision: TunnelingDecision
     ): Boolean {
         if (!decision.enabled) return false
-        val audioApplied = invokeBooleanSetter(factory, "setEnableTunnelingForAudio", true)
-        val videoApplied = invokeBooleanSetter(factory, "setEnableTunnelingForVideo", true)
-        return audioApplied && videoApplied
+        return invokeBooleanSetter(factory, "setEnableTunneling", true)
     }
 
     fun rendererFactorySupportsTunneling(): Boolean = rendererFactorySupportsTunnelingCached
@@ -173,8 +171,7 @@ object TunnelingPolicy {
     }
 
     private val rendererFactorySupportsTunnelingCached: Boolean by lazy {
-        hasBooleanSetter("setEnableTunnelingForAudio") &&
-            hasBooleanSetter("setEnableTunnelingForVideo")
+        hasBooleanSetter("setEnableTunneling")
     }
 
     private fun hasBooleanSetter(name: String): Boolean {

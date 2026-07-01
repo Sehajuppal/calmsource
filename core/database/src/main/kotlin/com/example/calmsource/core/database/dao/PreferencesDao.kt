@@ -10,8 +10,8 @@ interface PreferencesDao {
     fun getPreferences(): Flow<UserPreferencesEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertPreferences(preferences: UserPreferencesEntity)
+    fun insertPreferences(preferences: UserPreferencesEntity): Long
 
     @Update
-    fun updatePreferences(preferences: UserPreferencesEntity)
+    fun updatePreferences(preferences: UserPreferencesEntity): Int
 }

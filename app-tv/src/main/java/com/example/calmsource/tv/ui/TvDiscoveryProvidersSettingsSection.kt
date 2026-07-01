@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.providers.FailureLogEntry
 import com.example.calmsource.core.discoveryengine.providers.ProviderManager
@@ -37,6 +39,13 @@ import kotlinx.coroutines.withContext
 @Composable
 fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
     val t = LocalLumenTokens.current
+    val stableFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        try {
+            stableFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
     val coroutineScope = rememberCoroutineScope()
     val providerRows by ProviderManager.getProviderStatus().collectAsState(initial = emptyList())
     val sortedRows = providerRows.sortedWith(compareBy<ProviderStatusRow> { it.priority }.thenBy { it.name })
@@ -77,7 +86,13 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
         ) {
             item {
-                TvFocusCard(onClick = onBack, modifier = Modifier.wrapContentSize().padding(bottom = LumenLegacySpace.sm2)) {
+                TvFocusCard(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .padding(bottom = LumenLegacySpace.sm2)
+                        .focusRequester(stableFocusRequester)
+                ) {
                     Text(text = "< Back", color = t.colors.foreground)
                 }
             }
@@ -91,7 +106,7 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                 Text(
                     text = "Configure search providers and data privacy",
                     color = t.colors.mutedForeground,
-                    fontSize = LumenType.size12,
+                    style = lumenCaptionStyle(),
                     modifier = Modifier.padding(bottom = LumenLegacySpace.md)
                 )
             }
@@ -155,12 +170,12 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Providers", color = t.colors.brand, fontSize = LumenType.size18, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(LumenLegacySpace.md))
-                    Text("${sortedRows.size}", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text("${sortedRows.size}", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 }
             }
             if (sortedRows.isEmpty()) {
                 item {
-                    Text("No Stremio discovery providers registered yet.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text("No Stremio discovery providers registered yet.", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 }
             } else {
                 itemsIndexed(sortedRows, key = { _, row -> row.providerId }) { index, row ->
@@ -205,12 +220,12 @@ fun TvDiscoveryProvidersScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(top = LumenLegacySpace.sm2)
                 ) { isFocused ->
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text("Clear Provider Cache", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
-                        Text(if (isFocused) "Press OK" else "Clear", color = t.colors.brand, fontSize = LumenType.size13)
+                        Text("Clear Provider Cache", color = t.colors.foreground, style = lumenBodyStyle(), fontWeight = FontWeight.Bold)
+                        Text(if (isFocused) "Press OK" else "Clear", color = t.colors.brand, style = lumenCaptionStyle())
                     }
                 }
                 statusMessage?.let { message ->
-                    Text(message, color = t.colors.mutedForeground, fontSize = LumenType.size13, modifier = Modifier.padding(top = LumenLegacySpace.sm2))
+                    Text(message, color = t.colors.mutedForeground, style = lumenCaptionStyle(), modifier = Modifier.padding(top = LumenLegacySpace.sm2))
                 }
             }
         }
@@ -239,8 +254,8 @@ private fun TvProviderToggleRow(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = if (isFocused) t.colors.foreground else t.colors.mutedForeground, fontSize = LumenType.size12)
+                Text(title, color = t.colors.foreground, style = lumenBodyStyle(), fontWeight = FontWeight.Bold)
+                Text(subtitle, color = if (isFocused) t.colors.foreground else t.colors.mutedForeground, style = lumenCaptionStyle())
             }
             Text(
                 text = if (enabled) "Enabled" else "Disabled",
@@ -282,12 +297,12 @@ private fun TvDiscoveryProviderItem(
                     Text(
                         "${row.kind.name.replace("_", " ")} | Priority ${row.priority}",
                         color = if (isFocused) t.colors.foreground else t.colors.mutedForeground,
-                        fontSize = LumenType.size12
+                        style = lumenCaptionStyle()
                     )
                     Text(
                         row.capabilities.sortedBy { it.name }.joinToString("  |  ") { tvProviderTypeShortLabel(it) },
                         color = t.colors.mutedForeground,
-                        fontSize = LumenType.size12,
+                        style = lumenCaptionStyle(),
                         modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     )
                 }
@@ -300,10 +315,10 @@ private fun TvDiscoveryProviderItem(
                     Text(
                         "Reliability ${(row.reliabilityScore * 100).toInt()}%",
                         color = healthColor,
-                        fontSize = LumenType.size12,
+                        style = lumenCaptionStyle(),
                         modifier = Modifier.padding(top = LumenLegacySpace.xs)
                     )
-                    Text("${row.failureCount} failures", color = t.colors.mutedForeground, fontSize = LumenType.size12)
+                    Text("${row.failureCount} failures", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 }
             }
         }
@@ -356,13 +371,13 @@ private fun TvProviderFailuresDialog(
                 Text("Provider Failures", color = t.colors.foreground, fontSize = LumenType.size22, fontWeight = FontWeight.Bold)
                 Text(providerName, color = t.colors.brand, fontSize = LumenType.size15)
                 if (failures.isEmpty()) {
-                    Text("No recent failures.", color = t.colors.mutedForeground, fontSize = LumenType.size14)
+                    Text("No recent failures.", color = t.colors.mutedForeground, style = lumenCaptionStyle())
                 } else {
                     failures.take(8).forEach { failure ->
                         Column {
                             Text(failure.errorCode, color = t.colors.foreground, fontSize = LumenType.size15, fontWeight = FontWeight.Bold)
-                            Text(formatter.format(Date(failure.occurredAt)), color = t.colors.mutedForeground, fontSize = LumenType.size12)
-                            failure.message?.let { Text(it, color = t.colors.mutedForeground, fontSize = LumenType.size12) }
+                            Text(formatter.format(Date(failure.occurredAt)), color = t.colors.mutedForeground, style = lumenCaptionStyle())
+                            failure.message?.let { Text(it, color = t.colors.mutedForeground, style = lumenCaptionStyle()) }
                         }
                     }
                 }

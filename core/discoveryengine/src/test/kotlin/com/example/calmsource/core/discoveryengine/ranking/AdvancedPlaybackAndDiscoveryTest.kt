@@ -3,6 +3,7 @@ package com.example.calmsource.core.discoveryengine.ranking
 import com.example.calmsource.core.discoveryengine.database.*
 import com.example.calmsource.core.discoveryengine.models.*
 import com.example.calmsource.core.discoveryengine.normalization.EntityResolver
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 import org.mockito.Mockito.*
@@ -91,7 +92,7 @@ class AdvancedPlaybackAndDiscoveryTest {
     }
 
     @Test
-    fun testAvailabilityAwareRecommendationsAndFeedbackExclusion() {
+    fun testAvailabilityAwareRecommendationsAndFeedbackExclusion() = runTest {
         val mockDao = mock(DiscoveryEngineDao::class.java)
         val profileId = "p-1"
 

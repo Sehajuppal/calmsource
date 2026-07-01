@@ -68,6 +68,13 @@ class ProfileRedirectionVerificationTest {
         sessionManager = TestProfileSessionManager(ProfileEntity(id = "profile_a", name = "Profile A"))
     }
 
+    @org.junit.After
+    fun tearDown() {
+        val repoField = DiscoveryEngine::class.java.getDeclaredField("repository")
+        repoField.isAccessible = true
+        repoField.set(DiscoveryEngine, null)
+    }
+
     @Test
     fun testDynamicProfileRedirectionAndLeakagePrevention() = runTest(testDispatcher) {
         // Return isolated data from mocked DAO depending on the profile ID argument

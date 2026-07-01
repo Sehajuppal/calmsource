@@ -3,7 +3,10 @@ package com.example.calmsource.feature.iptv
 import android.content.Context
 import android.util.Log
 import com.example.calmsource.core.database.DatabaseProvider
+import com.example.calmsource.core.database.CalmSourceDatabase
+import com.example.calmsource.core.database.dao.IPTVDao
 import com.example.calmsource.core.database.mapper.*
+import com.example.calmsource.core.model.UserMemoryContentType
 import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.models.MediaItem as DiscoveryMediaItem
 import com.example.calmsource.core.model.*
@@ -75,6 +78,8 @@ object XtreamRepository {
         return Runtime.getRuntime().maxMemory() <= 256L * 1024 * 1024
     }
 
+    fun usesOnDemandCatalogSearch(): Boolean = isLowRamDevice()
+
     /** Background Xtream EPG sync is skipped on low-RAM devices. */
     fun shouldScheduleBackgroundEpgSync(): Boolean = !isLowRamDevice()
 
@@ -90,19 +95,25 @@ object XtreamRepository {
         val oldStore = secureTokenStore
         val newStore = EncryptedIptvSecureTokenStore(context)
 
-        if (oldStore is FakeInMemoryIptvSecureTokenStore) {
-            val credentials = oldStore.exportCredentials()
-            val migrationCount = credentials.size
-            if (migrationCount > 0) {
-                Log.i("XtreamRepository", "Migrating $migrationCount entries.")
-                for ((providerId, username, password) in credentials) {
-                    newStore.savePassword(providerId, username, password)
+        if (newStore.isEncryptedStorageAvailable) {
+            if (oldStore is FakeInMemoryIptvSecureTokenStore) {
+                val credentials = oldStore.exportCredentials()
+                val migrationCount = credentials.size
+                if (migrationCount > 0) {
+                    Log.i("XtreamRepository", "Migrating $migrationCount entries.")
+                    for ((providerId, username, password) in credentials) {
+                        newStore.savePassword(providerId, username, password)
+                        oldStore.readPortalUrl(providerId)?.let { url ->
+                            newStore.savePortalUrl(providerId, url)
+                        }
+                    }
+                    oldStore.clearAll()
                 }
-                oldStore.clearAll()
             }
+            secureTokenStore = newStore
+        } else {
+            Log.w("XtreamRepository", "Encrypted storage is unavailable. Retaining in-memory fallback store.")
         }
-
-        secureTokenStore = newStore
     }
 
     /**
@@ -118,7 +129,20 @@ object XtreamRepository {
         secureTokenStore = store
     }
 
-    private fun databaseOrNull() = DatabaseProvider.databaseOrNull()
+    private fun databaseOrNull(): CalmSourceDatabase? {
+        val current = DatabaseProvider.databaseOrNull()
+        if (current != null) return current
+        val ctx = DatabaseProvider.context ?: return null
+        return DatabaseProvider.getDatabase(ctx)
+    }
+
+    /** Portal URL saved at add time; falls back to persisted provider metadata. */
+    fun resolveProviderPortalUrl(providerId: String, fallbackServerUrl: String): String {
+        return secureTokenStore.readPortalUrl(providerId)
+            ?.let { XtreamServerUrlNormalizer.normalizePortalUrl(it) }
+            ?.takeIf { it.isNotBlank() }
+            ?: fallbackServerUrl
+    }
 
     /**
      * Validates the server URL for Xtream provider setup.
@@ -130,16 +154,34 @@ object XtreamRepository {
         if (serverUrl.isBlank()) {
             return "Server URL is required"
         }
+        if (serverUrl.length > 2083) {
+            return "Server URL is too long"
+        }
         if (serverUrl != serverUrl.trim()) {
             return "Server URL must not contain whitespace"
         }
         if (serverUrl.any { it.isWhitespace() }) {
             return "Server URL must not contain whitespace"
         }
+        val trimmed = serverUrl.trim()
+        val lowerRaw = trimmed.lowercase()
+        if (!lowerRaw.startsWith("http://") && !lowerRaw.startsWith("https://")) {
+            if (!XtreamServerUrlNormalizer.HOST_PORT_PATTERN.matches(trimmed)) {
+                return "Server URL must start with http:// or https://"
+            }
+        }
         val prepared = XtreamServerUrlNormalizer.preprocessPortalInput(serverUrl)
         val lower = prepared.lowercase()
         if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
             return "Server URL must start with http:// or https://"
+        }
+        try {
+            val uri = java.net.URI(prepared)
+            if (uri.host.isNullOrBlank()) {
+                return "Invalid Server URL host"
+            }
+        } catch (e: Exception) {
+            return "Invalid Server URL format"
         }
         return null
     }
@@ -193,7 +235,7 @@ object XtreamRepository {
         serverUrl: String,
         username: String,
         password: String,
-        client: io.ktor.client.HttpClient = NetworkClient.xtreamClient,
+        client: io.ktor.client.HttpClient = NetworkClient.iptvXtreamClient,
         persistProvider: Boolean = true
     ): Result<IPTVProvider> = withContext(Dispatchers.IO) {
         try {
@@ -235,22 +277,16 @@ object XtreamRepository {
                 return@withContext Result.failure(Exception("Subscription expired"))
             }
 
-            val canonicalServerUrl = authResult.serverInfo?.let { serverInfo ->
-                XtreamServerUrlNormalizer.resolveStoredPortalUrl(
-                    normalizedUserUrl = normalizedServerUrl,
-                    serverUrl = serverInfo.url,
-                    port = serverInfo.port,
-                    httpsPort = serverInfo.httpsPort,
-                    serverProtocol = serverInfo.serverProtocol
-                )
-            } ?: normalizedServerUrl
+            // Persist the user-entered portal URL for API/playback — never the server_info CDN host
+            // or an auto-upgraded https:443 URL that may refuse connections.
+            val storedPortalUrl = normalizedServerUrl
 
             val id = "xtream-${UUID.randomUUID()}"
             val provider = IPTVProvider(
                 id = id,
                 name = trimmedName.ifBlank { "Xtream Provider" },
-                playlistUrl = canonicalServerUrl,
-                serverUrl = canonicalServerUrl,
+                playlistUrl = storedPortalUrl,
+                serverUrl = storedPortalUrl,
                 type = IPTVProviderType.XTREAM,
                 username = username.trim(),
                 isEnabled = true,
@@ -259,7 +295,7 @@ object XtreamRepository {
 
             // Save credentials before publishing the provider metadata.
             runCatching {
-                secureTokenStore.savePortalUrl(id, normalizedServerUrl)
+                secureTokenStore.savePortalUrl(id, storedPortalUrl)
                 secureTokenStore.savePassword(id, username.trim(), password)
             }.getOrElse { throwable ->
                 val safeMessage = UrlRedactor.redactErrorMessage(
@@ -325,8 +361,73 @@ object XtreamRepository {
         }
     }
 
-    suspend fun getPassword(providerId: String, username: String): String? {
-        return secureTokenStore.readPassword(providerId, username)
+    suspend fun getPassword(providerId: String, username: String): String? = withContext(Dispatchers.IO) {
+        secureTokenStore.readPassword(providerId, username)
+    }
+
+    /** Searches one Xtream category at a time so low-memory devices never retain the full
+     * provider catalog. Standard Xtream APIs do not expose a server-side text-search endpoint. */
+    suspend fun searchVodOnDemand(query: String, limit: Int): List<XtreamVodItem> =
+        searchCatalogOnDemand(query, limit, vod = true).filterIsInstance<XtreamVodItem>()
+
+    suspend fun searchSeriesOnDemand(query: String, limit: Int): List<XtreamSeriesItem> =
+        searchCatalogOnDemand(query, limit, vod = false).filterIsInstance<XtreamSeriesItem>()
+
+    private suspend fun searchCatalogOnDemand(
+        query: String,
+        limit: Int,
+        vod: Boolean
+    ): List<Any> = withContext(Dispatchers.IO) {
+        val database = databaseOrNull() ?: return@withContext emptyList()
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.isEmpty() || limit <= 0) return@withContext emptyList()
+        val client = com.example.calmsource.feature.iptv.xtream.XtreamApiClientImpl()
+        val matches = ArrayList<Any>(limit)
+
+        val providerEntities = database.iptvDao().getAllProviders().first()
+            .filter { it.isEnabled && it.type == IPTVProviderType.XTREAM.name }
+        for (entity in providerEntities) {
+            currentCoroutineContext().ensureActive()
+            val provider = entity.toDomain()
+            val username = provider.username?.takeIf { it.isNotBlank() } ?: continue
+            val password = secureTokenStore.readPassword(provider.id, username) ?: continue
+            val portalUrl = secureTokenStore.readPortalUrl(provider.id)
+                ?.let { XtreamServerUrlNormalizer.normalizePortalUrl(it) }
+                ?: provider.serverUrl
+            val config = XtreamProviderConfig(provider.id, provider.name, portalUrl, username)
+
+            val categoryIds = runCatching {
+                if (vod) client.getVodCategories(config, password).map { it.id }
+                else client.getSeriesCategories(config, password).map { it.id }
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                emptyList()
+            }
+
+            val idsToScan: List<String?> = categoryIds.ifEmpty { listOf(null) }
+            for (categoryId in idsToScan) {
+                currentCoroutineContext().ensureActive()
+                val items: List<Any> = runCatching {
+                    if (vod) client.getVodStreams(config, password, categoryId)
+                    else client.getSeries(config, password, categoryId)
+                }.getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    emptyList()
+                }
+                for (item in items) {
+                    val name = when (item) {
+                        is XtreamVodItem -> item.name
+                        is XtreamSeriesItem -> item.name
+                        else -> ""
+                    }
+                    if (name.contains(normalizedQuery, ignoreCase = true)) {
+                        matches.add(item)
+                        if (matches.size >= limit) return@withContext matches
+                    }
+                }
+            }
+        }
+        matches
     }
 
     // ─── Sync implementation ────────────────────────────────────────────
@@ -515,13 +616,14 @@ object XtreamRepository {
                 liveChannelCount = capped.size
                 if (capped.isNotEmpty()) {
                     currentCoroutineContext().ensureActive()
+                    val mappedEntities = capped.map { channel ->
+                        val lang = IptvChannelOrganizer.detectLanguage(channel)
+                        val cntry = IptvChannelOrganizer.detectCountry(channel)
+                        channel.copy(language = lang, country = cntry).toEntity()
+                    }
                     database.withTransaction {
                         database.iptvDao().deleteChannelsByProvider(providerId)
-                        capped.map { channel ->
-                            val lang = IptvChannelOrganizer.detectLanguage(channel)
-                            val cntry = IptvChannelOrganizer.detectCountry(channel)
-                            channel.copy(language = lang, country = cntry).toEntity()
-                        }.chunked(SYNC_BATCH_SIZE).forEach { batch ->
+                        mappedEntities.chunked(SYNC_BATCH_SIZE).forEach { batch ->
                             currentCoroutineContext().ensureActive()
                             database.iptvDao().insertChannels(batch)
                         }
@@ -551,13 +653,14 @@ object XtreamRepository {
                 liveChannelCount = capped.size
                 if (capped.isNotEmpty()) {
                     currentCoroutineContext().ensureActive()
+                    val mappedEntities = capped.map { channel ->
+                        val lang = IptvChannelOrganizer.detectLanguage(channel)
+                        val cntry = IptvChannelOrganizer.detectCountry(channel)
+                        channel.copy(language = lang, country = cntry).toEntity()
+                    }
                     database.withTransaction {
                         database.iptvDao().deleteChannelsByProvider(providerId)
-                        capped.map { channel ->
-                            val lang = IptvChannelOrganizer.detectLanguage(channel)
-                            val cntry = IptvChannelOrganizer.detectCountry(channel)
-                            channel.copy(language = lang, country = cntry).toEntity()
-                        }.chunked(SYNC_BATCH_SIZE).forEach { batch ->
+                        mappedEntities.chunked(SYNC_BATCH_SIZE).forEach { batch ->
                             currentCoroutineContext().ensureActive()
                             database.iptvDao().insertChannels(batch)
                         }
@@ -927,13 +1030,13 @@ object XtreamRepository {
 
         val recentChannelIds = runCatching {
             database.userMemoryDao().observeRecentChannels(100).first()
-                .map { it.itemKey }
+                .mapNotNull { it.sourceId }
                 .toSet()
         }.getOrDefault(emptySet())
         val favoriteChannelIds = runCatching {
             database.userMemoryDao().observeFavorites(100).first()
-                .filter { it.contentType == "channel" }
-                .map { it.itemKey }
+                .filter { it.contentType == UserMemoryContentType.LIVE_CHANNEL.name }
+                .mapNotNull { it.sourceId }
                 .toSet()
         }.getOrDefault(emptySet())
         val prioritizedIds = recentChannelIds + favoriteChannelIds
@@ -1043,10 +1146,29 @@ object XtreamRepository {
         maxChannels: Int
     ): List<IPTVChannel> {
         if (maxChannels <= 0 || channels.isEmpty()) return emptyList()
-        val withTvgId = channels.filter { !it.tvgId.isNullOrBlank() }
-        val prioritized = channels.filter { it.id in prioritizedChannelIds && it !in withTvgId }
-        val remainder = channels.filter { it !in withTvgId && it !in prioritized }
-        return (withTvgId + prioritized + remainder).take(maxChannels)
+        val prioritized = ArrayList<IPTVChannel>()
+        val withTvgId = ArrayList<IPTVChannel>()
+        val remainder = ArrayList<IPTVChannel>()
+
+        for (channel in channels) {
+            if (channel.id in prioritizedChannelIds) {
+                prioritized.add(channel)
+            } else if (!channel.tvgId.isNullOrBlank()) {
+                withTvgId.add(channel)
+            } else {
+                remainder.add(channel)
+            }
+        }
+
+        val result = ArrayList<IPTVChannel>(maxChannels)
+        result.addAll(prioritized)
+        if (result.size < maxChannels) {
+            result.addAll(withTvgId.take(maxChannels - result.size))
+        }
+        if (result.size < maxChannels) {
+            result.addAll(remainder.take(maxChannels - result.size))
+        }
+        return result.take(maxChannels)
     }
 
     private suspend fun indexDiscoveryMediaItems(items: List<DiscoveryMediaItem>) {

@@ -80,6 +80,14 @@ val PlaybackRequestSaver = Saver<PlaybackRequest, Bundle>(
                     ref.sourceId?.let { putString("sourceId", it) }
                 })
             }
+            request.seriesContext?.let { series ->
+                putBundle("seriesContext", Bundle().apply {
+                    putString("seriesId", series.seriesId)
+                    putString("seriesTitle", series.seriesTitle)
+                    series.posterUrl?.let { putString("posterUrl", it) }
+                    series.backdropUrl?.let { putString("backdropUrl", it) }
+                })
+            }
         }
     },
     restore = { bundle ->
@@ -140,6 +148,16 @@ val PlaybackRequestSaver = Saver<PlaybackRequest, Bundle>(
             )
         } else null
 
+        val seriesBundle = bundle.getBundle("seriesContext")
+        val seriesContext = if (seriesBundle != null) {
+            com.example.calmsource.core.model.SeriesPlaybackContext(
+                seriesId = seriesBundle.getString("seriesId") ?: "",
+                seriesTitle = seriesBundle.getString("seriesTitle") ?: "",
+                posterUrl = seriesBundle.getString("posterUrl"),
+                backdropUrl = seriesBundle.getString("backdropUrl"),
+            )
+        } else null
+
         PlaybackRequest(
             source = PlaybackSource(
                 id = id,
@@ -153,7 +171,8 @@ val PlaybackRequestSaver = Saver<PlaybackRequest, Bundle>(
             ),
             startPositionMs = startPositionMs,
             playWhenReady = playWhenReady,
-            userMemoryReference = userMemoryReference
+            userMemoryReference = userMemoryReference,
+            seriesContext = seriesContext,
         )
     }
 )

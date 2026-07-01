@@ -13,6 +13,15 @@ import javax.crypto.spec.PSource
 class AuthCryptoManagerTest {
 
     @Test
+    fun encryptForPublicKey_roundTripsWithDecrypt() {
+        val manager = AuthCryptoManager()
+        val message = """{"xtreamUrl":"http://example.com","username":"user","password":"secret"}"""
+        val encrypted = manager.encryptForPublicKey(manager.getPublicKeyBase64(), message)
+        val decrypted = manager.decrypt(encrypted)
+        assertEquals(message, decrypted)
+    }
+
+    @Test
     fun testKeyPairGenerationAndDecryption() {
         val manager = AuthCryptoManager()
         

@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.theme.LumenTokens
 
 @Composable
 fun ChipRow(
@@ -33,12 +34,12 @@ fun ChipRow(
                 onClick  = { onSelect(label) },
                 label    = { Text(label) },
                 shape    = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
-                border   = BorderStroke(1.dp, t.colors.border),
+                border   = BorderStroke(1.dp, if (isSel) LumenTokens.Color.borderStrong else t.colors.border),
                 colors   = FilterChipDefaults.filterChipColors(
-                    containerColor         = t.colors.muted,
-                    selectedContainerColor = t.colors.brand,
-                    labelColor             = t.colors.foreground,
-                    selectedLabelColor     = t.colors.brandForeground,
+                    containerColor         = t.colors.muted.copy(alpha = 0.45f),
+                    selectedContainerColor = t.colors.foreground.copy(alpha = 0.12f),
+                    labelColor             = t.colors.mutedForeground,
+                    selectedLabelColor     = t.colors.foreground,
                 ),
             )
         }

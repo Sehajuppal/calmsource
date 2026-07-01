@@ -1,29 +1,31 @@
 package com.example.calmsource.ui
 
 import com.example.calmsource.core.ui.theme.*
+import com.example.calmsource.core.ui.theme.LocalReducedMotion
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 // Mock reference for tests: IPTVRepository.getLiveChannels and ExtensionRepository.extensions
 
-import android.os.Handler
-import android.os.Looper
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,25 +37,40 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.palette.graphics.Palette
+import kotlinx.collections.immutable.toImmutableList
 import coil.compose.AsyncImage
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.core.playback.PrefetchCoordinator
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.ResizeMode.Companion.scaleToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import com.example.calmsource.core.ui.components.*
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     onMediaClick: (MediaItem) -> Unit,
     onChannelClick: (String) -> Unit,
+    onPlayClick: (MediaItem) -> Unit = {},
+    onResumeClick: (MediaItem, Long) -> Unit = { item, _ -> onMediaClick(item) },
     onSettingsClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedPosterKey: String? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val homeRows by viewModel.homeRows.collectAsState()
@@ -64,50 +81,23 @@ fun HomeScreen(
 
     val t = LocalLumenTokens.current
 
-    // Navigation and tab states
-    var selectedTab by remember { mutableStateOf("Home") }
-    var selectedMood by remember { mutableStateOf<String?>(null) }
-
-    val tabs = remember {
-        listOf(
-            TabItem("Home", "Home", Icons.Default.Home),
-            TabItem("Films", "Films", Icons.Default.PlayArrow),
-            TabItem("Series", "Series", Icons.Default.List),
-            TabItem("Live", "Live", Icons.Default.Favorite)
-        )
-    }
-
-    val moods = remember {
-        listOf("Action", "Comedy", "Drama", "Sci-Fi", "Thriller", "Horror", "Documentary")
-    }
-
-    // Filter homeRows dynamically based on selected tab and selected mood
-    val filteredRows = remember(homeRows, selectedTab, selectedMood) {
+    val displayRows = remember(homeRows) {
         homeRows.map { row ->
-            val filteredItems = when (selectedTab) {
-                "Films" -> row.items.filter { it.type == "movie" }
-                "Series" -> row.items.filter { it.type == "series" || it.type == "show" }
-                "Live" -> row.items.filter { it.type == "channel" }
-                else -> row.items
-            }.let { items ->
-                val mood = selectedMood
-                if (mood != null && row.rowType != "continue_watching") {
-                    items.filter {
-                        it.reason.contains(mood, ignoreCase = true) ||
-                        it.subtitle?.contains(mood, ignoreCase = true) == true
-                    }
-                } else items
+            val items = if (row.rowType == "live_tv") {
+                row.items
+            } else {
+                row.items.filter { it.type != "channel" }
             }
-            row.copy(items = filteredItems.toImmutableList())
+            row.copy(items = items.toImmutableList())
         }.filter { it.items.isNotEmpty() }
     }
 
-    // Extract VOD items from homeRows for the Hero Banner
     val featuredItems = remember(homeRows) {
         homeRows.asSequence()
             .filter { it.rowType != "continue_watching" && it.rowType != "live_tv" }
             .flatMap { it.items.asSequence() }
-            .filter { it.type != "channel" && !it.posterUrl.isNullOrBlank() }
+            .filter { it.type != "channel" && (!it.backdropUrl.isNullOrBlank() || !it.posterUrl.isNullOrBlank()) }
+            .sortedByDescending { !it.backdropUrl.isNullOrBlank() }
             .distinctBy { it.id }
             .take(5)
             .toList()
@@ -116,18 +106,9 @@ fun HomeScreen(
     var heroIndex by remember { mutableStateOf(0) }
     var isPressed by remember { mutableStateOf(false) }
 
-    // Detect system reduced motion scale
-    val isReducedMotion = remember(context) {
-        try {
-            android.provider.Settings.Global.getFloat(
-                context.contentResolver,
-                android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
-                1f
-            ) == 0f
-        } catch (e: Exception) {
-            false
-        }
-    }
+    // Respect system reduced motion
+    val isReducedMotion = rememberReducedMotion()
+    val sharedBoundsTransform = rememberLumenSharedBoundsTransform()
 
     // Auto-rotate Hero Banner every 7000ms if not pressed and motion is not reduced
     if (featuredItems.isNotEmpty()) {
@@ -152,11 +133,13 @@ fun HomeScreen(
             type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
             overview = item.reason,
             posterUrl = item.posterUrl,
+            backdropUrl = item.backdropUrl,
             externalIds = item.externalIds
         )
     }
 
-    var backdropLuminance by remember(featuredItem?.id) { mutableStateOf(0.5f) }
+    val heroArtUrl = featuredItem?.backdropUrl ?: featuredItem?.posterUrl
+    var backdropLuminance by remember(heroArtUrl) { mutableStateOf(0.5f) }
 
     val homeRowsKey = remember(homeRows) { homeRows.map { "${it.rowType}-${it.items.size}" } }
     LaunchedEffect(homeRowsKey) {
@@ -180,48 +163,18 @@ fun HomeScreen(
             .background(t.colors.background)
     ) {
         if (isLoading && homeRows.isEmpty()) {
-            // Shimmer skeletons for loading state
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item(key = "skeleton_top") {
-                    LumenSkeleton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(LumenLayout.heroHeightMobile)
-                    )
-                    Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
-                }
-                item(key = "skeleton_rows") {
-                    repeat(2) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
-                        ) {
-                            LumenSkeleton(modifier = Modifier.width(LumenLayout.epgMinBlockWidthTv).height(LumenLegacySpace.xxl))
-                            Spacer(modifier = Modifier.height(LumenLegacySpace.md))
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
-                            ) {
-                                repeat(5) {
-                                    LumenSkeleton(
-                                        modifier = Modifier
-                                            .width(LumenLayout.epgMinBlockWidth)
-                                            .height(LumenLayout.heroStripHeight)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            HomeFeedSkeleton(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = LumenLayout.bottomNavPadding),
+            )
         } else if (loadError != null && homeRows.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 LumenErrorState(
-                    title = "Failed to load feed",
-                    body = loadError ?: "Unknown error",
+                    title = stringResource(CoreUiR.string.error_load_feed),
+                    body = loadError ?: stringResource(CoreUiR.string.error_load_feed_body),
                     onRetry = { viewModel.retry() }
                 )
             }
@@ -231,14 +184,19 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 LumenEmptyState(
-                    title = "Nothing to browse yet",
-                    body = "Connect a catalog provider in settings to begin.",
+                    title = stringResource(CoreUiR.string.empty_nothing_to_browse),
+                    body = stringResource(CoreUiR.string.empty_connect_provider),
                     icon = androidx.compose.material.icons.Icons.Default.Home,
-                    ctaText = "Go to Settings",
+                    ctaText = stringResource(CoreUiR.string.cta_go_to_settings),
                     onCtaClick = onSettingsClick
                 )
             }
         } else {
+            PullToRefreshBox(
+                isRefreshing = isLoading && homeRows.isNotEmpty(),
+                onRefresh = { viewModel.retry() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = LumenLayout.bottomNavPadding)
@@ -246,10 +204,29 @@ fun HomeScreen(
                 // 1. Hero Banner
                 if (featuredItem != null && featuredMediaItem != null) {
                     item(key = "hero") {
+                        val heroSharedModifier =
+                            if (
+                                sharedTransitionScope != null &&
+                                animatedVisibilityScope != null &&
+                                sharedPosterKey != null &&
+                                featuredItem?.id == sharedPosterKey
+                            ) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedBounds(
+                                        rememberSharedContentState(key = "poster-$sharedPosterKey"),
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        resizeMode = scaleToBounds(),
+                                        boundsTransform = sharedBoundsTransform,
+                                    )
+                                }
+                            } else {
+                                Modifier
+                            }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(LumenLayout.heroHeightLg)
+                                .then(heroSharedModifier)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onPress = {
@@ -260,254 +237,266 @@ fun HomeScreen(
                                     )
                                 }
                         ) {
-                            Hero(
-                                backdropUrl = featuredItem.posterUrl,
-                                title = featuredItem.title,
-                                tagline = featuredItem.reason,
-                                modifier = Modifier.fillMaxSize(),
-                                actions = {
-                                    AdaptiveButton(
-                                        text = "Play",
-                                        onClick = { onMediaClick(featuredMediaItem) },
-                                        backdropLuminance = backdropLuminance
-                                    )
-                                    Spacer(modifier = Modifier.width(LumenLegacySpace.md))
-                                    AdaptiveButton(
-                                        text = "More Info",
-                                        onClick = { onMediaClick(featuredMediaItem) },
-                                        backdropLuminance = backdropLuminance
+                            androidx.compose.animation.Crossfade(
+                                targetState = featuredItem,
+                                animationSpec = androidx.compose.animation.core.tween(
+                                    durationMillis = if (isReducedMotion) 0 else LumenTokens.Duration.cinematic,
+                                    easing = LumenTokens.Easing.AppleOut,
+                                ),
+                                label = "hero-crossfade"
+                            ) { targetFeaturedItem ->
+                                val targetFeaturedMediaItem = targetFeaturedItem?.let { item ->
+                                    MediaItem(
+                                        id = item.id,
+                                        title = item.title,
+                                        type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                        overview = item.reason,
+                                        posterUrl = item.posterUrl,
+                                        backdropUrl = item.backdropUrl,
+                                        externalIds = item.externalIds
                                     )
                                 }
-                            )
-
-                            // Silent sampler using AsyncImage
-                            AsyncImage(
-                                model = featuredItem.posterUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(1.dp),
-                                onSuccess = { state ->
-                                    val drawable = state.result.drawable
-                                    if (drawable is android.graphics.drawable.BitmapDrawable) {
-                                        val bitmap = drawable.bitmap
-                                        Palette.from(bitmap).generate { palette ->
-                                            val dominantColor = palette?.getDominantColor(0xFF000000.toInt()) ?: 0xFF000000.toInt()
-                                            val r = android.graphics.Color.red(dominantColor) / 255f
-                                            val g = android.graphics.Color.green(dominantColor) / 255f
-                                            val b = android.graphics.Color.blue(dominantColor) / 255f
-                                            Handler(Looper.getMainLooper()).post {
-                                                backdropLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
-                                            }
+                                if (targetFeaturedItem != null && targetFeaturedMediaItem != null) {
+                                    Hero(
+                                        backdropUrl = targetFeaturedItem.backdropUrl ?: targetFeaturedItem.posterUrl,
+                                        posterUrl = targetFeaturedItem.posterUrl,
+                                        title = targetFeaturedItem.title,
+                                        tagline = targetFeaturedItem.reason,
+                                        modifier = Modifier.fillMaxSize(),
+                                        onBackdropLuminance = { backdropLuminance = it },
+                                        actions = {
+                                            AdaptiveButton(
+                                                text = stringResource(CoreUiR.string.cta_play),
+                                                onClick = { onPlayClick(targetFeaturedMediaItem) },
+                                                backdropLuminance = backdropLuminance
+                                            )
+                                            Spacer(modifier = Modifier.width(LumenTokens.Space.s5))
+                                            GhostButton(
+                                                text = stringResource(CoreUiR.string.cta_more_info),
+                                                onClick = { onMediaClick(targetFeaturedMediaItem) }
+                                            )
                                         }
-                                    }
+                                    )
                                 }
-                            )
+                            }
+                            IconButton(
+                                onClick = onProfileClick,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .statusBarsPadding()
+                                    .padding(top = LumenTokens.Space.s5, end = LumenTokens.Space.s5)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = stringResource(CoreUiR.string.settings_switch_profile),
+                                    tint = t.colors.foreground,
+                                    modifier = Modifier.size(LumenLayout.iconXl)
+                                )
+                            }
+
                         }
                     }
                 }
 
-                // 2. GlassTabBar
-                item(key = "tab_bar") {
-                    GlassTabBar(
-                        items = tabs,
-                        selected = selectedTab,
-                        onSelect = {
-                            selectedTab = it
-                            selectedMood = null // Reset mood filter on tab switch
-                        },
-                        modifier = Modifier.padding(vertical = LumenLegacySpace.md)
-                    )
-                }
-
-                // 3. Moods chip row above content rows (only if Home or movie/series tabs active)
-                if (selectedTab != "Live") {
-                    item(key = "moods") {
-                        ChipRow(
-                            items = moods,
-                            selected = selectedMood,
-                            onSelect = { selectedMood = if (selectedMood == it) null else it },
-                            modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
-                        )
-                    }
-                }
-
-                // Render dynamic rows
-                if (filteredRows.isEmpty()) {
-                    item(key = "empty_content") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(LumenLayout.iconXl),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No items match selected filters.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = t.colors.mutedForeground
-                            )
-                        }
-                    }
-                } else {
-                    items(filteredRows, key = { it.rowType }) { row ->
+                itemsIndexed(displayRows, key = { _, row -> row.rowType }) { rowIndex, row ->
                         val uniqueItems = remember(row.items) { row.items.distinctBy { it.id } }
-                        if (uniqueItems.isEmpty()) return@items
+                        if (uniqueItems.isEmpty()) return@itemsIndexed
+                        val isFirstSection = rowIndex == 0
 
-                        // Group rows by design requirements
-                        when {
-                            row.rowType == "continue_watching" -> {
-                                SectionHeader(row.title)
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
-                                ) {
-                                    items(uniqueItems, key = { it.id }) { item ->
-                                        val progress = if (item.reason.startsWith("Resume watching (")) {
-                                            item.reason.substringAfter("(").substringBefore("%").toFloatOrNull()?.div(100f)
-                                        } else null
+                        Column {
+                            when {
+                                row.rowType == "continue_watching" -> {
+                                    HomeSectionHeader(row.title, isTv = false, isFirstSection = isFirstSection)
+                                    HomeScrollableRow(spacing = LumenTokens.Space.s5) {
+                                        uniqueItems.forEach { item ->
+                                            val progress = if (item.reason.startsWith("Resume watching (")) {
+                                                item.reason.substringAfter("(").substringBefore("%").toFloatOrNull()?.div(100f)
+                                            } else null
 
-                                        val mediaItem = MediaItem(
-                                            id = item.id,
-                                            title = item.title,
-                                            type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
-                                            overview = item.reason,
-                                            posterUrl = item.posterUrl,
-                                            externalIds = item.externalIds
-                                        )
-
-                                        PosterCard(
-                                            imageUrl = item.posterUrl,
-                                            orientation = PosterOrientation.Landscape,
-                                            progress = progress,
-                                            onClick = { onMediaClick(mediaItem) },
-                                            modifier = Modifier.width(LumenLayout.tileWidthMd)
-                                        )
-                                    }
-                                }
-                            }
-                            row.rowType == "top_rated" -> {
-                                SectionHeader("Top 10")
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
-                                ) {
-                                    itemsIndexed(uniqueItems.take(10), key = { _, item -> item.id }) { index, item ->
-                                        val mediaItem = MediaItem(
-                                            id = item.id,
-                                            title = item.title,
-                                            type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
-                                            overview = item.reason,
-                                            posterUrl = item.posterUrl,
-                                            externalIds = item.externalIds
-                                        )
-
-                                        Box(modifier = Modifier.width(LumenLayout.posterTileWidth).padding(start = LumenLegacySpace.xxl)) {
-                                            Text(
-                                                text = (index + 1).toString(),
-                                                style = androidx.compose.ui.text.TextStyle(
-                                                    fontSize = LumenType.size110,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = t.colors.border.copy(alpha = 0.35f)
-                                                ),
-                                                modifier = Modifier
-                                                    .align(Alignment.BottomStart)
-                                                    .offset(x = (-LumenLegacySpace.xxl), y = LumenTokens.Radius.md)
+                                            val mediaItem = MediaItem(
+                                                id = item.id,
+                                                title = item.title,
+                                                type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                                overview = item.reason,
+                                                posterUrl = item.posterUrl,
+                                                externalIds = item.externalIds
                                             )
+
+                                            val resumeAt = item.resumePositionMs
                                             PosterCard(
                                                 imageUrl = item.posterUrl,
-                                                onClick = { onMediaClick(mediaItem) },
-                                                modifier = Modifier.fillMaxWidth()
+                                                orientation = PosterOrientation.Landscape,
+                                                progress = progress,
+                                                contentLabel = item.title,
+                                                onClick = {
+                                                    if (resumeAt != null && resumeAt > 0L) {
+                                                        onResumeClick(mediaItem, resumeAt)
+                                                    } else {
+                                                        onMediaClick(mediaItem)
+                                                    }
+                                                },
+                                                modifier = Modifier.width(LumenLayout.tileWidthMd)
                                             )
                                         }
                                     }
                                 }
-                            }
-                            row.rowType == "live_tv" -> {
-                                SectionHeader("Live Channels")
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
-                                ) {
-                                    items(uniqueItems, key = { item -> item.id }) { item ->
-                                        LumenCard(
-                                            modifier = Modifier
-                                                .size(LumenLayout.epgMinBlockWidth)
-                                                .clickable { onChannelClick(item.id) }
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center,
-                                                modifier = Modifier.fillMaxSize()
-                                            ) {
-                                                AsyncImage(
-                                                    model = item.posterUrl,
-                                                    contentDescription = item.title,
-                                                    contentScale = ContentScale.Fit,
-                                                    modifier = Modifier
-                                                        .size(LumenLayout.playerControlSize)
-                                                        .clip(LumenTokens.Shape.sm)
-                                                        .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
+                                row.rowType == "top_rated" -> {
+                                    HomeSectionHeader(
+                                        stringResource(CoreUiR.string.home_top_10),
+                                        isTv = false,
+                                        isFirstSection = isFirstSection,
+                                    )
+                                    HomeScrollableRow(spacing = LumenTokens.Space.md) {
+                                        uniqueItems.take(10).forEachIndexed { index, item ->
+                                            val mediaItem = MediaItem(
+                                                id = item.id,
+                                                title = item.title,
+                                                type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                                overview = item.reason,
+                                                posterUrl = item.posterUrl,
+                                                externalIds = item.externalIds
+                                            )
+
+                                            Box(modifier = Modifier.width(LumenLayout.posterTileWidth).padding(start = LumenTokens.Space.sm)) {
+                                                PosterCard(
+                                                    imageUrl = item.posterUrl,
+                                                    contentLabel = item.title,
+                                                    onClick = { onMediaClick(mediaItem) },
+                                                    modifier = Modifier.fillMaxWidth()
                                                 )
-                                                Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
                                                 Text(
-                                                    text = item.title,
-                                                    color = t.colors.foreground,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    text = (index + 1).toString(),
+                                                    style = LumenType.rankNumeralStyle().copy(
+                                                        fontWeight = FontWeight.Black,
+                                                        color = t.colors.foreground,
+                                                    ),
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomStart)
+                                                        .offset(x = (-LumenTokens.Space.s3), y = LumenTokens.Space.xs)
                                                 )
                                             }
                                         }
                                     }
                                 }
-                            }
-                            row.rowType == "leaving_soon" || row.title.contains("Leaving Soon", ignoreCase = true) -> {
-                                SectionHeader(row.title)
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
-                                ) {
-                                    items(uniqueItems, key = { item -> item.id }) { item ->
-                                        val mediaItem = MediaItem(
-                                            id = item.id,
-                                            title = item.title,
-                                            type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
-                                            overview = item.reason,
-                                            posterUrl = item.posterUrl,
-                                            externalIds = item.externalIds
-                                        )
-                                        Column(modifier = Modifier.width(LumenLayout.epgMinBlockWidth)) {
-                                            PosterCard(
-                                                imageUrl = item.posterUrl,
-                                                onClick = { onMediaClick(mediaItem) }
+                                row.rowType == "live_tv" -> {
+                                    HomeSectionHeader(
+                                        stringResource(CoreUiR.string.home_live_channels),
+                                        isTv = false,
+                                        isFirstSection = isFirstSection,
+                                    )
+                                    HomeScrollableRow(spacing = LumenTokens.Space.s5) {
+                                        uniqueItems.forEach { item ->
+                                            LumenCard(
+                                                modifier = Modifier
+                                                    .size(LumenLayout.epgMinBlockWidth)
+                                                    .clickable { onChannelClick(item.id) }
+                                            ) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.Center,
+                                                    modifier = Modifier.fillMaxSize()
+                                                ) {
+                                                    AsyncImage(
+                                                        model = item.posterUrl,
+                                                        contentDescription = item.title,
+                                                        contentScale = ContentScale.Fit,
+                                                        modifier = Modifier
+                                                            .size(LumenLayout.playerControlSize)
+                                                            .clip(LumenTokens.Shape.sm)
+                                                            .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
+                                                    )
+                                                    Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
+                                                    Text(
+                                                        text = item.title,
+                                                        color = t.colors.foreground,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                row.rowType == "quick_preview" -> {
+                                    HomeSectionHeader(
+                                        stringResource(CoreUiR.string.home_quick_preview),
+                                        isTv = false,
+                                        isFirstSection = isFirstSection,
+                                    )
+                                    HomeScrollableRow(spacing = LumenTokens.Space.s5) {
+                                        uniqueItems.forEach { item ->
+                                            val mediaItem = MediaItem(
+                                                id = item.id,
+                                                title = item.title,
+                                                type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                                overview = item.reason,
+                                                posterUrl = item.posterUrl,
+                                                backdropUrl = item.backdropUrl,
+                                                externalIds = item.externalIds,
                                             )
-                                            Spacer(modifier = Modifier.height(LumenLegacySpace.sm))
-                                            Text(
-                                                text = "Leaves Mar 12",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = t.colors.mutedForeground,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                            PreviewSamplerCard(
+                                                imageUrl = item.backdropUrl ?: item.posterUrl,
+                                                title = item.title,
+                                                contentLabel = context.getString(CoreUiR.string.home_preview_play, item.title),
+                                                onClick = { onMediaClick(mediaItem) },
+                                                modifier = Modifier.width(120.dp),
                                             )
                                         }
                                     }
                                 }
-                            }
-                            else -> {
-                                // Default RowSection item listing
-                                RowSection(
-                                    title = row.title,
-                                    modifier = Modifier.padding(bottom = LumenLegacySpace.md)
-                                ) {
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = LumenLegacySpace.xxl),
-                                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
-                                        modifier = Modifier.padding(bottom = LumenLegacySpace.lg)
-                                    ) {
-                                        items(uniqueItems, key = { item -> item.id }) { item ->
+                                row.rowType == "leaving_soon" || row.title.contains("Leaving Soon", ignoreCase = true) -> {
+                                    HomeSectionHeader(
+                                        row.title,
+                                        isTv = false,
+                                        isFirstSection = isFirstSection,
+                                    )
+                                    HomeScrollableRow(spacing = LumenTokens.Space.s5) {
+                                        uniqueItems.forEach { item ->
+                                            val mediaItem = MediaItem(
+                                                id = item.id,
+                                                title = item.title,
+                                                type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                                overview = item.reason,
+                                                posterUrl = item.posterUrl,
+                                                externalIds = item.externalIds
+                                            )
+                                            Column(
+                                                modifier = Modifier
+                                                    .width(LumenLayout.epgMinBlockWidth)
+                                                    .clip(LumenTokens.Shape.md)
+                                                    .clickable { onMediaClick(mediaItem) }
+                                                    .padding(4.dp)
+                                            ) {
+                                                PosterCard(
+                                                    imageUrl = item.posterUrl,
+                                                    contentLabel = item.title,
+                                                    enabled = false
+                                                )
+                                                Spacer(modifier = Modifier.height(LumenTokens.Space.s3))
+                                                val leavingLabel = item.subtitle?.takeIf { it.isNotBlank() }
+                                                    ?: item.reason.takeIf { it.isNotBlank() && !it.startsWith("poster:") }
+                                                if (!leavingLabel.isNullOrBlank()) {
+                                                    Text(
+                                                        text = leavingLabel,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = t.colors.mutedForeground,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                else -> {
+                                    HomeSectionHeader(
+                                        row.title,
+                                        isTv = false,
+                                        isFirstSection = isFirstSection,
+                                    )
+                                    HomeScrollableRow(spacing = LumenTokens.Space.s5) {
+                                        uniqueItems.forEach { item ->
                                             val mediaItem = MediaItem(
                                                 id = item.id,
                                                 title = item.title,
@@ -518,6 +507,7 @@ fun HomeScreen(
                                             )
                                             PosterCard(
                                                 imageUrl = item.posterUrl,
+                                                contentLabel = item.title,
                                                 onClick = { onMediaClick(mediaItem) },
                                                 modifier = Modifier.width(LumenLayout.epgMinBlockWidth)
                                             )
@@ -527,23 +517,10 @@ fun HomeScreen(
                             }
                         }
                     }
-                }
+            }
             }
         }
     }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    val t = LocalLumenTokens.current
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge,
-        color = t.colors.foreground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(horizontal = LumenLegacySpace.xxl, vertical = LumenLegacySpace.md)
-    )
 }
 
 @Composable
@@ -556,28 +533,38 @@ fun VODItemCard(
     Column(
         modifier = Modifier
             .width(LumenLayout.epgMinBlockWidth)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .padding(8.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = buildString {
+                    append(item.title)
+                    if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
+                        append(", ")
+                        append(reason)
+                    }
+                }
+            }
     ) {
         PosterCard(
             imageUrl = item.posterUrl,
-            onClick = onClick,
+            contentLabel = item.title,
+            enabled = false,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = item.title,
             color = t.colors.foreground,
-            fontSize = LumenType.size14,
-            fontWeight = FontWeight.Medium,
+            style = LumenType.Body.toTextStyle().copy(fontWeight = FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = LumenLegacySpace.sm2)
+            modifier = Modifier.padding(top = LumenTokens.Space.sm)
         )
         if (reason != null && reason.isNotBlank() && !reason.startsWith("poster:")) {
             Text(
                 text = reason,
                 color = t.colors.brand,
-                fontSize = LumenType.size11,
-                fontWeight = FontWeight.Medium,
+                style = LumenType.Eyebrow.toTextStyle(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -597,6 +584,12 @@ fun LiveChannelCard(
         modifier = Modifier
             .width(LumenLayout.posterTileWidth)
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = buildString {
+                    append(channelName)
+                    if (!category.isNullOrBlank()) append(", Category: $category")
+                }
+            }
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -604,19 +597,18 @@ fun LiveChannelCard(
         ) {
             AsyncImage(
                 model = logoUrl,
-                contentDescription = channelName,
+                contentDescription = null, // Set to null
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(LumenLayout.iconXl)
                     .clip(LumenTokens.Shape.md)
                     .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f))
             )
-            Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
             Text(
                 text = channelName,
                 color = t.colors.foreground,
-                fontSize = LumenType.size14,
-                fontWeight = FontWeight.Bold,
+                style = LumenType.Body.toTextStyle().copy(fontWeight = FontWeight.Bold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -624,10 +616,25 @@ fun LiveChannelCard(
                 Text(
                     text = category,
                     color = t.colors.brand,
-                    fontSize = LumenType.size12,
-                    fontWeight = FontWeight.Medium
+                    style = LumenType.Meta.toTextStyle(),
                 )
             }
         }
     }
+}
+
+@Composable
+private fun HomeScrollableRow(
+    spacing: androidx.compose.ui.unit.Dp,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = LumenTokens.Space.lg)
+            .padding(bottom = LumenTokens.Space.lg),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+        content = content,
+    )
 }

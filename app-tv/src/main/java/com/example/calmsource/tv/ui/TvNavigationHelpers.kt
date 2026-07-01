@@ -27,34 +27,13 @@ fun Modifier.openTvSidebarOnLeftKey(onOpenSidebar: () -> Unit): Modifier =
  * often block default vertical focus search on Fire TV / ring remotes.
  */
 fun Modifier.tvHomeVerticalRowNav(
-    rowIndex: Int,
-    rowKeys: List<String>,
-    rowEntryRequesters: Map<String, FocusRequester>,
-    upTarget: FocusRequester? = null,
+    onMoveDown: () -> Boolean,
+    onMoveUp: () -> Boolean,
 ): Modifier = onPreviewKeyEvent { event ->
     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
     when (event.key) {
-        Key.DirectionDown -> {
-            val nextKey = rowKeys.getOrNull(rowIndex + 1) ?: return@onPreviewKeyEvent false
-            rowEntryRequesters[nextKey]?.let { requester ->
-                runCatching { requester.requestFocus() }.isSuccess
-            } ?: false
-        }
-        Key.DirectionUp -> {
-            when {
-                rowIndex <= 0 -> {
-                    upTarget?.let { requester ->
-                        runCatching { requester.requestFocus() }.isSuccess
-                    } ?: false
-                }
-                else -> {
-                    val prevKey = rowKeys[rowIndex - 1]
-                    rowEntryRequesters[prevKey]?.let { requester ->
-                        runCatching { requester.requestFocus() }.isSuccess
-                    } ?: false
-                }
-            }
-        }
+        Key.DirectionDown -> onMoveDown()
+        Key.DirectionUp -> onMoveUp()
         else -> false
     }
 }

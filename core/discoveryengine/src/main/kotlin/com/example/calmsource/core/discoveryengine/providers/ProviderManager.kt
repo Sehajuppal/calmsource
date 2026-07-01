@@ -223,7 +223,7 @@ object ProviderManager {
         cacheStore?.clearAll()
     }
 
-    internal suspend fun recordResult(providerId: String, requestType: String, result: ProviderResult<*>) {
+    suspend fun recordResult(providerId: String, requestType: String, result: ProviderResult<*>) {
         val reg = registryStore ?: return
         val tel = telemetryStore ?: return
         val row = reg.get(providerId) ?: return

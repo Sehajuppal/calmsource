@@ -155,7 +155,7 @@ fun EpgGrid(
                 windowEndEpochMs = windowEndEpochMs,
                 pxPerMinute = pxPerMinute,
                 laneWidth = laneWidth,
-                hScrollPx = hScroll.value,
+                hScrollState = hScroll,
             )
         }
     }
@@ -295,7 +295,7 @@ private fun NowLine(
     windowEndEpochMs: Long,
     pxPerMinute: Dp,
     laneWidth: Dp,
-    hScrollPx: Int,
+    hScrollState: ScrollState,
 ) {
     if (nowMs < windowStartEpochMs || nowMs > windowEndEpochMs) return
     val minutesFromStart = ((nowMs - windowStartEpochMs) / MS_PER_MIN).toInt()
@@ -305,8 +305,9 @@ private fun NowLine(
         Box(
             Modifier
                 .offset(x = laneWidth + xInGrid)
-                // hScrollPx is consumed by the lane's horizontalScroll, so we subtract it.
-                .offset { androidx.compose.ui.unit.IntOffset(-hScrollPx, 0) }
+                // Read hScrollState.value inside the layout-phase lambda to avoid
+                // recomposition on every scroll pixel.
+                .offset { androidx.compose.ui.unit.IntOffset(-hScrollState.value, 0) }
                 .width(2.dp)
                 .fillMaxHeight()
                 .background(LumenTokens.Color.brand)

@@ -17,10 +17,10 @@ android {
 kotlin { jvmToolchain(17) }
 
 dependencies {
+    implementation("androidx.compose.material:material-icons-core")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(project(":core:model"))
     implementation(project(":core:playback"))
     implementation(project(":core:ui"))

@@ -46,6 +46,7 @@ import androidx.compose.material3.LocalTextStyle
 import com.example.calmsource.core.ui.components.TvFocusable
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
 import com.example.calmsource.core.ui.theme.LumenTokens
+import com.example.calmsource.core.ui.theme.LumenType
 import com.example.calmsource.core.ui.theme.surface
 
 
@@ -106,27 +107,25 @@ fun TvFocusCard(
  */
 @Composable
 fun TvSourceBadge(type: SourceType) {
-    val bgColor = when (type) {
-        SourceType.IPTV -> Color(0x3D10B981)
-        SourceType.EXTENSION -> Color(0x3D3B82F6)
-        SourceType.DEBRID -> Color(0x3DF59E0B)
-    }
-    val textColor = when (type) {
-        SourceType.IPTV -> Color(0xFF34D399)
-        SourceType.EXTENSION -> Color(0xFF60A5FA)
-        SourceType.DEBRID -> Color(0xFFFBBF24)
+    val t = LocalLumenTokens.current
+    val (bgColor, textColor) = when (type) {
+        SourceType.IPTV -> t.colors.success.copy(alpha = 0.15f) to t.colors.success
+        SourceType.EXTENSION -> t.colors.brand.copy(alpha = 0.15f) to t.colors.brandGlow
+        SourceType.DEBRID -> t.colors.warning.copy(alpha = 0.15f) to t.colors.warning
     }
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
             .background(bgColor)
+            .border(0.5.dp, textColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
             text = type.name,
             color = textColor,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
         )
     }
 }
@@ -291,8 +290,9 @@ fun TvCtaButton(
             Text(
                 text = text,
                 color = if (isFocused) t.colors.background else t.colors.brandForeground,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                style = LumenType.Body.toTextStyle(scale = LumenType.TV_SCALE).copy(
+                    fontWeight = FontWeight.Bold
+                )
             )
         }
     }

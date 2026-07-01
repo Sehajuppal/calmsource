@@ -98,7 +98,7 @@ fun TvProfileSelectionScreen(
                 modifier = Modifier.padding(bottom = LumenLegacySpace.xxl)
             ) { isFocused ->
                 Text(
-                    text = "Open Setup",
+                    text = "Open Settings",
                     color = if (isFocused) t.colors.foreground else t.colors.brand,
                     fontSize = LumenType.size16,
                     fontWeight = FontWeight.Bold,

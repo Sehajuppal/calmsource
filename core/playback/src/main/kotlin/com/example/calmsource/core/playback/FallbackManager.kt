@@ -2,13 +2,17 @@ package com.example.calmsource.core.playback
 
 import android.util.Log
 import com.example.calmsource.core.database.SourceHealthRepository
+import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import com.example.calmsource.core.model.AutoFallbackPolicy
 import com.example.calmsource.core.model.PlaybackSource
+import com.example.calmsource.core.model.SortingPreference
 import com.example.calmsource.core.model.UserPreferences
 import android.content.Context
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import com.example.calmsource.core.sourceintelligence.ranking.DeviceStreamProfile
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringEngine
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringInput
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
+import com.example.calmsource.core.sourceintelligence.ranking.toStreamSourceForScoring
 
 /**
  * Global fallback policy preference.
@@ -163,25 +167,50 @@ class FallbackManager {
         }
     }
 
-    suspend fun selectNextBestCandidate(): PlaybackSource? {
+    suspend fun selectNextBestCandidate(
+        prefs: UserPreferences = UserPreferencesRepository.preferences.value,
+        isTelevision: Boolean = false,
+    ): PlaybackSource? {
         val remaining = synchronized(this) {
             getRemainingCandidates()
         }
         if (remaining.isEmpty()) return null
         if (remaining.size == 1) return remaining.first()
 
-        val sorted = coroutineScope {
-            remaining.map { source ->
-                async(SourceHealthRepository.dispatcher) {
-                    val health = runCatching {
-                        SourceHealthRepository.getSourceHealth(sourceId = source.safeSourceId, readonly = true)
-                    }.getOrNull()
-                    val score = health?.healthScore ?: 100
-                    source to score
-                }
-            }.awaitAll()
-        }.sortedByDescending { it.second }
+        val strategy = if (prefs.preferHighestQuality) {
+            SortingPreference.HIGHEST_QUALITY
+        } else {
+            SortingPreference.BEST_MATCH
+        }
+        val deviceProfile = DeviceStreamProfile.forPlayback(isTelevision, prefs)
+        val healthById = StreamScoringSupport.prefetchSourceHealth(remaining.map { it.safeSourceId })
 
-        return sorted.firstOrNull()?.first
+        return remaining
+            .map { source ->
+                val score = runCatching {
+                    StreamScoringEngine.score(
+                        StreamScoringInput(
+                            source = source.toStreamSourceForScoring(),
+                            strategy = strategy,
+                            prefs = prefs,
+                            signals = StreamScoringSupport.signalsFromHealth(
+                                sourceHealth = healthById[source.safeSourceId],
+                            ),
+                            deviceProfile = deviceProfile,
+                        )
+                    )
+                }.getOrElse { error ->
+                    Log.w("FallbackManager", "Scoring failed for ${source.id}", error)
+                    healthById[source.safeSourceId]?.healthScore?.toDouble() ?: 0.0
+                }
+                source to score
+            }
+            .sortedWith(
+                compareByDescending<Pair<PlaybackSource, Double>> { it.second }
+                    .thenByDescending { healthById[it.first.safeSourceId]?.healthScore ?: 100 }
+                    .thenBy { it.first.id }
+            )
+            .firstOrNull()
+            ?.first
     }
 }

@@ -10,13 +10,15 @@ class Mission23TvWiringTest {
     @Test
     fun `TV exposes Library from the navigation rail`() {
         val source = readTvSource("TvMainActivity.kt")
+        val sidebar = readTvSource("ui/OptimizedAppleTvSidebar.kt")
 
         assertTrue(Regex("""data\s+object\s+Library\s*:\s*TvScreen""").containsMatchIn(source))
         assertTrue(Regex("""TvScreen\.Library\s*->\s*TvLibraryScreen\s*\(""").containsMatchIn(source))
         assertTrue(
-            "The TV navigation rail must expose Library",
-            Regex("TvNavRailItem\\s*\\(\\s*Icons\\.Default\\.Favorite\\s*,\\s*\"Library\"").containsMatchIn(source)
+            "The TV navigation sidebar must expose Library",
+            sidebar.contains("SidebarNavItem(2, \"Library\""),
         )
+        assertTrue(source.contains("OptimizedAppleTvSidebar("))
     }
 
     @Test

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -58,10 +59,20 @@ fun GlassSurface(
     val effectiveTint = if (canBlur) tint else tint.copy(alpha = (tint.alpha + 0.18f).coerceAtMost(0.96f))
 
     val blurModifier = if (canBlur) {
+        // Pre-allocate the RenderEffect in the composition phase instead of
+        // creating a new one on every frame inside graphicsLayer.
+        val blurEffect = remember(blurRadius) {
+            val radiusPx = blurRadius.value * android.content.res.Resources.getSystem().displayMetrics.density
+            if (radiusPx > 0f) {
+                RenderEffect
+                    .createBlurEffect(radiusPx, radiusPx, Shader.TileMode.CLAMP)
+                    .asComposeRenderEffect()
+            } else {
+                null
+            }
+        }
         Modifier.graphicsLayer {
-            renderEffect = RenderEffect
-                .createBlurEffect(blurRadius.toPx(), blurRadius.toPx(), Shader.TileMode.CLAMP)
-                .asComposeRenderEffect()
+            renderEffect = blurEffect
         }
     } else Modifier
 

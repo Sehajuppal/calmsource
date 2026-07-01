@@ -10,18 +10,54 @@ package com.example.calmsource.feature.iptv.xtream
  * every path segment breaks those portals — only known suffixes are removed.
  */
 object XtreamServerUrlNormalizer {
-    private val HOST_PORT_PATTERN = Regex("""^[a-zA-Z0-9.\-\[\]:]+:\d+$""")
+    internal val HOST_PORT_PATTERN = Regex("""^[a-zA-Z0-9.\-\[\]:]+:\d+$""")
+
+    /** Common Xtream panel ports when the user omits a port or uses only 80/443. */
+    private val COMMON_XTREAM_PORTS = listOf(8080, 25461, 25463, 8880, 8000, 2095, 80, 443)
+
+    private val java.net.URI.robustHost: String?
+        get() {
+            val h = this.host
+            if (h != null) return h
+            val auth = this.authority ?: return null
+            val temp = if (auth.contains('@')) auth.substringAfterLast('@') else auth
+            return if (temp.startsWith("[")) {
+                temp.substringBefore(']') + "]"
+            } else {
+                temp.substringBefore(':')
+            }.trim().takeIf { it.isNotEmpty() }
+        }
+
+    private val java.net.URI.robustPort: Int
+        get() {
+            val p = this.port
+            if (p != -1) return p
+            val auth = this.authority ?: return -1
+            val temp = if (auth.contains('@')) auth.substringAfterLast('@') else auth
+            val portString = if (temp.startsWith("[")) {
+                temp.substringAfter(']', "")
+            } else {
+                if (temp.contains(':')) temp.substringAfter(':', "") else ""
+            }
+            val cleanPortString = if (portString.startsWith(":")) portString.substring(1) else portString
+            return cleanPortString.toIntOrNull() ?: -1
+        }
 
     /**
      * Prepares raw user input before validation/normalization: trims, adds `http://`
-     * when the user pasted `host:port`, and strips embedded `user:pass@` from the URL.
+     * when the user pasted `host:port` or a bare hostname, and strips embedded `user:pass@`.
      */
     fun preprocessPortalInput(serverUrl: String): String {
         var trimmed = serverUrl.trim()
         if (trimmed.isBlank()) return trimmed
         trimmed = stripUserInfo(trimmed)
         if (!trimmed.lowercase().startsWith("http://") && !trimmed.lowercase().startsWith("https://")) {
-            if (HOST_PORT_PATTERN.matches(trimmed)) {
+            val colonIndex = trimmed.indexOf(':')
+            val slashIndex = trimmed.indexOf('/')
+            val hasNonHttpScheme = colonIndex >= 0 &&
+                (slashIndex < 0 || colonIndex < slashIndex) &&
+                !HOST_PORT_PATTERN.matches(trimmed)
+            if (!hasNonHttpScheme && (HOST_PORT_PATTERN.matches(trimmed) || !trimmed.contains("/"))) {
                 trimmed = "http://$trimmed"
             }
         }
@@ -29,20 +65,20 @@ object XtreamServerUrlNormalizer {
     }
 
     internal fun stripUserInfo(serverUrl: String): String {
-        return try {
-            val uri = java.net.URI(serverUrl.trim())
-            if (uri.userInfo.isNullOrBlank()) return serverUrl.trim()
-            val port = uri.port
-            val authority = if (port > 0) {
-                "${uri.host}:$port"
-            } else {
-                uri.host
-            }
-            val rebuilt = java.net.URI(uri.scheme, authority, uri.path, uri.query, uri.fragment)
-            rebuilt.toString()
-        } catch (_: Exception) {
-            serverUrl.trim()
-        }
+        val trimmed = serverUrl.trim()
+        val schemeSeparator = "://"
+        val schemeIndex = trimmed.indexOf(schemeSeparator)
+        val scheme = if (schemeIndex != -1) trimmed.substring(0, schemeIndex + schemeSeparator.length) else ""
+        val rest = if (schemeIndex != -1) trimmed.substring(schemeIndex + schemeSeparator.length) else trimmed
+        
+        val authorityEnd = rest.indexOfFirst { it == '/' || it == '?' || it == '#' }
+        val authority = if (authorityEnd != -1) rest.substring(0, authorityEnd) else rest
+        val pathAndQuery = if (authorityEnd != -1) rest.substring(authorityEnd) else ""
+        
+        if (!authority.contains('@')) return trimmed
+        
+        val hostPort = authority.substringAfterLast('@')
+        return scheme + hostPort + pathAndQuery
     }
 
     fun alternateSchemeUrl(normalizedUrl: String): String? {
@@ -67,7 +103,12 @@ object XtreamServerUrlNormalizer {
         httpsPort: Int,
         serverProtocol: String
     ): String {
-        val userHost = extractHost(normalizedUserUrl) ?: return normalizedUserUrl
+        val normalizedUser = normalizePortalUrl(normalizedUserUrl) ?: normalizedUserUrl.trim()
+        if (hasExplicitNonDefaultPort(normalizedUser)) {
+            // User supplied a working host:port — never override with server_info https/443.
+            return normalizedUser
+        }
+        val userHost = extractHost(normalizedUser) ?: return normalizedUser
         val infoHost = serverUrl.trim()
         val hostForCatalog = when {
             infoHost.isBlank() -> userHost
@@ -75,7 +116,7 @@ object XtreamServerUrlNormalizer {
             else -> userHost
         }
         return canonicalizeFromServerInfo(
-            normalizedUserUrl = normalizedUserUrl,
+            normalizedUserUrl = normalizedUser,
             serverUrl = hostForCatalog,
             port = port,
             httpsPort = httpsPort,
@@ -83,9 +124,50 @@ object XtreamServerUrlNormalizer {
         )
     }
 
+    /**
+     * Expands a portal base URL into auth candidates: primary, alternate scheme, then common
+     * Xtream ports when the URL uses implicit 80/443 or no port.
+     */
+    fun expandAuthBaseUrls(normalizedBaseUrl: String): List<String> {
+        val normalized = normalizePortalUrl(normalizedBaseUrl)
+            ?: normalizedBaseUrl.trim().trimEnd('/').substringBefore('?')
+        val result = linkedSetOf<String>()
+        result.add(normalized)
+        alternateSchemeUrl(normalized)?.let { result.add(it) }
+
+        val uri = runCatching { java.net.URI(normalized) }.getOrNull() ?: return result.toList()
+        val host = uri.robustHost?.trim()?.takeIf { it.isNotBlank() } ?: return result.toList()
+        if (!usesDefaultOrImplicitPort(uri)) return result.toList()
+
+        val pathSuffix = extractSubdirectoryPath(normalized).orEmpty()
+        for (port in COMMON_XTREAM_PORTS) {
+            if (uri.robustPort == port) continue
+            result.add("http://$host:$port$pathSuffix")
+            if (port == 443 || port == 25463) {
+                result.add("https://$host:$port$pathSuffix")
+            }
+        }
+        return result.toList()
+    }
+
+    internal fun hasExplicitNonDefaultPort(normalizedUrl: String): Boolean {
+        val uri = runCatching { java.net.URI(normalizedUrl.trim()) }.getOrNull() ?: return false
+        val port = uri.robustPort
+        if (port <= 0) return false
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        return !((scheme == "http" && port == 80) || (scheme == "https" && port == 443))
+    }
+
+    internal fun usesDefaultOrImplicitPort(uri: java.net.URI): Boolean {
+        val port = uri.robustPort
+        if (port <= 0) return true
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        return (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
+    }
+
     internal fun extractHost(normalizedUrl: String): String? {
         return try {
-            java.net.URI(normalizedUrl.trim()).host?.trim()?.takeIf { it.isNotBlank() }
+            java.net.URI(normalizedUrl.trim()).robustHost?.trim()?.takeIf { it.isNotBlank() }
         } catch (_: Exception) {
             null
         }
@@ -93,7 +175,8 @@ object XtreamServerUrlNormalizer {
 
     internal fun hostsEquivalent(userHost: String, serverInfoHost: String): Boolean {
         val user = userHost.trim().lowercase()
-        val info = serverInfoHost.trim().lowercase()
+        val infoRaw = serverInfoHost.trim().lowercase()
+        val info = (runCatching { java.net.URI(infoRaw) }.getOrNull()?.robustHost ?: infoRaw).lowercase()
         if (user.isBlank() || info.isBlank()) return false
         return user == info || user.endsWith(".$info") || info.endsWith(".$user")
     }
@@ -109,7 +192,8 @@ object XtreamServerUrlNormalizer {
         httpsPort: Int,
         serverProtocol: String
     ): String {
-        val host = serverUrl.trim()
+        val hostRaw = serverUrl.trim()
+        val host = runCatching { java.net.URI(hostRaw) }.getOrNull()?.robustHost ?: hostRaw
         if (host.isBlank()) return normalizedUserUrl
         val protocol = when (serverProtocol.trim().lowercase()) {
             "https" -> "https"
@@ -148,8 +232,8 @@ object XtreamServerUrlNormalizer {
         return try {
             val uri = java.net.URI(serverUrl.trim())
             val scheme = uri.scheme ?: return null
-            val host = uri.host ?: return null
-            val port = uri.port
+            val host = uri.robustHost ?: return null
+            val port = uri.robustPort
             val isDefaultPort = (scheme.equals("http", ignoreCase = true) && port == 80) ||
                 (scheme.equals("https", ignoreCase = true) && port == 443)
             val authority = if (port > 0 && !isDefaultPort) {

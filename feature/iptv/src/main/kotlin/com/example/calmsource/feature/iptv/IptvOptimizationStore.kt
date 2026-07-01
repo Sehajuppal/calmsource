@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object IptvOptimizationStore {
+    private const val TAG = "IptvOptimizationStore"
     private const val FILE_NAME = "iptv_optimization"
     private const val LANGUAGES = "languages"
     private const val COUNTRY = "country"
@@ -26,40 +27,86 @@ object IptvOptimizationStore {
         _preferences.value = readPreferences()
     }
 
-    fun update(transform: (IptvOptimizationPreferences) -> IptvOptimizationPreferences) {
+    fun update(transform: (IptvOptimizationPreferences) -> IptvOptimizationPreferences) = synchronized(this) {
         val updated = transform(_preferences.value)
         _preferences.value = updated
         persist(updated)
     }
 
-    fun reset() {
+    fun reset() = synchronized(this) {
         val defaults = defaultPreferences()
         _preferences.value = defaults
         appContext?.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)?.edit()?.clear()?.apply()
     }
 
-    private fun readPreferences(): IptvOptimizationPreferences {
+    private fun readPreferences(): IptvOptimizationPreferences = synchronized(this) {
         val sharedPreferences = appContext
             ?.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
             ?: return defaultPreferences()
         val defaults = defaultPreferences()
+
+        val preferredLanguages = try {
+            sharedPreferences.getStringSet(LANGUAGES, defaults.preferredLanguages)?.toSet() ?: defaults.preferredLanguages
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to read preferredLanguages; using defaults", e)
+            defaults.preferredLanguages
+        }
+
+        val preferredCountry = try {
+            sharedPreferences.getString(COUNTRY, defaults.preferredCountry).orEmpty()
+        } catch (_: Exception) {
+            defaults.preferredCountry
+        }
+
+        val favoriteCategories = try {
+            sharedPreferences.getStringSet(CATEGORIES, defaults.favoriteCategories)?.toSet() ?: defaults.favoriteCategories
+        } catch (_: Exception) {
+            defaults.favoriteCategories
+        }
+
+        val hideAdult = try {
+            sharedPreferences.getBoolean(HIDE_ADULT, defaults.hideAdult)
+        } catch (_: Exception) {
+            defaults.hideAdult
+        }
+
+        val hideUnsupported = try {
+            sharedPreferences.getBoolean(HIDE_UNSUPPORTED, defaults.hideUnsupported)
+        } catch (_: Exception) {
+            defaults.hideUnsupported
+        }
+
+        val preferHighQuality = try {
+            sharedPreferences.getBoolean(PREFER_HIGH_QUALITY, defaults.preferHighQuality)
+        } catch (_: Exception) {
+            defaults.preferHighQuality
+        }
+
+        val removeDuplicates = try {
+            sharedPreferences.getBoolean(REMOVE_DUPLICATES, defaults.removeDuplicates)
+        } catch (_: Exception) {
+            defaults.removeDuplicates
+        }
+
+        val groupMode = try {
+            IptvGroupMode.valueOf(
+                sharedPreferences.getString(GROUP_MODE, defaults.groupMode.name)
+                    ?: defaults.groupMode.name
+            )
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to read groupMode; using defaults", e)
+            defaults.groupMode
+        }
+
         return IptvOptimizationPreferences(
-            preferredLanguages = sharedPreferences
-                .getStringSet(LANGUAGES, defaults.preferredLanguages)
-                ?.toSet()
-                .orEmpty(),
-            preferredCountry = sharedPreferences.getString(COUNTRY, "").orEmpty(),
-            favoriteCategories = sharedPreferences.getStringSet(CATEGORIES, emptySet())?.toSet().orEmpty(),
-            hideAdult = sharedPreferences.getBoolean(HIDE_ADULT, true),
-            hideUnsupported = sharedPreferences.getBoolean(HIDE_UNSUPPORTED, true),
-            preferHighQuality = sharedPreferences.getBoolean(PREFER_HIGH_QUALITY, true),
-            removeDuplicates = sharedPreferences.getBoolean(REMOVE_DUPLICATES, true),
-            groupMode = runCatching {
-                IptvGroupMode.valueOf(
-                    sharedPreferences.getString(GROUP_MODE, IptvGroupMode.CATEGORY.name)
-                        ?: IptvGroupMode.CATEGORY.name
-                )
-            }.getOrDefault(IptvGroupMode.CATEGORY)
+            preferredLanguages = preferredLanguages,
+            preferredCountry = preferredCountry,
+            favoriteCategories = favoriteCategories,
+            hideAdult = hideAdult,
+            hideUnsupported = hideUnsupported,
+            preferHighQuality = preferHighQuality,
+            removeDuplicates = removeDuplicates,
+            groupMode = groupMode
         )
     }
 

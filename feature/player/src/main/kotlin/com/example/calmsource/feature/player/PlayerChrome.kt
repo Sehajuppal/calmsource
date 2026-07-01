@@ -46,13 +46,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ClosedCaption
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,11 +57,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.calmsource.core.ui.components.GlassSurface
 import com.example.calmsource.core.ui.theme.LumenTokens
 import com.example.calmsource.core.ui.theme.LumenType
+import com.example.calmsource.core.ui.theme.LocalLumenIsTv
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -132,7 +129,7 @@ fun PlayerChrome(
 
     // Auto-hide after 3s; never hide while a sheet is open or while buffering.
     LaunchedEffect(lastInteractAt, sheet, state.isBuffering, state.isPlaying, visible) {
-        if (!isTv || !visible || !state.isPlaying || sheet != Sheet.None || state.isBuffering) return@LaunchedEffect
+        if (!visible || !state.isPlaying || sheet != Sheet.None || state.isBuffering) return@LaunchedEffect
         delay(3_000)
         if (System.currentTimeMillis() - lastInteractAt >= 2_900) setVisible(false)
     }
@@ -177,7 +174,13 @@ fun PlayerChrome(
             )
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { touch() },
+                    onTap = {
+                        if (!isTv && visible) {
+                            setVisible(false)
+                        } else {
+                            touch()
+                        }
+                    },
                     onDoubleTap = { offset ->
                         // Double-tap left/right half ±10s (mobile only).
                         if (isTv) return@detectTapGestures
@@ -278,7 +281,7 @@ private fun ChromeLayer(
                             label = "Previous",
                             onClick = { actions.onPrev(); onInteract() },
                         ) {
-                            Icon(Icons.Default.SkipPrevious, null, tint = LumenTokens.Color.textPrimary)
+                            Icon(painter = painterResource(CoreUiR.drawable.ic_skip_previous), contentDescription = null, tint = LumenTokens.Color.textPrimary)
                         }
                     }
                     PlayerControlButton(
@@ -287,11 +290,19 @@ private fun ChromeLayer(
                         onClick = { actions.onPlayPause(); onInteract() },
                         modifier = if (isTv) Modifier.focusRequester(playPauseFocusRequester) else Modifier,
                     ) {
-                        Icon(
-                            if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
-                            tint = LumenTokens.Color.textPrimary,
-                        )
+                        if (state.isPlaying) {
+                            Icon(
+                                painter = painterResource(CoreUiR.drawable.ic_pause),
+                                contentDescription = "Pause",
+                                tint = LumenTokens.Color.textPrimary,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play",
+                                tint = LumenTokens.Color.textPrimary,
+                            )
+                        }
                     }
                     if (state.hasNext) {
                         PlayerControlButton(
@@ -299,7 +310,7 @@ private fun ChromeLayer(
                             label = "Next",
                             onClick = { actions.onNext(); onInteract() },
                         ) {
-                            Icon(Icons.Default.SkipNext, null, tint = LumenTokens.Color.textPrimary)
+                            Icon(painter = painterResource(CoreUiR.drawable.ic_skip_next), contentDescription = null, tint = LumenTokens.Color.textPrimary)
                         }
                     }
                     Spacer(Modifier.weight(1f))
@@ -315,7 +326,7 @@ private fun ChromeLayer(
                             label = "Audio",
                             onClick = { openSheet(Sheet.Audio) },
                         ) {
-                            Icon(Icons.Default.GraphicEq, "Audio", tint = LumenTokens.Color.textPrimary)
+                            Icon(painter = painterResource(CoreUiR.drawable.ic_graphic_eq), contentDescription = "Audio", tint = LumenTokens.Color.textPrimary)
                         }
                     }
                     if (state.subtitleTracks.isNotEmpty()) {
@@ -324,7 +335,7 @@ private fun ChromeLayer(
                             label = "Subtitles",
                             onClick = { openSheet(Sheet.Subtitle) },
                         ) {
-                            Icon(Icons.Default.ClosedCaption, "Subtitles", tint = LumenTokens.Color.textPrimary)
+                            Icon(painter = painterResource(CoreUiR.drawable.ic_closed_caption), contentDescription = "Subtitles", tint = LumenTokens.Color.textPrimary)
                         }
                     }
                     if (state.qualityOptions.isNotEmpty()) {
@@ -333,7 +344,7 @@ private fun ChromeLayer(
                             label = "Quality",
                             onClick = { openSheet(Sheet.Quality) },
                         ) {
-                            Icon(Icons.Default.HighQuality, "Quality", tint = LumenTokens.Color.textPrimary)
+                            Icon(painter = painterResource(CoreUiR.drawable.ic_high_quality), contentDescription = "Quality", tint = LumenTokens.Color.textPrimary)
                         }
                     }
                 }
@@ -403,26 +414,45 @@ private fun TrackSheet(
     onSelect: (TrackOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val isTv = LocalLumenIsTv.current
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onDismiss), contentAlignment = Alignment.BottomCenter) {
         GlassSurface(modifier = Modifier.fillMaxWidth(), shape = LumenTokens.Shape.xl, strong = true) {
             Column(Modifier.padding(20.dp)) {
                 Text(title, style = LumenType.H2.toTextStyle(), color = LumenTokens.Color.textPrimary)
                 Spacer(Modifier.height(12.dp))
                 tracks.forEach { t ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(t) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            t.label + (t.language?.let { " · $it" } ?: ""),
-                            style = LumenType.Body.toTextStyle(),
-                            color = if (t.selected) LumenTokens.Color.brand else LumenTokens.Color.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (t.selected) Text("✓", color = LumenTokens.Color.brand)
+                    val rowContent = @Composable {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                t.label + (t.language?.let { " · $it" } ?: ""),
+                                style = LumenType.Body.toTextStyle(),
+                                color = if (t.selected) LumenTokens.Color.brand else LumenTokens.Color.textPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (t.selected) Text("✓", color = LumenTokens.Color.brand)
+                        }
+                    }
+                    if (isTv) {
+                        TvFocusable(
+                            onClick = { onSelect(t) },
+                            cornerRadius = LumenTokens.Radius.md,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            rowContent()
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(t) }
+                        ) {
+                            rowContent()
+                        }
                     }
                 }
             }
@@ -436,24 +466,46 @@ private fun QualitySheet(
     onSelect: (QualityOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val isTv = LocalLumenIsTv.current
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onDismiss), contentAlignment = Alignment.BottomCenter) {
         GlassSurface(modifier = Modifier.fillMaxWidth(), shape = LumenTokens.Shape.xl, strong = true) {
             Column(Modifier.padding(20.dp)) {
                 Text("Quality", style = LumenType.H2.toTextStyle(), color = LumenTokens.Color.textPrimary)
                 Spacer(Modifier.height(12.dp))
                 qualities.forEach { q ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onSelect(q) }.padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            q.label,
-                            style = LumenType.Body.toTextStyle(),
-                            color = if (q.selected) LumenTokens.Color.brand else LumenTokens.Color.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        q.bitrateKbps?.let {
-                            Text("${it} kbps", style = LumenType.Meta.toTextStyle(), color = LumenTokens.Color.textSecondary)
+                    val rowContent = @Composable {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                q.label,
+                                style = LumenType.Body.toTextStyle(),
+                                color = if (q.selected) LumenTokens.Color.brand else LumenTokens.Color.textPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            q.bitrateKbps?.let {
+                                Text("${it} kbps", style = LumenType.Meta.toTextStyle(), color = LumenTokens.Color.textSecondary)
+                            }
+                        }
+                    }
+                    if (isTv) {
+                        TvFocusable(
+                            onClick = { onSelect(q) },
+                            cornerRadius = LumenTokens.Radius.md,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            rowContent()
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(q) }
+                        ) {
+                            rowContent()
                         }
                     }
                 }

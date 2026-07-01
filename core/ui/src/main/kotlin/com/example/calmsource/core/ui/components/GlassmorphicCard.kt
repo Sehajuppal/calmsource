@@ -56,23 +56,27 @@ fun GlassmorphicCard(
 
     val t = LocalLumenTokens.current
     val cardShape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
-    val glassBg = remember(isActive, applyGlassFill) {
+    val glassBg = remember(isActive, applyGlassFill, t) {
         if (!applyGlassFill) {
             null
         } else if (isActive) {
-            Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEAEAEA)))
-        } else {
-            Brush.verticalGradient(listOf(Color(0x66332722), Color(0xB31A1412)))
-        }
-    }
-    val borderBrush = remember(isActive, isTv) {
-        if (isActive && isTv) {
             Brush.verticalGradient(
-                listOf(t.colors.brand, t.colors.brand.copy(alpha = 0.45f)),
+                listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.06f))
             )
         } else {
             Brush.verticalGradient(
-                listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.02f)),
+                listOf(t.colors.muted.copy(alpha = 0.4f), t.colors.background.copy(alpha = 0.7f))
+            )
+        }
+    }
+    val borderBrush = remember(isActive, isTv, t) {
+        if (isActive) {
+            Brush.verticalGradient(
+                listOf(t.colors.brand, t.colors.brand.copy(alpha = 0.5f))
+            )
+        } else {
+            Brush.verticalGradient(
+                listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.02f))
             )
         }
     }

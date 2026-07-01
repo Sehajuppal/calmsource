@@ -13,11 +13,11 @@ interface ExtensionDao {
     fun getExtensionById(id: String): Flow<ExtensionProviderEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertExtension(extension: ExtensionProviderEntity)
+    fun insertExtension(extension: ExtensionProviderEntity): Long
 
     @Update
-    fun updateExtension(extension: ExtensionProviderEntity)
+    fun updateExtension(extension: ExtensionProviderEntity): Int
 
     @Delete
-    fun deleteExtension(extension: ExtensionProviderEntity)
+    fun deleteExtension(extension: ExtensionProviderEntity): Int
 }

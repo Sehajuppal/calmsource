@@ -23,7 +23,9 @@ package com.example.calmsource.feature.search
 import com.example.calmsource.core.model.*
 import com.example.calmsource.feature.extensions.ExtensionRepository
 import com.example.calmsource.core.database.SourceHealthRepository
-import com.example.calmsource.core.sourceintelligence.models.toRawSourceInput
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringEngine
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringInput
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
 
 private data class HealthLabelEntry(val label: String, val timestamp: Long)
 
@@ -89,175 +91,25 @@ object SearchResultRanker {
         prefs: UserPreferences,
         debridCacheMap: Map<String, Boolean> = emptyMap()
     ): Int {
-        var score = 0
-
-        // Fetch Intelligence Features
-        val intelligence = com.example.calmsource.core.sourceintelligence.SourceIntelligence.process(
-            source.toRawSourceInput(),
-            lowDataModeEnabled = prefs.preferLowerDataUsage
-        )
-        val rankingFeatures = intelligence.rankingFeatures
-
-        // 1. Language matching
-        if (source.language.equals(prefs.primaryLanguage, ignoreCase = true)) {
-            score += ScoringConstants.PRIMARY_LANGUAGE_BONUS
-        } else if (source.language.equals(prefs.secondaryLanguage, ignoreCase = true)) {
-            score += ScoringConstants.SECONDARY_LANGUAGE_BONUS
-        } else {
-            score += ScoringConstants.FOREIGN_LANGUAGE_PENALTY
-        }
-
-        // 2. Dual Audio & dubbing preferences
-        if (source.isDualAudio && prefs.preferDualAudio) {
-            score += ScoringConstants.DUAL_AUDIO_BONUS
-        }
-        if (source.isDubbed && prefs.preferDubbedAudio) {
-            score += ScoringConstants.DUBBED_AUDIO_BONUS
-        }
-        if (source.isSubbed && source.language.equals(prefs.subtitleLanguage, ignoreCase = true)) {
-            score += ScoringConstants.SUBTITLE_MATCH_BONUS
-        }
-
-        // 3. Source types preferences
-        val isDebrid = source.extensionId.startsWith("deb-")
-        val isIptv = source.isIptvSource()
-
-        if (isIptv && prefs.preferIptvExactMatch) {
-            score += ScoringConstants.IPTV_EXACT_MATCH_BONUS
-        }
-        if (isDebrid) {
-            // Query debrid cache availability via the repository.
-            // Extracts the real torrent info-hash from a magnet URL when available;
-            // skips the cache check entirely if no real hash can be determined.
-            val isCached = try {
-                val hash = if (source.url.startsWith("magnet:")) {
-                    source.url.lowercase().substringAfter("btih:").substringBefore("&").takeIf { it.isNotEmpty() }
-                } else {
-                    null
-                }
-                if (hash != null) {
-                    val precomputed = debridCacheMap[hash]
-                    if (precomputed != null) {
-                        precomputed
-                    } else {
-                        val accounts = com.example.calmsource.feature.debrid.DebridRepository.listAccounts()
-                        val connectedAccount = accounts.firstOrNull { it.isConnected }
-                        if (connectedAccount != null) {
-                            val cacheResult = com.example.calmsource.feature.debrid.DebridRepository.checkCachedAvailability(
-                                connectedAccount.providerType,
-                                listOf(hash)
-                            )
-                            cacheResult[hash]?.isCached ?: false
-                        } else {
-                            false
-                        }
-                    }
-                } else {
-                    false
-                }
-            } catch (_: Exception) {
-                false
-            }
-
-            if (isCached) {
-                score += ScoringConstants.DEBRID_CACHED_BONUS
-            }
-            if (prefs.preferCachedDebrid && isCached) {
-                score += ScoringConstants.DEBRID_PREFERRED_CACHED_BONUS
-            }
-        }
-
-
-        // 4. Resolution scaling
-        val resHeight = if (rankingFeatures.resolutionHeight > 0) {
-            rankingFeatures.resolutionHeight
-        } else {
-            when (source.resolution.uppercase()) {
-                "8K", "4320P" -> 4320
-                "4K", "2160P" -> 2160
-                "1440P" -> 1440
-                "1080P" -> 1080
-                "720P" -> 720
-                "SD", "480P", "576P" -> 480
-                else -> 0
-            }
-        }
-
-        when {
-            resHeight >= 2160 -> score += ScoringConstants.RESOLUTION_4K
-            resHeight >= 1080 -> score += ScoringConstants.RESOLUTION_1080P
-            resHeight >= 720 -> score += ScoringConstants.RESOLUTION_720P
-            resHeight > 0 -> {
-                if (prefs.hideLowQuality) score += ScoringConstants.LOW_QUALITY_PENALTY else score += ScoringConstants.RESOLUTION_SD
-            }
-            else -> score += ScoringConstants.RESOLUTION_UNKNOWN
-        }
-
-        if (prefs.preferHighestQuality && resHeight >= 1080) {
-            score += ScoringConstants.HIGH_QUALITY_PREFERENCE_BONUS
-        }
-
-        if (rankingFeatures.isHugeSize && !prefs.preferHighestQuality) {
-            // "Do not let huge file size automatically beat a balanced 1080p source."
-            score -= 20
-        }
-
-        // Add practicalScore impact (-50 to +50)
-        score += rankingFeatures.practicalScore - 50
-
-        // 5. Seeds / Quality signals
-        source.seeds?.let {
-            score += (it / ScoringConstants.SEED_DIVISOR).coerceAtMost(ScoringConstants.MAX_SEEDS_BONUS)
-        }
-
-        // 6. Provider Health adjustments
-        val health = getProviderHealth(source.extensionId)
-        when (health) {
-            ProviderHealth.HEALTHY -> score += ScoringConstants.PROVIDER_HEALTHY_BONUS
-            ProviderHealth.SLOW -> score += ScoringConstants.PROVIDER_SLOW_PENALTY
-            ProviderHealth.FAILED -> score += ScoringConstants.PROVIDER_FAILED_PENALTY
-        }
-
-        // 7. Provider Priority adjustments
-        val priority = getProviderPriority(source.extensionId)
-        if (priority != null) {
-            score += (100 - priority).coerceAtLeast(0)
-        }
-
-        // 8. Source and Provider health persistence lookup & scoring
+        val isDebridCached = resolveDebridCached(source, debridCacheMap)
         val sourceHealth = SourceHealthRepository.getSourceHealth(source.id, readonly = true)
+        val providerHealthDb = SourceHealthRepository.getProviderHealth(source.extensionId, readonly = true)
+
         var label: String? = null
         if (sourceHealth != null) {
-            when (sourceHealth.reliabilityTier) {
-                SourceReliabilityTier.BLOCKED -> score += ScoringConstants.SOURCE_BLOCKED_PENALTY
-                SourceReliabilityTier.POOR -> score += ScoringConstants.SOURCE_POOR_PENALTY
-                SourceReliabilityTier.UNSTABLE -> score += ScoringConstants.SOURCE_UNSTABLE_PENALTY
-                SourceReliabilityTier.EXCELLENT -> score += ScoringConstants.SOURCE_EXCELLENT_BOOST
-                else -> { /* Good, Unknown do not get penalty/boost */ }
-            }
-            
-            // lastSuccessTime within 24 hours: +100
             val oneDayAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000L)
-            if (sourceHealth.lastSuccessTime > oneDayAgo) {
-                score += ScoringConstants.SOURCE_RECENT_SUCCESS_BOOST
-            }
-
             label = when {
                 sourceHealth.userHidden || sourceHealth.reliabilityTier == SourceReliabilityTier.BLOCKED -> "Failed recently"
                 sourceHealth.reliabilityTier == SourceReliabilityTier.POOR -> "Failed recently"
                 sourceHealth.reliabilityTier == SourceReliabilityTier.UNSTABLE -> "Unstable"
                 sourceHealth.lastSuccessTime > oneDayAgo -> "Recently worked"
-                sourceHealth.reliabilityTier == SourceReliabilityTier.EXCELLENT || sourceHealth.reliabilityTier == SourceReliabilityTier.GOOD -> "Reliable"
+                sourceHealth.reliabilityTier == SourceReliabilityTier.EXCELLENT ||
+                    sourceHealth.reliabilityTier == SourceReliabilityTier.GOOD -> "Reliable"
                 else -> null
             }
         }
-
-        val providerHealthDb = SourceHealthRepository.getProviderHealth(source.extensionId, readonly = true)
-        if (providerHealthDb != null && providerHealthDb.healthScore < 40) {
-            score += ScoringConstants.PROVIDER_UNHEALTHY_PENALTY
-            if (label == null) {
-                label = "Unstable"
-            }
+        if (label == null && providerHealthDb != null && providerHealthDb.healthScore < 40) {
+            label = "Unstable"
         }
 
         synchronized(healthLabelCache) {
@@ -268,7 +120,60 @@ object SearchResultRanker {
             }
         }
 
-        return score
+        return StreamScoringEngine.score(
+            StreamScoringInput(
+                source = source,
+                strategy = if (prefs.preferHighestQuality) {
+                    SortingPreference.HIGHEST_QUALITY
+                } else {
+                    SortingPreference.BEST_MATCH
+                },
+                prefs = prefs,
+                signals = StreamScoringSupport.signalsFromHealth(
+                    sourceHealth = sourceHealth,
+                    providerHealth = getProviderHealth(source.extensionId),
+                    providerPriority = getProviderPriority(source.extensionId),
+                    providerHealthScore = providerHealthDb?.healthScore,
+                    isDebridCached = isDebridCached,
+                )
+            )
+        ).toInt()
+    }
+
+    private suspend fun resolveDebridCached(
+        source: StreamSource,
+        debridCacheMap: Map<String, Boolean>,
+    ): Boolean {
+        if (!source.extensionId.startsWith("deb-")) return false
+        return try {
+            val hash = if (source.url.startsWith("magnet:")) {
+                source.url.lowercase().substringAfter("btih:").substringBefore("&").takeIf { it.isNotEmpty() }
+            } else {
+                null
+            }
+            if (hash != null) {
+                val precomputed = debridCacheMap[hash]
+                if (precomputed != null) {
+                    precomputed
+                } else {
+                    val accounts = com.example.calmsource.feature.debrid.DebridRepository.listAccounts()
+                    val connectedAccount = accounts.firstOrNull { it.isConnected }
+                    if (connectedAccount != null) {
+                        val cacheResult = com.example.calmsource.feature.debrid.DebridRepository.checkCachedAvailability(
+                            connectedAccount.providerType,
+                            listOf(hash)
+                        )
+                        cacheResult[hash]?.isCached ?: false
+                    } else {
+                        false
+                    }
+                }
+            } else {
+                false
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     // SEARCH-BUG-5: Build lookup maps once instead of O(N×M) linear scans per call
@@ -276,20 +181,28 @@ object SearchResultRanker {
     private var iptvProviderMapCache: Map<String, com.example.calmsource.core.model.IPTVProvider>? = null
 
     internal fun invalidateLookupCaches() {
-        extensionMapCache = null
-        iptvProviderMapCache = null
+        synchronized(this) {
+            extensionMapCache = null
+            iptvProviderMapCache = null
+        }
     }
 
     private fun getExtensionMap(): Map<String, com.example.calmsource.core.model.ExtensionProvider> {
-        return extensionMapCache ?: com.example.calmsource.feature.extensions.ExtensionRepository.getExtensions()
-            .associateBy { it.id }
-            .also { extensionMapCache = it }
+        synchronized(this) {
+            extensionMapCache?.let { return it }
+            return com.example.calmsource.feature.extensions.ExtensionRepository.getExtensions()
+                .associateBy { it.id }
+                .also { extensionMapCache = it }
+        }
     }
 
     private fun getIptvProviderMap(): Map<String, com.example.calmsource.core.model.IPTVProvider> {
-        return iptvProviderMapCache ?: com.example.calmsource.feature.iptv.IPTVRepository.providers.value
-            .associateBy { it.id }
-            .also { iptvProviderMapCache = it }
+        synchronized(this) {
+            iptvProviderMapCache?.let { return it }
+            return com.example.calmsource.feature.iptv.IPTVRepository.providers.value
+                .associateBy { it.id }
+                .also { iptvProviderMapCache = it }
+        }
     }
 
     private fun getProviderPriority(extensionId: String): Int? {

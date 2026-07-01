@@ -15,7 +15,10 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import kotlinx.serialization.json.Json
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okio.buffer
+import java.util.concurrent.TimeUnit
 
 /**
  * Singleton providing a globally configured HTTP client for secure network operations.
@@ -37,7 +40,20 @@ object NetworkClient {
     private const val XTREAM_TIMEOUT_MILLIS = 120_000L
     private const val DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024L
     private const val XTREAM_MAX_RESPONSE_BYTES = 100 * 1024 * 1024L
+    private const val IPTV_MAX_RESPONSE_BYTES = 256 * 1024 * 1024L
     private const val MAX_REDIRECTS = 5
+
+    // Shared OkHttp connection pool and dispatcher for all Ktor clients.
+    // Avoids creating 4 separate pools/dispatchers which wastes threads and sockets.
+    private val sharedConnectionPool = ConnectionPool(
+        maxIdleConnections = 5,
+        keepAliveDuration = 30,
+        timeUnit = TimeUnit.SECONDS
+    )
+    private val sharedDispatcher = Dispatcher().apply {
+        maxRequests = 64
+        maxRequestsPerHost = 10
+    }
     private const val XTREAM_USER_AGENT =
         "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
     private val SENSITIVE_REDIRECT_HEADERS = listOf(
@@ -98,10 +114,10 @@ object NetworkClient {
         return false
     }
 
-    val safeDns = object : okhttp3.Dns {
+    private fun guardedDns(allowPrivateAddresses: Boolean) = object : okhttp3.Dns {
         override fun lookup(hostname: String): List<java.net.InetAddress> {
             val addresses = okhttp3.Dns.SYSTEM.lookup(hostname)
-            if (!allowPrivateIps && !com.example.calmsource.core.model.TestEnvironment.isTest) {
+            if (!allowPrivateAddresses && !allowPrivateIps && !com.example.calmsource.core.model.TestEnvironment.isTest) {
                 for (address in addresses) {
                     if (isPrivateOrLocalAddress(address)) {
                         throw java.io.IOException("Access to private/local address is blocked: $address")
@@ -111,6 +127,10 @@ object NetworkClient {
             return addresses
         }
     }
+
+    /** DNS policy used by ordinary internet clients. User-configured IPTV clients use an
+     * isolated opt-in policy so LAN portals work without weakening SSRF protection elsewhere. */
+    val safeDns: okhttp3.Dns = guardedDns(allowPrivateAddresses = false)
 
     /**
      * Whether the Ktor Logging plugin should be installed. Defaults to false
@@ -142,11 +162,31 @@ object NetworkClient {
         )
     }
 
+    /** Client for user-entered M3U/XMLTV URLs, including trusted LAN hosts. */
+    val iptvClient: HttpClient by lazy {
+        createClient(
+            maxResponseBytes = IPTV_MAX_RESPONSE_BYTES,
+            allowPrivateAddresses = true
+        )
+    }
+
+    /** Large-response Xtream client scoped to user-entered IPTV portals, including LAN hosts. */
+    val iptvXtreamClient: HttpClient by lazy {
+        createClient(
+            maxResponseBytes = XTREAM_MAX_RESPONSE_BYTES,
+            timeoutMillis = XTREAM_TIMEOUT_MILLIS,
+            userAgent = XTREAM_USER_AGENT,
+            acceptHeader = "*/*",
+            allowPrivateAddresses = true
+        )
+    }
+
     private fun createClient(
         maxResponseBytes: Long,
         timeoutMillis: Long = TIMEOUT_MILLIS,
         userAgent: String = "CalmSource/1.0 (Android)",
-        acceptHeader: String = ContentType.Application.Json.toString()
+        acceptHeader: String = ContentType.Application.Json.toString(),
+        allowPrivateAddresses: Boolean = false
     ): HttpClient {
         require(maxResponseBytes > 0) { "maxResponseBytes must be positive" }
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
@@ -200,15 +240,10 @@ object NetworkClient {
 
             engine {
                 config {
-                    val okHttpDispatcher = okhttp3.Dispatcher().apply {
-                        maxRequests = 128
-                        maxRequestsPerHost = 20
-                    }
-                    dispatcher(okHttpDispatcher)
-                    dns(safeDns)
+                    dispatcher(sharedDispatcher)
+                    dns(guardedDns(allowPrivateAddresses))
                     retryOnConnectionFailure(true)
-                    connectionPool(okhttp3.ConnectionPool(5, 2, java.util.concurrent.TimeUnit.MINUTES))
-                    pingInterval(30, java.util.concurrent.TimeUnit.SECONDS)
+                    connectionPool(sharedConnectionPool)
                     followRedirects(false)
                     followSslRedirects(false)
                     // Custom redirect interceptor to cap chain length at MAX_REDIRECTS.
@@ -220,7 +255,7 @@ object NetworkClient {
                         var redirectCount = 0
                         while (redirectCount < MAX_REDIRECTS) {
                             val host = request.url.host
-                            if (!NetworkClient.allowPrivateIps && !com.example.calmsource.core.model.TestEnvironment.isTest && NetworkClient.isLocalHostOrPrivateIpStatic(host)) {
+                            if (!allowPrivateAddresses && !NetworkClient.allowPrivateIps && !com.example.calmsource.core.model.TestEnvironment.isTest && NetworkClient.isLocalHostOrPrivateIpStatic(host)) {
                                 throw java.io.IOException("Access to private/local address is blocked: $host")
                             }
                             val response = chain.proceed(request)

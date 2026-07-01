@@ -77,7 +77,8 @@ class TvDatabaseStartupFallbackTest {
     fun testTvSearchViewModelFallbackWhenDatabaseThrows() {
         whenever(mockApp.applicationContext).thenThrow(RuntimeException("Simulated TV database startup failure"))
 
-        val tvSearchViewModel = TvSearchViewModel(mockApp)
+        val mockProfileSessionManager = mock(com.example.calmsource.core.data.ProfileSessionManager::class.java)
+        val tvSearchViewModel = TvSearchViewModel(mockApp, mockProfileSessionManager)
 
         val memoryRepoField = getMemoryRepositoryField(TvSearchViewModel::class.java)
         memoryRepoField.isAccessible = true

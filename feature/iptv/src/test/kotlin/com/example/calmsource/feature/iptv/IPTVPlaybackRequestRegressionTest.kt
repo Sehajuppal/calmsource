@@ -34,6 +34,16 @@ class IPTVPlaybackRequestRegressionTest {
         resetRepositoryState()
     }
 
+    private suspend fun waitUntil(timeoutMs: Long = 5000L, condition: suspend () -> Boolean) {
+        val start = System.currentTimeMillis()
+        while (!condition()) {
+            if (System.currentTimeMillis() - start > timeoutMs) {
+                throw AssertionError("Timeout waiting for condition")
+            }
+            delay(10)
+        }
+    }
+
     private fun waitForSettled() {
         try {
             val tickField = IPTVRepository::class.java.getDeclaredField("dataUpdateTick")
@@ -44,7 +54,7 @@ class IPTVPlaybackRequestRegressionTest {
                 var lastTick = tickFlow.value
                 var stableCount = 0
                 while (stableCount < 5) {
-                    kotlinx.coroutines.delay(100)
+                    kotlinx.coroutines.delay(10)
                     val currentTick = tickFlow.value
                     if (currentTick == lastTick) {
                         stableCount++
@@ -308,7 +318,7 @@ class IPTVPlaybackRequestRegressionTest {
         """.trimIndent()
 
         IPTVRepository.syncPlaylist(provider.id, m3u.byteInputStream())
-        delay(1000)
+        waitUntil { IPTVRepository.getLiveChannels().isNotEmpty() }
 
         assertTrue(IPTVRepository.getLiveChannels().any { it.groupTitle == "Hide India" })
         assertTrue(IPTVRepository.getLiveChannels().any { it.groupTitle == "Hide US" })
@@ -348,7 +358,7 @@ class IPTVPlaybackRequestRegressionTest {
         """.trimIndent()
 
         IPTVRepository.syncPlaylist(provider.id, m3u.byteInputStream())
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().isNotEmpty() }
 
         val allChannels = IPTVRepository.getChannels()
         val helperLive = allChannels.firstOrNull { it.name == "Helper Live" }
@@ -374,39 +384,19 @@ class IPTVPlaybackRequestRegressionTest {
         """.trimIndent()
 
         IPTVRepository.syncPlaylist(provider.id, m3u.byteInputStream())
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().isNotEmpty() }
 
         // By default, category separation is false, should not prefix
         UserPreferencesRepository.updatePreferences { it.copy(separateIptvCategoriesByProvider = false) }
-        var limit = 0
-        while (UserPreferencesRepository.preferences.value.separateIptvCategoriesByProvider && limit < 100) {
-            delay(10)
-            limit++
-        }
-        var channels = IPTVRepository.getChannels()
-        var ch = channels.firstOrNull { it.name == "Channel 1" }
-        assertNotNull(ch)
-        assertEquals("Sports", ch!!.groupTitle)
+        waitUntil { IPTVRepository.getChannels().firstOrNull { it.name == "Channel 1" }?.groupTitle == "Sports" }
 
         // Enable category separation, should prefix with provider name
         UserPreferencesRepository.updatePreferences { it.copy(separateIptvCategoriesByProvider = true) }
-        limit = 0
-        while (!UserPreferencesRepository.preferences.value.separateIptvCategoriesByProvider && limit < 100) {
-            delay(10)
-            limit++
-        }
-        channels = IPTVRepository.getChannels()
-        ch = channels.firstOrNull { it.name == "Channel 1" }
-        assertNotNull(ch)
-        assertEquals("Provider A - Sports", ch!!.groupTitle)
+        waitUntil { IPTVRepository.getChannels().firstOrNull { it.name == "Channel 1" }?.groupTitle == "Provider A - Sports" }
 
         // Reset preference
         UserPreferencesRepository.updatePreferences { it.copy(separateIptvCategoriesByProvider = false) }
-        limit = 0
-        while (UserPreferencesRepository.preferences.value.separateIptvCategoriesByProvider && limit < 100) {
-            delay(10)
-            limit++
-        }
+        waitUntil { IPTVRepository.getChannels().firstOrNull { it.name == "Channel 1" }?.groupTitle == "Sports" }
     }
 
     @Test
@@ -419,7 +409,7 @@ class IPTVPlaybackRequestRegressionTest {
         """.trimIndent()
 
         IPTVRepository.syncPlaylist(provider.id, m3u.byteInputStream())
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().isNotEmpty() }
 
         val epgSource = IPTVRepository.addEpgSource(
             providerId = provider.id,
@@ -444,7 +434,7 @@ class IPTVPlaybackRequestRegressionTest {
 
         // Delete the provider
         IPTVRepository.deleteProvider(provider.id)
-        delay(1000)
+        waitUntil { !IPTVRepository.getChannels().any { it.providerId == provider.id } }
 
         // Verify provider and channels are deleted
         assertNull(IPTVRepository.providers.value.firstOrNull { it.id == provider.id })

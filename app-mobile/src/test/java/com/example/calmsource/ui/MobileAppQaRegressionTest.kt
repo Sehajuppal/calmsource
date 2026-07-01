@@ -139,7 +139,7 @@ class MobileAppQaRegressionTest {
 
     @Test
     fun `BUG-M04 ManualSourceItem does not double-apply clickable on GlassCard`() {
-        val source = readSource("$uiDir/DetailsScreen.kt")
+        val source = readSource("$uiDir/DetailsScreenComponents.kt")
         if (source.isEmpty()) return
         val manualBlock = source.substringAfter("fun ManualSourceItem(")
         assertFalse(
@@ -187,7 +187,7 @@ class MobileAppQaRegressionTest {
 
     @Test
     fun `BUG-M06 ManualSourceItem title has maxLines and overflow`() {
-        val source = readSource("$uiDir/DetailsScreen.kt")
+        val source = readSource("$uiDir/DetailsScreenComponents.kt")
         if (source.isEmpty()) return
         val manualBlock = source.substringAfter("fun ManualSourceItem(")
         assertTrue(
@@ -221,22 +221,24 @@ class MobileAppQaRegressionTest {
 
     @Test
     fun `PlayerScreen reports playback resource state to ProviderManager`() {
-        val source = readSource("$uiDir/PlayerScreen.kt")
-        if (source.isEmpty()) return
+        val playerSource = readSource("$uiDir/PlayerScreen.kt")
+        val playbackVmSource = readSource("$uiDir/MobilePlaybackViewModel.kt")
+        if (playerSource.isEmpty() && playbackVmSource.isEmpty()) return
+        val wiringSource = playerSource + playbackVmSource
 
         assertTrue(
-            "PlayerScreen should publish playback state changes to ProviderManager",
-            source.contains("ProviderManager.setPlaybackState(state.toResourcePlaybackState())")
+            "Playback layer should publish playback state changes to ProviderManager",
+            wiringSource.contains("ProviderManager.setPlaybackState(state.toResourcePlaybackState())")
         )
         assertTrue(
-            "PlayerScreen should publish low-memory playback profile to ProviderManager",
-            source.contains("ProviderManager.setLowMemoryMode(enabled)")
+            "Playback layer should publish low-memory playback profile to ProviderManager",
+            wiringSource.contains("ProviderManager.setLowMemoryMode(enabled)")
         )
         assertTrue(
             "PlayerScreen should pause background work while preparing or buffering",
-            source.contains("PlayerState.PREPARING") &&
-                source.contains("PlayerState.BUFFERING") &&
-                source.contains("ResourcePlaybackState.BUFFERING")
+            playerSource.contains("PlayerState.PREPARING") &&
+                playerSource.contains("PlayerState.BUFFERING") &&
+                playerSource.contains("ResourcePlaybackState.BUFFERING")
         )
     }
 
@@ -354,6 +356,7 @@ class MobileAppQaRegressionTest {
     @Test
     fun `BUG-M15 DetailsScreen implements showRawDetails toggle and redacts URLs`() {
         val source = readSource("$uiDir/DetailsScreen.kt")
+        val components = readSource("$uiDir/DetailsScreenComponents.kt")
         if (source.isEmpty()) return
         
         // 1. Check for showRawDetails state
@@ -371,19 +374,19 @@ class MobileAppQaRegressionTest {
         // 3. Check that ManualSourceItem accepts showRawDetails
         assertTrue(
             "ManualSourceItem should accept showRawDetails parameter",
-            source.contains("showRawDetails: Boolean")
+            components.contains("showRawDetails: Boolean")
         )
 
         // 4. Check that option.source.name is displayed when showRawDetails is true
         assertTrue(
             "ManualSourceItem should conditionally display source name or redacted filename when showRawDetails is true",
-            source.contains("if (showRawDetails)") && source.contains("option.source.name")
+            components.contains("if (showRawDetails)") && components.contains("option.source.name")
         )
 
         // 5. Check that UrlRedactor.redactUrl is used to redact option.source.url
         assertTrue(
             "ManualSourceItem should redact source URL using UrlRedactor.redactUrl",
-            source.contains("UrlRedactor.redactUrl(option.source.url)")
+            components.contains("UrlRedactor.redactUrl(option.source.url)")
         )
     }
 
@@ -437,5 +440,261 @@ class MobileAppQaRegressionTest {
             source.contains("\"Authenticating... (Retrieving IPTV channels list...)\"")
         )
     }
-}
 
+    @Test
+    fun `UX settings add-ons list avoids LazyColumn inside verticalScroll`() {
+        val source = readSource("$uiDir/SettingsScreens.kt")
+        if (source.isEmpty()) return
+        assertTrue(
+            "SettingsScreens should scroll the settings column",
+            source.contains("verticalScroll"),
+        )
+        assertFalse(
+            "SettingsScreens must not nest LazyColumn inside verticalScroll (infinite height crash)",
+            source.contains("LazyColumn"),
+        )
+        assertTrue(
+            "SettingsScreens should render installed add-ons with forEach rows",
+            source.contains("extensions.forEach"),
+        )
+    }
+
+    @Test
+    fun `Phase 2 Chrome Diet UI Refactor requirements are met`() {
+        val miniPlayerSource = readSource("src/main/java/com/example/calmsource/ui/MiniPlayerBar.kt")
+        val navSource = readSource("src/main/java/com/example/calmsource/Navigation.kt")
+        val layoutSource = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenLegacyBridge.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenLegacyBridge.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+
+        if (miniPlayerSource.isNotEmpty()) {
+            assertFalse("MiniPlayerBar should not use GlassSurface", miniPlayerSource.contains("GlassSurface("))
+            assertTrue("MiniPlayerBar should use surfaceMuted color", miniPlayerSource.contains("LumenTokens.Color.surfaceMuted"))
+            assertTrue("MiniPlayerBar should have height 56.dp", miniPlayerSource.contains(".height(56.dp)"))
+        }
+
+        if (navSource.isNotEmpty()) {
+            assertTrue("CustomFloatingNavigationBar should have height 60.dp", navSource.contains(".height(60.dp)"))
+            assertFalse("CustomFloatingNavigationBar should not contain sliding indicator capsule", navSource.contains("indicatorOffset"))
+
+            // Verify Navigation.kt does not wrap CustomFloatingNavigationBar in GlassSurface
+            assertFalse(
+                "Navigation.kt should not wrap CustomFloatingNavigationBar in GlassSurface",
+                navSource.contains("GlassSurface(\n                            modifier = Modifier.fillMaxWidth()")
+            )
+
+            val tabInfoCount = Regex("TabInfo\\(stringResource").findAll(navSource).count()
+            assertEquals("CustomFloatingNavigationBar should have exactly 5 tabs", 5, tabInfoCount)
+
+            assertTrue("showSyncOverlay should require providers.isEmpty()", navSource.contains("providers.isEmpty()"))
+            assertTrue("Sync banner should use SyncStatusPill", navSource.contains("SyncStatusPill("))
+            if (layoutSource.isNotEmpty()) {
+                assertTrue(
+                    "bottomNavPadding should be slimmed for phase 2",
+                    layoutSource.contains("bottomNavPadding: Dp = 72.dp"),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Phase 4 design token consolidation requirements are met`() {
+        val mobileDir = File("src/main/java/com/example/calmsource")
+        val chipRow = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/ChipRow.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/ChipRow.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+
+        if (mobileDir.exists()) {
+            mobileDir.walkTopDown()
+                .filter { it.extension == "kt" && it.name != "UiComponents.kt" }
+                .forEach { file ->
+                    val source = file.readText()
+                    assertFalse(
+                        "${file.name} should not reference LumenLegacySpace",
+                        source.contains("LumenLegacySpace"),
+                    )
+                    assertFalse(
+                        "${file.name} should not call deprecated GlassCard",
+                        source.contains("GlassCard("),
+                    )
+                    assertFalse(
+                        "${file.name} should not call deprecated PremiumButton",
+                        source.contains("PremiumButton("),
+                    )
+                }
+        }
+
+        if (chipRow.isNotEmpty()) {
+            assertTrue(
+                "ChipRow should use subtle selected fill",
+                chipRow.contains("selectedContainerColor = t.colors.foreground.copy(alpha = 0.12f)"),
+            )
+            assertFalse(
+                "ChipRow should not use full brand fill when selected",
+                chipRow.contains("selectedContainerColor = t.colors.brand"),
+            )
+        }
+    }
+
+    @Test
+    fun `Phase 5 micro-delight motion requirements are met`() {
+        val lumenMotion = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenDelightMotion.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenDelightMotion.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+        val screenTransition = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/LumenScreenTransition.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/LumenScreenTransition.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+        val homeSource = readSource("src/main/java/com/example/calmsource/ui/HomeScreen.kt")
+        val detailsSource = readSource("src/main/java/com/example/calmsource/ui/DetailsScreen.kt")
+        val playerSource = readSource("src/main/java/com/example/calmsource/ui/PlayerScreen.kt")
+        val navSource = readSource("src/main/java/com/example/calmsource/Navigation.kt")
+
+        if (lumenMotion.isNotEmpty()) {
+            assertTrue("LumenDelightMotion should gate on reduced motion", lumenMotion.contains("reducedMotion"))
+            assertTrue(
+                "LumenDelightMotion should use cinematic duration for shared bounds",
+                lumenMotion.contains("LumenTokens.Duration.cinematic"),
+            )
+            assertTrue(
+                "LumenDelightMotion should use focus duration for backdrop fade",
+                lumenMotion.contains("LumenTokens.Duration.focus"),
+            )
+            assertTrue(
+                "Mini player enter should use a soft spring",
+                lumenMotion.contains("stiffness = 220f"),
+            )
+        }
+
+        if (screenTransition.isNotEmpty()) {
+            assertTrue(
+                "LumenScreenTransition should delegate to LumenDelightMotion",
+                screenTransition.contains("LumenDelightMotion.screenEnterTransition"),
+            )
+        }
+
+        if (homeSource.isNotEmpty()) {
+            assertTrue(
+                "Home hero shared bounds should use tokenized bounds transform",
+                homeSource.contains("rememberLumenSharedBoundsTransform()"),
+            )
+        }
+
+        if (detailsSource.isNotEmpty()) {
+            assertTrue(
+                "Details backdrop should stagger fade during shared transition",
+                detailsSource.contains("backdropAlpha") &&
+                    detailsSource.contains("LumenDelightMotion.detailsBackdropFadeSpec"),
+            )
+        }
+
+        if (playerSource.isNotEmpty()) {
+            assertTrue(
+                "Player minimize should animate before routing to mini player",
+                playerSource.contains("minimizeProgress") &&
+                    playerSource.contains("LumenDelightMotion.playerMinimizeSpec"),
+            )
+        }
+
+        if (navSource.isNotEmpty()) {
+            assertTrue(
+                "Mini player should enter with LumenDelightMotion transition",
+                navSource.contains("LumenDelightMotion.miniPlayerEnterTransition"),
+            )
+        }
+    }
+
+    @Test
+    fun `Phase 6 entry and edge screen requirements are met`() {
+        val profilesSource = readSource("src/main/java/com/example/calmsource/ui/ProfilesScreen.kt")
+        val wizardSource = readSource("src/main/java/com/example/calmsource/ui/FirstRunSetupWizard.kt")
+        val navSource = readSource("src/main/java/com/example/calmsource/Navigation.kt")
+        val homeSkeleton = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/HomeFeedSkeleton.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/components/HomeFeedSkeleton.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+
+        if (profilesSource.isNotEmpty()) {
+            assertFalse(
+                "ProfilesScreen should drop eyebrow logotype",
+                profilesSource.contains("CALMSOURCE"),
+            )
+            assertTrue(
+                "ProfilesScreen should use LumenType for headline",
+                profilesSource.contains("LumenType.H1.toTextStyle()"),
+            )
+        }
+
+        if (wizardSource.isNotEmpty()) {
+            assertFalse("FirstRunSetupWizard should not use GlassSurface", wizardSource.contains("GlassSurface("))
+            assertTrue("FirstRunSetupWizard should use LumenCard", wizardSource.contains("LumenCard("))
+            assertTrue(
+                "FirstRunSetupWizard syncing should use non-blocking SyncStatusPill",
+                wizardSource.contains("SyncStatusPill("),
+            )
+        }
+
+        if (navSource.isNotEmpty()) {
+            assertTrue(
+                "Boot gate should show HomeFeedSkeleton instead of spinner",
+                navSource.contains("HomeFeedSkeleton(") &&
+                    !navSource.contains("BootDestination.Loading) {\n                    Box(\n                        modifier = Modifier.fillMaxSize(),\n                        contentAlignment = Alignment.Center,\n                    ) {\n                        androidx.compose.material3.CircularProgressIndicator"),
+            )
+        }
+
+        assertTrue("HomeFeedSkeleton should exist in core/ui", homeSkeleton.isNotEmpty())
+    }
+
+    @Test
+    fun `Phase 7 typography requirements are met`() {
+        val fontFamily = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenFontFamily.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenFontFamily.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+        val tokens = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTokens.Generated.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTokens.Generated.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+        val theme = listOf(
+            File("core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTheme.kt"),
+            File("../core/ui/src/main/kotlin/com/example/calmsource/core/ui/theme/LumenTheme.kt"),
+        ).firstOrNull { it.exists() }?.readText().orEmpty()
+        val profiles = readSource("src/main/java/com/example/calmsource/ui/ProfilesScreen.kt")
+        val home = readSource("src/main/java/com/example/calmsource/ui/HomeScreen.kt")
+        val nav = readSource("src/main/java/com/example/calmsource/Navigation.kt")
+        val login = readSource("src/main/java/com/example/calmsource/ui/LoginScreen.kt")
+
+        if (fontFamily.isNotEmpty()) {
+            assertTrue("LumenFontFamily should define display and body stacks", fontFamily.contains("val display") && fontFamily.contains("val body"))
+            assertTrue("LumenFontFamily should map styles", fontFamily.contains("fun forStyle"))
+        }
+        if (tokens.isNotEmpty()) {
+            assertTrue(
+                "LumenTokens.Style.toTextStyle should apply fontFamily",
+                tokens.contains("fontFamily = LumenFontFamily.forStyle(this)"),
+            )
+        }
+        if (theme.isNotEmpty()) {
+            assertTrue(
+                "LumenTheme should map Material typography from LumenType",
+                theme.contains("lumenTypography(scale)") && theme.contains("LumenType."),
+            )
+        }
+        listOf(
+            "ProfilesScreen" to profiles,
+            "HomeScreen" to home,
+            "Navigation" to nav,
+            "LoginScreen" to login,
+        ).forEach { (name, source) ->
+            if (source.isNotEmpty()) {
+                assertFalse(
+                    "$name should not use raw fontSize literals",
+                    source.contains("fontSize =") || source.contains("fontSize="),
+                )
+            }
+        }
+    }
+}

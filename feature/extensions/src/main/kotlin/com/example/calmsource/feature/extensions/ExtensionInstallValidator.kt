@@ -76,6 +76,11 @@ object ExtensionInstallValidator {
         }
 
         val host = uri.host ?: ""
+        if (host.isBlank()) {
+            return ValidationResult.Invalid(
+                ExtensionError.InvalidManifest("URL must contain a valid host")
+            )
+        }
         if (!isDebug && isLocalOrPrivateIp(host)) {
             return ValidationResult.Invalid(
                 ExtensionError.InvalidManifest("Localhost and private network URLs are not allowed.")

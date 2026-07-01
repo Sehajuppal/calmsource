@@ -15,6 +15,16 @@ import java.io.ByteArrayInputStream
 
 class IPTVMilestone1EmpiricalTest {
 
+    private suspend fun waitUntil(timeoutMs: Long = 5000L, condition: suspend () -> Boolean) {
+        val start = System.currentTimeMillis()
+        while (!condition()) {
+            if (System.currentTimeMillis() - start > timeoutMs) {
+                throw AssertionError("Timeout waiting for condition")
+            }
+            delay(10)
+        }
+    }
+
     private fun waitForSettled() {
         try {
             val tickField = IPTVRepository::class.java.getDeclaredField("dataUpdateTick")
@@ -25,7 +35,7 @@ class IPTVMilestone1EmpiricalTest {
                 var lastTick = tickFlow.value
                 var stableCount = 0
                 while (stableCount < 5) {
-                    kotlinx.coroutines.delay(100)
+                    kotlinx.coroutines.delay(10)
                     val currentTick = tickFlow.value
                     if (currentTick == lastTick) {
                         stableCount++
@@ -52,7 +62,7 @@ class IPTVMilestone1EmpiricalTest {
                 if (parsedMatch && stateFlowMatch && getChannelsMatch) {
                     break
                 }
-                delay(100)
+                delay(10)
             }
         }
     }
@@ -157,7 +167,7 @@ class IPTVMilestone1EmpiricalTest {
     @Test
     fun testProviderDisablingImmediatelyFiltersChannelsAndUpdatesFlow() = runBlocking {
         resetRepositoryState()
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().isEmpty() }
 
         // Verify start state
         assertEquals(0, IPTVRepository.providers.value.size)
@@ -177,7 +187,7 @@ class IPTVMilestone1EmpiricalTest {
             http://example.com/2
         """.trimIndent()
         IPTVRepository.syncPlaylist(provider.id, m3u.byteInputStream())
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().size == 2 }
 
         // Verify channels are present
         val channelsBefore = IPTVRepository.getChannels()
@@ -199,7 +209,9 @@ class IPTVMilestone1EmpiricalTest {
         val disabledEntity = provider.copy(isEnabled = false).toEntity()
         dao.updateProvider(disabledEntity)
         IPTVRepository.refreshHealthCacheForTest()
-        delay(1000) // Give it time to propagate to Flow
+        
+        // Wait for flow to propagate
+        waitUntil { IPTVRepository.getChannels().isEmpty() }
 
         // Print state after disabling
         println("AFTER DISABLING:")
@@ -217,7 +229,9 @@ class IPTVMilestone1EmpiricalTest {
         val enabledEntity = provider.copy(isEnabled = true).toEntity()
         dao.updateProvider(enabledEntity)
         IPTVRepository.refreshHealthCacheForTest()
-        delay(1000)
+        
+        // Wait for restoration
+        waitUntil { IPTVRepository.getChannels().size == 2 }
 
         // Verify channels are restored immediately
         assertEquals(2, IPTVRepository.getChannels().size)
@@ -230,7 +244,7 @@ class IPTVMilestone1EmpiricalTest {
     @Test
     fun testLoadingLargeList100kPerformance() = runBlocking {
         resetRepositoryState()
-        delay(1000)
+        waitUntil { IPTVRepository.getChannels().isEmpty() }
 
         val provider = IPTVRepository.addProvider("Large Provider", "http://large.com/playlist.m3u")
         

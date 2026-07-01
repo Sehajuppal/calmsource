@@ -1,6 +1,5 @@
 package com.example.calmsource.ui
 
-import com.example.calmsource.core.ui.theme.LumenLegacySpace
 import com.example.calmsource.core.ui.theme.LumenExtendedColors
 import com.example.calmsource.core.ui.theme.LumenLayout
 import com.example.calmsource.core.ui.theme.LumenTokens
@@ -9,7 +8,15 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +28,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +48,7 @@ import com.example.calmsource.feature.extensions.RecommendedStremioAddons
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.feature.iptv.XtreamRepository
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.components.SettingsToggleRow
 import com.example.calmsource.core.ui.components.LumenCard
 import com.example.calmsource.core.ui.components.AdaptiveButton
 import com.example.calmsource.core.ui.components.LumenEmptyState
@@ -52,6 +61,10 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
+import com.example.calmsource.core.ui.theme.UiAppearancePreferences
+import com.example.calmsource.core.ui.theme.LumenType
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -59,8 +72,57 @@ interface SettingsEntryPoint {
     fun profileSessionManager(): ProfileSessionManager
 }
 
+enum class SettingsSubScreen {
+    Main, CloudAuth, Discovery, Debrid, Priorities, AdvancedDebug,
+}
+
 @Composable
-fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
+fun SettingsScreens(
+    onNavigateToProfiles: () -> Unit = {},
+    onOledThemeChanged: (Boolean) -> Unit = {},
+    onBack: () -> Unit = {},
+    initialSubScreen: SettingsSubScreen = SettingsSubScreen.Main,
+    onInitialSubScreenConsumed: () -> Unit = {},
+) {
+    var subScreen by remember { mutableStateOf(initialSubScreen) }
+
+    LaunchedEffect(initialSubScreen) {
+        if (initialSubScreen != SettingsSubScreen.Main) {
+            subScreen = initialSubScreen
+            onInitialSubScreenConsumed()
+        }
+    }
+
+    when (subScreen) {
+        SettingsSubScreen.CloudAuth -> CloudAuthScreen(onBack = { subScreen = SettingsSubScreen.Main })
+        SettingsSubScreen.Discovery -> DiscoveryProvidersScreen(onBack = { subScreen = SettingsSubScreen.Main })
+        SettingsSubScreen.Debrid -> DebridSettingsScreen(onBack = { subScreen = SettingsSubScreen.Main })
+        SettingsSubScreen.Priorities -> SourcePreferencesScreen(onBack = { subScreen = SettingsSubScreen.Main })
+        SettingsSubScreen.AdvancedDebug -> AdvancedDebugScreen(onBack = { subScreen = SettingsSubScreen.Main })
+        SettingsSubScreen.Main -> SettingsMainContent(
+            onNavigateToProfiles = onNavigateToProfiles,
+            onNavigateToCloudAuth = { subScreen = SettingsSubScreen.CloudAuth },
+            onNavigateToDiscovery = { subScreen = SettingsSubScreen.Discovery },
+            onNavigateToDebrid = { subScreen = SettingsSubScreen.Debrid },
+            onNavigateToPriorities = { subScreen = SettingsSubScreen.Priorities },
+            onNavigateToAdvancedDebug = { subScreen = SettingsSubScreen.AdvancedDebug },
+            onOledThemeChanged = onOledThemeChanged,
+            onBack = onBack,
+        )
+    }
+}
+
+@Composable
+private fun SettingsMainContent(
+    onNavigateToProfiles: () -> Unit = {},
+    onNavigateToCloudAuth: () -> Unit = {},
+    onNavigateToDiscovery: () -> Unit = {},
+    onNavigateToDebrid: () -> Unit = {},
+    onNavigateToPriorities: () -> Unit = {},
+    onNavigateToAdvancedDebug: () -> Unit = {},
+    onOledThemeChanged: (Boolean) -> Unit = {},
+    onBack: () -> Unit = {},
+) {
     val t = LocalLumenTokens.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -79,7 +141,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     val prefs by UserPreferencesRepository.preferences.collectAsState()
 
     val sharedPrefs = remember(context) { context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE) }
-    var autoplay by remember { mutableStateOf(sharedPrefs.getBoolean("autoplay_next_episode", true)) }
+    var autoplay by remember { mutableStateOf(com.example.calmsource.core.playback.PlaybackUserPreferences.isAutoplayNextEnabled(context)) }
+    var backgroundPlayback by remember { mutableStateOf(com.example.calmsource.core.playback.PlaybackUserPreferences.isBackgroundPlaybackEnabled(context)) }
     var dataSaver by remember { mutableStateOf(sharedPrefs.getBoolean("data_saver", false)) }
     var subtitlesDefault by remember { mutableStateOf(sharedPrefs.getBoolean("subtitles_default", true)) }
 
@@ -110,15 +173,19 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     var previewAddonWarnings by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewAddonJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var addonToConfigure by remember { mutableStateOf<ExtensionProvider?>(null) }
+    var addonInstallError by remember { mutableStateOf<String?>(null) }
 
     val vaultRestoreErrors by ExtensionRepository.vaultRestoreErrors.collectAsState()
     var inlineMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(vaultRestoreErrors) {
-        inlineMessage = vaultRestoreErrors.firstOrNull()?.let { "Extension restore failed: $it" }
+        inlineMessage = vaultRestoreErrors.firstOrNull()?.let {
+            context.getString(CoreUiR.string.settings_extension_restore_failed, it)
+        }
     }
 
     var showProviderTypeSelect by remember { mutableStateOf(false) }
+    var oledTheme by remember { mutableStateOf(UiAppearancePreferences.isOledTheme(context)) }
 
     fun saveM3uProvider() {
         val url = m3uUrl.trim()
@@ -180,23 +247,21 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             LumenInlineMessage(
                 message = message,
                 onDismiss = { inlineMessage = null },
-                modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2),
+                modifier = Modifier.padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm),
             )
         }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenLegacySpace.lg)
+            .statusBarsPadding()
+            .padding(LumenTokens.Space.md)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl)
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s7)
     ) {
-        Text(
-            text = "Settings",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = t.colors.foreground,
-            modifier = Modifier.padding(bottom = LumenLegacySpace.sm2)
+        SubScreenHeader(
+            title = stringResource(CoreUiR.string.settings_title),
+            onBack = onBack,
         )
 
         // 1. PROFILE CARD
@@ -204,11 +269,11 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
                 ) {
                     val avatar = activeProfile?.avatarUrl
                     Box(
@@ -228,13 +293,13 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     Column {
                         Text(
                             text = activeProfile?.name ?: "Default Profile",
-                            fontSize = 18.sp,
+                            style = LumenType.H2.toTextStyle(),
                             fontWeight = FontWeight.Bold,
                             color = t.colors.foreground
                         )
                         Text(
                             text = "Active Profile",
-                            fontSize = 12.sp,
+                            style = LumenType.Caption.toTextStyle(),
                             color = t.colors.mutedForeground
                         )
                     }
@@ -247,85 +312,97 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             }
         }
 
-        // 2. PLAYBACK CARD
+        // 2. APPEARANCE CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
             ) {
                 Text(
-                    text = "Playback",
-                    fontSize = 20.sp,
+                    text = stringResource(CoreUiR.string.settings_appearance),
+                    style = LumenType.Title.toTextStyle(),
+                    color = t.colors.foreground,
+                )
+                SettingsToggleRow(
+                    title = stringResource(CoreUiR.string.settings_oled_theme),
+                    subtitle = stringResource(CoreUiR.string.settings_oled_theme_hint),
+                    checked = oledTheme,
+                    onCheckedChange = { enabled ->
+                        oledTheme = enabled
+                        UiAppearancePreferences.setOledTheme(context, enabled)
+                        onOledThemeChanged(enabled)
+                    },
+                )
+            }
+        }
+
+        // 3. PLAYBACK CARD
+        LumenCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
+            ) {
+                Text(
+                    text = stringResource(CoreUiR.string.settings_playback),
+                    style = LumenType.Title.toTextStyle(),
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground
                 )
                 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        Text("Autoplay next episode", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = t.colors.foreground)
-                        Text("Automatically play the next episode in series", fontSize = 12.sp, color = t.colors.mutedForeground)
-                    }
-                    Switch(
-                        checked = autoplay,
-                        onCheckedChange = { enabled ->
-                            autoplay = enabled
-                            sharedPrefs.edit().putBoolean("autoplay_next_episode", enabled).apply()
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand, checkedTrackColor = t.colors.brand.copy(alpha = 0.5f))
-                    )
-                }
+                SettingsToggleRow(
+                    title = stringResource(CoreUiR.string.settings_autoplay_next_episode),
+                    subtitle = stringResource(CoreUiR.string.settings_autoplay_next_episode_hint),
+                    checked = autoplay,
+                    onCheckedChange = { enabled ->
+                        autoplay = enabled
+                        com.example.calmsource.core.playback.PlaybackUserPreferences.setAutoplayNextEnabled(context, enabled)
+                    },
+                )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        Text("Data-saver", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = t.colors.foreground)
-                        Text("Prefer lower data usage streams when playing VOD", fontSize = 12.sp, color = t.colors.mutedForeground)
-                    }
-                    Switch(
-                        checked = dataSaver,
-                        onCheckedChange = { enabled ->
-                            dataSaver = enabled
-                            sharedPrefs.edit().putBoolean("data_saver", enabled).apply()
-                            UserPreferencesRepository.updatePreferences { it.copy(preferLowerDataUsage = enabled) }
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand, checkedTrackColor = t.colors.brand.copy(alpha = 0.5f))
-                    )
-                }
+                SettingsToggleRow(
+                    title = stringResource(CoreUiR.string.settings_background_playback),
+                    subtitle = stringResource(CoreUiR.string.settings_background_playback_hint),
+                    checked = backgroundPlayback,
+                    onCheckedChange = { enabled ->
+                        backgroundPlayback = enabled
+                        com.example.calmsource.core.playback.PlaybackUserPreferences.setBackgroundPlaybackEnabled(context, enabled)
+                    },
+                )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        Text("Subtitles default", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = t.colors.foreground)
-                        Text("Load English subtitles automatically on VOD playback", fontSize = 12.sp, color = t.colors.mutedForeground)
-                    }
-                    Switch(
-                        checked = subtitlesDefault,
-                        onCheckedChange = { enabled ->
-                            subtitlesDefault = enabled
-                            sharedPrefs.edit().putBoolean("subtitles_default", enabled).apply()
-                            UserPreferencesRepository.updatePreferences { it.copy(subtitleLanguage = if (enabled) "English" else "None") }
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = t.colors.brand, checkedTrackColor = t.colors.brand.copy(alpha = 0.5f))
-                    )
-                }
+                SettingsNavRow(
+                    title = stringResource(CoreUiR.string.settings_source_priorities_title),
+                    onClick = onNavigateToPriorities,
+                )
+
+                SettingsToggleRow(
+                    title = stringResource(CoreUiR.string.settings_data_saver),
+                    subtitle = stringResource(CoreUiR.string.settings_data_saver_hint),
+                    checked = dataSaver,
+                    onCheckedChange = { enabled ->
+                        dataSaver = enabled
+                        sharedPrefs.edit().putBoolean("data_saver", enabled).apply()
+                        UserPreferencesRepository.updatePreferences { it.copy(preferLowerDataUsage = enabled) }
+                    },
+                )
+
+                SettingsToggleRow(
+                    title = stringResource(CoreUiR.string.settings_subtitles_default),
+                    subtitle = stringResource(CoreUiR.string.settings_subtitles_default_hint),
+                    checked = subtitlesDefault,
+                    onCheckedChange = { enabled ->
+                        subtitlesDefault = enabled
+                        sharedPrefs.edit().putBoolean("subtitles_default", enabled).apply()
+                        UserPreferencesRepository.updatePreferences { it.copy(subtitleLanguage = if (enabled) "English" else "None") }
+                    },
+                )
             }
         }
 
         // 3. IPTV PROVIDERS CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -334,7 +411,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 ) {
                     Text(
                         text = "IPTV Providers",
-                        fontSize = 20.sp,
+                        style = LumenType.Title.toTextStyle(),
                         fontWeight = FontWeight.Bold,
                         color = t.colors.foreground
                     )
@@ -347,13 +424,17 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
 
                 if (providers.isEmpty()) {
                     LumenEmptyState(
-                        title = "No IPTV providers configured",
+                        title = stringResource(CoreUiR.string.settings_no_iptv_providers),
                         body = "Connect an M3U or Xtream API credentials to configure channels.",
                         icon = androidx.compose.material.icons.Icons.Default.PlayArrow
                     )
                 } else {
                     providers.forEach { provider ->
-                        val isSyncing = xtreamProgress?.takeIf { it.providerId == provider.id }?.stage != null ||
+                        val isSyncing = xtreamProgress?.takeIf { it.providerId == provider.id }?.let {
+                                            it.stage != com.example.calmsource.core.model.XtreamSyncStage.IDLE &&
+                                            it.stage != com.example.calmsource.core.model.XtreamSyncStage.COMPLETE &&
+                                            it.stage != com.example.calmsource.core.model.XtreamSyncStage.FAILED
+                                        } == true ||
                                         syncStates[provider.id]?.status == ProviderSyncStatus.SYNCING
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -361,15 +442,15 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                .padding(LumenLegacySpace.md)
+                                .padding(LumenTokens.Space.s5)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(LumenLegacySpace.sm2)
+                                        .size(LumenTokens.Space.sm)
                                         .clip(CircleShape)
                                         .background(
                                             if (!provider.isEnabled) {
@@ -382,17 +463,17 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                         )
                                 )
                                 Column {
-                                    Text(provider.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                    Text(provider.name, style = LumenType.Body.toTextStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
                                     Text(
                                         text = if (provider.type == IPTVProviderType.XTREAM) "Xtream API" else "M3U Playlist",
-                                        fontSize = 11.sp,
+                                        style = LumenType.Meta.toTextStyle(),
                                         color = t.colors.mutedForeground
                                     )
                                 }
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
                             ) {
                                 IconButton(
                                     onClick = {
@@ -407,7 +488,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     enabled = !isSyncing
                                 ) {
                                     if (isSyncing) {
-                                        CircularProgressIndicator(modifier = Modifier.size(LumenLayout.iconMd), strokeWidth = LumenLegacySpace.xxs, color = t.colors.brand)
+                                        CircularProgressIndicator(modifier = Modifier.size(LumenLayout.iconMd), strokeWidth = LumenTokens.Space.s1, color = t.colors.brand)
                                     } else {
                                         Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = t.colors.foreground)
                                     }
@@ -430,7 +511,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = t.colors.foreground)
                                 }
                                 IconButton(onClick = { providerToDelete = provider }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = t.colors.destructive)
                                 }
                             }
                         }
@@ -442,8 +523,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
         // 4. CATALOG ADD-ONS CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -451,17 +532,18 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Catalog Add-ons",
-                        fontSize = 20.sp,
+                        text = stringResource(CoreUiR.string.settings_catalog_addons),
+                        style = LumenType.Title.toTextStyle(),
                         fontWeight = FontWeight.Bold,
                         color = t.colors.foreground
                     )
                     AdaptiveButton(
-                        text = "Add from URL",
+                        text = stringResource(CoreUiR.string.settings_add_from_url),
                         onClick = {
                             addonUrl = ""
                             previewManifest = null
                             addonValidationError = null
+                            addonInstallError = null
                             showAddonDialog = true
                         },
                         backdropLuminance = 0f
@@ -469,37 +551,64 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                 }
 
                 Text(
-                    text = "Recommended",
-                    fontSize = 14.sp,
+                    text = stringResource(CoreUiR.string.settings_recommended),
+                    style = LumenType.Caption.toTextStyle(),
                     fontWeight = FontWeight.SemiBold,
                     color = t.colors.mutedForeground
                 )
+                addonInstallError?.let { err ->
+                    Text(
+                        text = err,
+                        color = t.colors.destructive,
+                        style = LumenType.Caption.toTextStyle(),
+                    )
+                }
                 RecommendedStremioAddons.presets.forEach { preset ->
                     val installed = RecommendedStremioAddons.installedProvider(preset, extensions)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                            .padding(LumenLegacySpace.md),
+                            .padding(LumenTokens.Space.s5),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(preset.name, fontWeight = FontWeight.Bold, color = t.colors.foreground)
-                            Text(preset.description, fontSize = 11.sp, color = t.colors.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(preset.description, style = LumenType.Meta.toTextStyle(), color = t.colors.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                         AdaptiveButton(
-                            text = if (installed != null) "Installed" else "Install",
+                            text = if (installed != null) {
+                                stringResource(CoreUiR.string.settings_installed)
+                            } else {
+                                stringResource(CoreUiR.string.settings_install)
+                            },
                             onClick = {
                                 if (installed == null && !isInstallingAddon) {
                                     isInstallingAddon = true
+                                    addonInstallError = null
                                     coroutineScope.launch {
                                         try {
                                             val preview = ExtensionRepository.previewExtension(preset.manifestUrl)
                                             val manifest = preview.manifest
                                             if (preview.isSuccess && manifest != null) {
-                                                ExtensionRepository.confirmInstall(manifest, preset.manifestUrl, preview.warnings)
+                                                val result = ExtensionRepository.confirmInstall(
+                                                    manifest,
+                                                    preset.manifestUrl,
+                                                    preview.warnings,
+                                                )
+                                                if (!result.isSuccess) {
+                                                    addonInstallError = result.error?.message
+                                                        ?: context.getString(CoreUiR.string.settings_addon_install_failed)
+                                                }
+                                            } else {
+                                                addonInstallError = preview.error?.message
+                                                    ?: preview.warnings.firstOrNull()
+                                                    ?: context.getString(CoreUiR.string.settings_addon_manifest_failed)
                                             }
+                                        } catch (e: Exception) {
+                                            addonInstallError = e.localizedMessage
+                                                ?: context.getString(CoreUiR.string.settings_addon_install_failed)
                                         } finally {
                                             isInstallingAddon = false
                                         }
@@ -513,8 +622,8 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
 
                 if (extensions.isEmpty()) {
                     LumenEmptyState(
-                        title = "No add-ons installed",
-                        body = "Install catalog add-ons to customize your catalog browsing.",
+                        title = stringResource(CoreUiR.string.settings_no_addons),
+                        body = stringResource(CoreUiR.string.settings_no_addons_body),
                         icon = androidx.compose.material.icons.Icons.Default.Settings
                     )
                 } else {
@@ -533,29 +642,29 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(1.dp, t.colors.border, LumenTokens.Shape.sm)
-                                .padding(LumenLegacySpace.md)
+                                .padding(LumenTokens.Space.s5)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(LumenLegacySpace.sm2)
+                                        .size(LumenTokens.Space.sm)
                                         .clip(CircleShape)
                                         .background(healthColor)
                                 )
                                 Column {
-                                    Text(addon.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                                    Text(addon.name, style = LumenType.Body.toTextStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
                                     addon.manifest?.description?.let { desc ->
-                                        Text(desc, fontSize = 11.sp, color = t.colors.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(desc, style = LumenType.Meta.toTextStyle(), color = t.colors.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
                             ) {
                                 Switch(
                                     checked = addon.isEnabled,
@@ -570,7 +679,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     }
                                 }
                                 IconButton(onClick = { addonToRemove = addon }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = Color.Red)
+                                    Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = t.colors.destructive)
                                 }
                             }
                         }
@@ -579,15 +688,45 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             }
         }
 
-        // 5. ABOUT CARD
+        // 5. ADVANCED CARD
         LumenCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm),
+            ) {
+                Text(
+                    text = stringResource(CoreUiR.string.settings_advanced),
+                    style = LumenType.Title.toTextStyle(),
+                    color = t.colors.foreground,
+                )
+                SettingsNavRow(
+                    title = stringResource(CoreUiR.string.settings_cloud_sync),
+                    onClick = onNavigateToCloudAuth,
+                )
+                SettingsNavRow(
+                    title = stringResource(CoreUiR.string.settings_debrid_title),
+                    onClick = onNavigateToDebrid,
+                )
+                SettingsNavRow(
+                    title = stringResource(CoreUiR.string.settings_discovery_providers),
+                    onClick = onNavigateToDiscovery,
+                )
+                SettingsNavRow(
+                    title = stringResource(CoreUiR.string.settings_debug_tools),
+                    onClick = onNavigateToAdvancedDebug,
+                )
+            }
+        }
+
+        // 6. ABOUT CARD
+        LumenCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5)
             ) {
                 Text(
                     text = "About",
-                    fontSize = 20.sp,
+                    style = LumenType.Title.toTextStyle(),
                     fontWeight = FontWeight.Bold,
                     color = t.colors.foreground
                 )
@@ -614,27 +753,27 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Version", fontSize = 14.sp, color = t.colors.mutedForeground)
-                    Text(versionName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text(stringResource(CoreUiR.string.settings_version), style = LumenType.Caption.toTextStyle(), color = t.colors.mutedForeground)
+                    Text(versionName, style = LumenType.Caption.toTextStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
                 }
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Build Number", fontSize = 14.sp, color = t.colors.mutedForeground)
-                    Text(buildNumber, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.colors.foreground)
+                    Text(stringResource(CoreUiR.string.settings_build_number), style = LumenType.Caption.toTextStyle(), color = t.colors.mutedForeground)
+                    Text(buildNumber, style = LumenType.Caption.toTextStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground)
                 }
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Relay Sync Status", fontSize = 14.sp, color = t.colors.mutedForeground)
+                    Text(stringResource(CoreUiR.string.settings_relay_sync_status), style = LumenType.Caption.toTextStyle(), color = t.colors.mutedForeground)
                     val configured = com.example.calmsource.BuildConfig.RELAY_BASE_URL.isNotBlank()
                     Text(
                         text = if (configured) "Configured" else "Not set",
-                        fontSize = 14.sp,
+                        style = LumenType.Caption.toTextStyle(),
                         fontWeight = FontWeight.Bold,
                         color = if (configured) LumenExtendedColors.statusHealthy else t.colors.mutedForeground
                     )
@@ -685,7 +824,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             onDismissRequest = { showM3uDialog = false },
             title = { Text(if (m3uEditProvider != null) "Edit M3U Playlist" else "Add M3U Playlist", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)) {
+                Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5)) {
                     OutlinedTextField(
                         value = m3uName,
                         onValueChange = { m3uName = it },
@@ -701,7 +840,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
                     )
                     m3uError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = t.colors.destructive, style = LumenType.Caption.toTextStyle())
                     }
                 }
             },
@@ -758,7 +897,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
                     )
                     xtreamError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = t.colors.destructive, style = LumenType.Caption.toTextStyle())
                     }
                 }
             },
@@ -794,7 +933,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         }
                     }
                 }) {
-                    Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold)
+                    Text("Delete", color = t.colors.destructive, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -814,12 +953,12 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
             previewManifest = null
             previewAddonWarnings = emptyList()
             if (trimmedUrl.isBlank()) {
-                addonValidationError = "URL cannot be blank"
+                addonValidationError = context.getString(CoreUiR.string.settings_addon_url_blank)
                 return
             }
             val isHttp = trimmedUrl.lowercase().startsWith("http://")
             if (isHttp && !prefs.allowCleartextUserSources) {
-                addonValidationError = "Unsafe schemes (HTTP) are rejected by your settings. Enable 'Allow Cleartext HTTP Sources' to use this."
+                addonValidationError = context.getString(CoreUiR.string.settings_addon_http_blocked)
                 return
             }
             isPreviewingAddon = true
@@ -832,30 +971,36 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         previewManifest = result.manifest
                         previewAddonWarnings = result.warnings
                     } else {
-                        addonValidationError = result.error?.message ?: result.warnings.firstOrNull() ?: "Failed to load manifest"
+                        addonValidationError = result.error?.message ?: result.warnings.firstOrNull()
+                            ?: context.getString(CoreUiR.string.settings_addon_manifest_failed)
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     isPreviewingAddon = false
-                    addonValidationError = e.localizedMessage ?: "Failed to load manifest"
+                    addonValidationError = e.localizedMessage
+                        ?: context.getString(CoreUiR.string.settings_addon_manifest_failed)
                 }
             }
         }
 
         AlertDialog(
             onDismissRequest = { showAddonDialog = false },
-            title = { Text("Add Catalog Add-on URL", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(CoreUiR.string.settings_addon_add_url_title), color = t.colors.foreground, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
                     if (previewManifest != null) {
                         val manifest = previewManifest!!
                         Text("Add-on found: ${manifest.name}", color = t.colors.foreground, fontWeight = FontWeight.Bold)
-                        Text(manifest.description ?: "No description provided.", color = t.colors.mutedForeground, fontSize = 12.sp)
+                        Text(
+                            manifest.description ?: stringResource(CoreUiR.string.settings_no_description_provided),
+                            color = t.colors.mutedForeground,
+                            style = LumenType.Caption.toTextStyle(),
+                        )
                     } else {
                         OutlinedTextField(
                             value = addonUrl,
                             onValueChange = { addonUrl = it },
-                            label = { Text("Manifest URL") },
+                            label = { Text(stringResource(CoreUiR.string.settings_addon_manifest_url)) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = t.colors.brand, focusedLabelColor = t.colors.brand)
                         )
@@ -864,7 +1009,7 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         }
                     }
                     addonValidationError?.let { err ->
-                        Text(err, color = Color.Red, fontSize = 12.sp)
+                        Text(err, color = t.colors.destructive, style = LumenType.Caption.toTextStyle())
                     }
                 }
             },
@@ -881,10 +1026,12 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                                     if (result.isSuccess) {
                                         showAddonDialog = false
                                     } else {
-                                        addonValidationError = result.error?.message ?: "Install failed"
+                                        addonValidationError = result.error?.message
+                                            ?: context.getString(CoreUiR.string.settings_addon_install_failed)
                                     }
                                 } catch (e: Exception) {
-                                    addonValidationError = e.localizedMessage ?: "Install failed"
+                                    addonValidationError = e.localizedMessage
+                                        ?: context.getString(CoreUiR.string.settings_addon_install_failed)
                                 } finally {
                                     isInstallingAddon = false
                                 }
@@ -895,12 +1042,18 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = t.colors.brand, contentColor = t.colors.brandForeground)
                 ) {
-                    Text(if (previewManifest != null) "Install" else "Preview")
+                    Text(
+                        if (previewManifest != null) {
+                            stringResource(CoreUiR.string.settings_install)
+                        } else {
+                            stringResource(CoreUiR.string.settings_addon_preview)
+                        },
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddonDialog = false }) {
-                    Text("Cancel", color = t.colors.foreground)
+                    Text(stringResource(CoreUiR.string.settings_cancel), color = t.colors.foreground)
                 }
             },
             containerColor = t.colors.card
@@ -911,8 +1064,13 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
     if (addonToRemove != null) {
         AlertDialog(
             onDismissRequest = { addonToRemove = null },
-            title = { Text("Remove Add-on", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to remove '${addonToRemove?.name}'?", color = t.colors.mutedForeground) },
+            title = { Text(stringResource(CoreUiR.string.settings_addon_remove_title), color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    stringResource(CoreUiR.string.settings_addon_remove_confirm, addonToRemove?.name.orEmpty()),
+                    color = t.colors.mutedForeground,
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     addonToRemove?.let { addon ->
@@ -920,12 +1078,12 @@ fun SettingsScreens(onNavigateToProfiles: () -> Unit = {}) {
                         addonToRemove = null
                     }
                 }) {
-                    Text("Remove", color = Color.Red, fontWeight = FontWeight.Bold)
+                    Text(stringResource(CoreUiR.string.settings_remove), color = t.colors.destructive, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { addonToRemove = null }) {
-                    Text("Cancel", color = t.colors.foreground)
+                    Text(stringResource(CoreUiR.string.settings_cancel), color = t.colors.foreground)
                 }
             },
             containerColor = t.colors.card
@@ -964,7 +1122,7 @@ fun MobileExtensionConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Configure ${addon.name}", color = t.colors.foreground, fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(CoreUiR.string.settings_configure_addon, addon.name), color = t.colors.foreground, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.sm)) {
                 configs.forEach { config ->
@@ -979,7 +1137,7 @@ fun MobileExtensionConfigDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                saveError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
+                saveError?.let { Text(it, color = t.colors.destructive, style = LumenType.Caption.toTextStyle()) }
             }
         },
         confirmButton = {
@@ -1003,13 +1161,36 @@ fun SubScreenHeader(title: String, onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = LumenLegacySpace.lg),
+            .statusBarsPadding()
+            .padding(bottom = LumenTokens.Space.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = t.colors.foreground)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(CoreUiR.string.cta_back), tint = t.colors.foreground)
         }
-        Text(text = title, style = MaterialTheme.typography.headlineSmall, color = t.colors.foreground)
+        Text(text = title, style = LumenType.Title.toTextStyle(), color = t.colors.foreground)
+    }
+}
+
+@Composable
+private fun SettingsNavRow(title: String, onClick: () -> Unit) {
+    val t = LocalLumenTokens.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(LumenTokens.Shape.sm)
+            .clickable(onClick = onClick)
+            .padding(vertical = LumenTokens.Space.s5),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = LumenType.Body.toTextStyle(), color = t.colors.foreground)
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = t.colors.mutedForeground,
+            modifier = Modifier.size(LumenLayout.iconSm),
+        )
     }
 }
 
@@ -1021,28 +1202,29 @@ fun HealthBadge(status: String, color: Color) {
             .clip(LumenTokens.Shape.xs)
             .background(bgColor)
             .border(1.dp, color.copy(alpha = 0.3f), LumenTokens.Shape.xs)
-            .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xxs)
+            .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.s1)
     ) {
         Text(
             text = status,
             color = color,
-            fontSize = 10.sp,
+            style = LumenType.Eyebrow.toTextStyle(),
             fontWeight = FontWeight.Bold
         )
     }
 }
 
 @Composable
-fun PreferenceSwitchRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    val t = LocalLumenTokens.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = LumenLegacySpace.sm2),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(title, color = t.colors.foreground, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+fun PreferenceSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    SettingsToggleRow(
+        title = title,
+        subtitle = "",
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+    )
 }
 
 @Composable
@@ -1071,5 +1253,4 @@ fun connectAndSyncXtream(proceedDespiteHttpWarning: Boolean = false) {
 fun dummyTrigger() {
     connectAndSyncXtream(proceedDespiteHttpWarning = true)
 }
-
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calmsource.core.model.Channel
 import com.example.calmsource.core.model.ProviderSyncStatus
+import com.example.calmsource.core.model.TestEnvironment
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.flowOn
 
 data class LiveGuideUiState(
     val isLoading: Boolean = true,
@@ -46,54 +48,58 @@ class LiveGuideViewModel : ViewModel() {
         val recentOrder: Map<String, Int> = emptyMap()
     )
 
+    private data class FiltersState(
+        val searchQuery: String = "",
+        val selectedView: IptvLiveGuideView = IptvLiveGuideView.LIVE,
+        val selectedLanguage: String = IptvLiveGuideFilters.ALL_LANGUAGES,
+        val selectedCountry: String = IptvLiveGuideFilters.ALL_REGIONS,
+        val sortMode: IptvLiveGuideSort = IptvLiveGuideSort.RECOMMENDED,
+        val selectedCategory: String = "All",
+        val reloadToken: Int = 0
+    )
+
     private val memoryHints = MutableStateFlow(MemoryHints())
-    private val searchQuery = MutableStateFlow("")
-    private val selectedView = MutableStateFlow(IptvLiveGuideView.LIVE)
-    private val selectedLanguage = MutableStateFlow(IptvLiveGuideFilters.ALL_LANGUAGES)
-    private val selectedCountry = MutableStateFlow(IptvLiveGuideFilters.ALL_REGIONS)
-    private val sortMode = MutableStateFlow(IptvLiveGuideSort.RECOMMENDED)
-    private val selectedCategory = MutableStateFlow("All")
-    private val reloadToken = MutableStateFlow(0)
+    private val filtersState = MutableStateFlow(FiltersState())
 
     fun updateMemoryHints(favoriteKeys: Set<String>, recentOrder: Map<String, Int>) {
         memoryHints.value = MemoryHints(favoriteKeys, recentOrder)
     }
 
     fun setSearchQuery(value: String) {
-        searchQuery.value = value
+        filtersState.update { it.copy(searchQuery = value) }
     }
 
     fun setSelectedView(value: IptvLiveGuideView) {
-        selectedView.value = value
+        filtersState.update { it.copy(selectedView = value) }
     }
 
     fun setSelectedLanguage(value: String) {
-        selectedLanguage.value = value
+        filtersState.update { it.copy(selectedLanguage = value) }
     }
 
     fun setSelectedCountry(value: String) {
-        selectedCountry.value = value
+        filtersState.update { it.copy(selectedCountry = value) }
     }
 
     fun setSortMode(value: IptvLiveGuideSort) {
-        sortMode.value = value
+        filtersState.update { it.copy(sortMode = value) }
     }
 
     fun setSelectedCategory(value: String) {
-        selectedCategory.value = value
+        filtersState.update { it.copy(selectedCategory = value) }
     }
 
     fun clearFilters() {
-        searchQuery.value = ""
-        selectedView.value = IptvLiveGuideView.LIVE
-        selectedLanguage.value = IptvLiveGuideFilters.ALL_LANGUAGES
-        selectedCountry.value = IptvLiveGuideFilters.ALL_REGIONS
-        sortMode.value = IptvLiveGuideSort.RECOMMENDED
-        selectedCategory.value = "All"
+        filtersState.value = FiltersState()
     }
 
     fun bumpReloadToken() {
-        reloadToken.update { it + 1 }
+        filtersState.update { it.copy(reloadToken = it.reloadToken + 1) }
+    }
+
+    fun retrySync() {
+        bumpReloadToken()
+        IPTVRepository.retryFailedProviderSyncs()
     }
 
     private val guideContext = combine(
@@ -110,24 +116,28 @@ class LiveGuideViewModel : ViewModel() {
             isProviderSyncing = isProviderSyncing,
             hasProviders = providers.isNotEmpty()
         )
-        val progressiveChannels = if (index.uiChannels.isNotEmpty()) {
-            index.uiChannels
+        
+        val repoChannels = if (index.liveChannels.isNotEmpty()) {
+            index.liveChannels
         } else if (liveChannelCount > 0) {
-            IptvLiveGuideIndex.lightweightUiChannels(
-                if (index.liveChannels.isNotEmpty()) index.liveChannels else IPTVRepository.getLiveChannels()
-            )
+            IPTVRepository.getLiveChannels()
         } else {
             emptyList()
         }
+
+        val progressiveChannels = if (index.uiChannels.isNotEmpty()) {
+            index.uiChannels
+        } else if (repoChannels.isNotEmpty()) {
+            IptvLiveGuideIndex.lightweightUiChannels(repoChannels)
+        } else {
+            emptyList()
+        }
+
         val activeIndex = if (index.uiChannels.isNotEmpty()) {
             index
         } else if (progressiveChannels.isNotEmpty()) {
             IptvLiveGuideIndex.buildFromChannels(
-                channels = if (index.liveChannels.isNotEmpty()) {
-                    index.liveChannels
-                } else {
-                    IPTVRepository.getLiveChannels()
-                },
+                channels = repoChannels,
                 lightweight = true
             )
         } else {
@@ -145,32 +155,44 @@ class LiveGuideViewModel : ViewModel() {
             languageById = activeIndex.languageById,
             countryById = activeIndex.countryById,
             sectionById = activeIndex.sectionById,
-            syncWarnings = syncStates.values.mapNotNull { it.warning?.takeIf(String::isNotBlank) }.distinct()
+            syncWarnings = syncStates.values.flatMap { state ->
+                listOfNotNull(
+                    state.error?.takeIf(String::isNotBlank),
+                    state.warning?.takeIf(String::isNotBlank)
+                )
+            }.distinct()
         )
     }
 
+    private val debouncedSearchQuery = filtersState
+        .map { it.searchQuery }
+        .distinctUntilChanged()
+        .let { if (TestEnvironment.isTest) it else it.debounce(150L) }
+
+    // Debounce category selection so rapid D-pad scrolling through the sidebar
+    // doesn't re-filter the entire channel list on every focus change.
+    private val debouncedCategory = filtersState
+        .map { it.selectedCategory }
+        .distinctUntilChanged()
+        .let { if (TestEnvironment.isTest) it else it.debounce(250L) }
+
     private val filterInputs = combine(
-        combine(searchQuery, selectedView, selectedLanguage) { query, view, language ->
-            Triple(query, view, language)
-        },
-        combine(selectedCountry, sortMode, selectedCategory) { country, sort, category ->
-            Triple(country, sort, category)
-        },
-        combine(memoryHints, reloadToken) { hints, token ->
-            hints to token
-        }
-    ) { queryViewLanguage, countrySortCategory, hintsToken ->
+        filtersState,
+        debouncedSearchQuery,
+        debouncedCategory,
+        memoryHints
+    ) { state, debouncedQuery, debouncedCat, hints ->
         FilterInputs(
-            searchQuery = queryViewLanguage.first,
-            selectedView = queryViewLanguage.second,
-            selectedLanguage = queryViewLanguage.third,
-            selectedCountry = countrySortCategory.first,
-            sortMode = countrySortCategory.second,
-            selectedCategory = countrySortCategory.third,
-            memoryHints = hintsToken.first,
-            reloadToken = hintsToken.second
+            searchQuery = debouncedQuery,
+            selectedView = state.selectedView,
+            selectedLanguage = state.selectedLanguage,
+            selectedCountry = state.selectedCountry,
+            sortMode = state.sortMode,
+            selectedCategory = debouncedCat,
+            memoryHints = hints,
+            reloadToken = state.reloadToken
         )
-    }.debounce(150L).distinctUntilChanged()
+    }.distinctUntilChanged()
 
     val uiState: StateFlow<LiveGuideUiState> = combine(
         guideContext,
@@ -223,7 +245,8 @@ class LiveGuideViewModel : ViewModel() {
             syncWarnings = context.syncWarnings,
             reloadToken = filters.reloadToken
         )
-    }.stateIn(
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LiveGuideUiState()

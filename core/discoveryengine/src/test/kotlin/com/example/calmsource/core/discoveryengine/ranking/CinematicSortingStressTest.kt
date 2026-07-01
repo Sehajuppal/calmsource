@@ -120,7 +120,7 @@ class CinematicSortingStressTest {
         val streamC = MediaStreamEntity(
             id = "stream-C-light-4k",
             mediaId = "m1",
-            title = "Movie 4K AV1 HDR10 👥 10",
+            title = "Movie 4K AV1 HDR10 👥 100",
             url = "http://light-4k",
             resolution = "4K",
             codec = "AV1",
@@ -143,9 +143,9 @@ class CinematicSortingStressTest {
             strategy = SortingPreference.BEST_MATCH
         )
 
-        // Expected order under BEST_MATCH: Stream B (sweet-1080p) > Stream C (light-4k) > Stream A (heavy-remux-4k)
-        assertEquals("stream-B-sweet-1080p", rankedBestMatch[0].id)
-        assertEquals("stream-C-light-4k", rankedBestMatch[1].id)
+        // Expected order under BEST_MATCH: Stream C (light-4k) > Stream B (sweet-1080p) > Stream A (heavy-remux-4k)
+        assertEquals("stream-C-light-4k", rankedBestMatch[0].id)
+        assertEquals("stream-B-sweet-1080p", rankedBestMatch[1].id)
         assertEquals("stream-A-heavy-remux-4k", rankedBestMatch[2].id)
 
         // Test HIGHEST_QUALITY

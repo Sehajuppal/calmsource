@@ -32,7 +32,7 @@ fun TvPrioritiesScreen(onBack: () -> Unit) {
             }
         }
         item {
-            Text(text = "Priorities Configuration", fontSize = LumenType.size24, fontWeight = FontWeight.Bold, color = t.colors.foreground, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
+            Text(text = "Priorities Configuration", style = lumenTitleStyle(), fontWeight = FontWeight.Bold, color = t.colors.foreground, modifier = Modifier.padding(bottom = LumenLegacySpace.md))
         }
 
         item {

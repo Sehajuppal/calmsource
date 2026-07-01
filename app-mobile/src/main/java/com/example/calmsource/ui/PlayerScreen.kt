@@ -2,12 +2,12 @@ package com.example.calmsource.ui
 
 import com.example.calmsource.core.ui.theme.*
 
-import android.os.Handler
-import android.os.Looper
+import com.example.calmsource.core.data.rememberActiveProfileId
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import com.example.calmsource.core.model.PlaybackAudioTrack
@@ -26,21 +26,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
@@ -66,6 +61,7 @@ import com.example.calmsource.core.model.PlaybackSource
 import com.example.calmsource.core.model.PlayerState
 import com.example.calmsource.core.model.WatchOption
 import com.example.calmsource.core.model.AutoFallbackPolicy
+import com.example.calmsource.core.model.AutoplayNextPayload
 import androidx.compose.ui.unit.sp
 import com.example.calmsource.core.playback.PlaybackManager
 import com.example.calmsource.core.playback.PlaybackRequestSaver
@@ -91,9 +87,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.palette.graphics.Palette
-import coil.compose.AsyncImage
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
+import com.example.calmsource.core.playback.PlaybackUserPreferences
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.BorderStroke
 
 @OptIn(UnstableApi::class)
@@ -104,6 +102,10 @@ fun PlayerScreen(
     fallbackSources: List<PlaybackSource> = emptyList(),
     playBestIntent: Boolean = false,
     onBack: () -> Unit,
+    onMinimize: (() -> Unit)? = null,
+    onAutoplayNext: ((AutoplayNextPayload) -> Unit)? = null,
+    onRegisterPictureInPicture: (((() -> Boolean)?) -> Unit)? = null,
+    playbackViewModel: MobilePlaybackViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -118,49 +120,45 @@ fun PlayerScreen(
     }
 
     // Reduced motion check
-    val isReducedMotion = remember(context) {
-        try {
-            android.provider.Settings.Global.getFloat(
-                context.contentResolver,
-                android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
-                1f
-            ) == 0f
-        } catch (e: Exception) {
-            false
-        }
-    }
+    val isReducedMotion = rememberReducedMotion()
+    var isExitingToMini by remember { mutableStateOf(false) }
+    val minimizeProgress = remember { Animatable(0f) }
 
-    // Instantiate PlaybackManager
+    // Instantiate PlaybackManager (activity-scoped when minimizing is enabled)
     val initialRequest = remember { request }
-    val playbackManager = remember(initialRequest.source.id) {
-        PlaybackManager(
-            context = context,
-            coroutineScope = coroutineScope,
-            resourceStateSink = { state ->
-                ProviderManager.setPlaybackState(state.toResourcePlaybackState())
-            },
-            lowMemoryModeSink = { enabled ->
-                ProviderManager.setLowMemoryMode(enabled)
-            }
-        )
-    }
+    playbackViewModel.expand()
+    val playbackManager = remember(initialRequest.source.id) { playbackViewModel.obtainManager() }
+    val activeProfileId = rememberActiveProfileId()
+    val isMinimized by playbackViewModel.isMinimized.collectAsState()
     
     val uiState by playbackManager.uiState.collectAsStateWithLifecycle()
     val progressState by playbackManager.progressState.collectAsStateWithLifecycle()
     val audioTracks by playbackManager.audioTracks.collectAsStateWithLifecycle()
     val subtitleTracks by playbackManager.subtitleTracks.collectAsStateWithLifecycle()
+    var showAutoplayCountdown by remember { mutableStateOf(false) }
+    var autoplayCountdown by remember { mutableIntStateOf(10) }
+    var autoplayPayload by remember { mutableStateOf<AutoplayNextPayload?>(null) }
     var showAdvancedPanel by remember { mutableStateOf(false) }
     var showChannelSwitcher by remember { mutableStateOf(false) }
     val retryTrigger = remember { mutableIntStateOf(0) }
     
+    PlaybackUrlCache.put(request.source.id, request.source.rawUrl)
+    var currentRequest by remember(request.source.id) { mutableStateOf(request) }
+    var autoplayCancelled by remember(currentRequest.source.id) { mutableStateOf(false) }
+    var successRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
+    var failureRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
+    val backgroundPlaybackEnabled = remember(context) {
+        PlaybackUserPreferences.isBackgroundPlaybackEnabled(context)
+    }
+    val autoplayNextEnabled = remember(context) {
+        PlaybackUserPreferences.isAutoplayNextEnabled(context)
+    }
+
     // Double tap skip feedback state
     var showDoubleTapLeftFeedback by remember { mutableStateOf(false) }
     var showDoubleTapRightFeedback by remember { mutableStateOf(false) }
-    
-    PlaybackUrlCache.put(request.source.id, request.source.rawUrl)
-    var currentRequest by remember(request.source.id) { mutableStateOf(request) }
-    var successRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
-    var failureRecorded by remember(currentRequest.source.id) { mutableStateOf(false) }
+    var dismissLeftJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var dismissRightJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val isLive = currentRequest.source.metadata?.isLive == true
 
     var fallbackPolicy by remember { mutableStateOf(com.example.calmsource.core.playback.FallbackPreferences.policy) }
@@ -188,13 +186,12 @@ fun PlayerScreen(
     val uiStateLatest = rememberUpdatedState(uiState)
 
     LaunchedEffect(uiState.error, currentRequest.source.id) {
-        val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(
-            com.example.calmsource.core.playback.FallbackPreferences.policy
-        )
+        val policy = com.example.calmsource.core.playback.FallbackPreferences.policy
+        val maxLiveSwitches = LiveChannelRecovery.maxAutoSwitchCount(policy)
         if (uiState.error != null && isLive && iptvChannels.isNotEmpty() && channelSwitchFails < maxLiveSwitches) {
-            delay(1500)
+            delay(LiveChannelRecovery.AUTO_SWITCH_SETTLE_MS)
             val latest = uiStateLatest.value
-            if (latest.isTransitioningSource || latest.error == null) return@LaunchedEffect
+            if (!LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(latest, policy)) return@LaunchedEffect
             if (currentRequestState.value.source.id != currentRequest.source.id) return@LaunchedEffect
             val channels = iptvChannelsState.value
             val bestCandidate = LiveChannelRecovery.suggestNextChannel(
@@ -214,13 +211,6 @@ fun PlayerScreen(
         if (uiState.playerState == PlayerState.PLAYING) {
             delay(5000)
             channelSwitchFails = 0
-        }
-    }
-
-    LaunchedEffect(uiState.error) {
-        val error = uiState.error
-        if (error is PlaybackError.TerminalError) {
-            android.widget.Toast.makeText(context, error.message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -346,25 +336,9 @@ fun PlayerScreen(
     
     // Silent sampler to dynamically read color Palette for adaptive controls
     if (!posterUrl.isNullOrBlank()) {
-        AsyncImage(
-            model = posterUrl,
-            contentDescription = null,
-            modifier = Modifier.size(1.dp),
-            onSuccess = { state ->
-                val drawable = state.result.drawable
-                if (drawable is android.graphics.drawable.BitmapDrawable) {
-                    val bitmap = drawable.bitmap
-                    Palette.from(bitmap).generate { palette ->
-                        val dominantColor = palette?.getDominantColor(0xFF000000.toInt()) ?: 0xFF000000.toInt()
-                        val r = android.graphics.Color.red(dominantColor) / 255f
-                        val g = android.graphics.Color.green(dominantColor) / 255f
-                        val b = android.graphics.Color.blue(dominantColor) / 255f
-                        Handler(Looper.getMainLooper()).post {
-                            playButtonLuminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
-                        }
-                    }
-                }
-            }
+        BackdropLuminanceSampler(
+            imageUrl = posterUrl,
+            onLuminance = { playButtonLuminance = it },
         )
     }
 
@@ -420,16 +394,58 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(lifecycleOwner, playbackManager) {
+    LaunchedEffect(uiState.playerState, currentRequest.source.id, autoplayNextEnabled, autoplayCancelled) {
+        if (
+            uiState.playerState == PlayerState.ENDED &&
+            !isLive &&
+            autoplayNextEnabled &&
+            !autoplayCancelled &&
+            onAutoplayNext != null &&
+            currentRequest.seriesContext != null
+        ) {
+            val payload = withContext(Dispatchers.IO) {
+                SeriesAutoplayCoordinator.resolveNextEpisode(
+                    context = context,
+                    completedRequest = currentRequest,
+                    profileId = activeProfileId,
+                )
+            } ?: return@LaunchedEffect
+            autoplayPayload = payload
+            autoplayCountdown = 10
+            showAutoplayCountdown = true
+        }
+    }
+
+    LaunchedEffect(showAutoplayCountdown, autoplayPayload) {
+        if (!showAutoplayCountdown || autoplayPayload == null) return@LaunchedEffect
+        var remaining = 10
+        while (remaining > 0 && showAutoplayCountdown) {
+            autoplayCountdown = remaining
+            delay(1_000)
+            remaining -= 1
+        }
+        if (showAutoplayCountdown) {
+            showAutoplayCountdown = false
+            autoplayPayload?.let { payload -> onAutoplayNext?.invoke(payload) }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, playbackManager, isMinimized) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                playbackManager.pause()
+                if (!isMinimized) {
+                    playbackManager.pause()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            playbackManager.release()
+            if (!isMinimized) {
+                playbackViewModel.stopSession()
+            } else {
+                playbackManager.setPlayerView(null)
+            }
         }
     }
 
@@ -437,7 +453,30 @@ fun PlayerScreen(
         when {
             showChannelSwitcher -> showChannelSwitcher = false
             showAdvancedPanel -> showAdvancedPanel = false
-            else -> onBack()
+            showAutoplayCountdown -> {
+                showAutoplayCountdown = false
+                autoplayCancelled = true
+            }
+            !isLive && backgroundPlaybackEnabled && onMinimize != null -> {
+                if (isReducedMotion || isExitingToMini) {
+                    playbackViewModel.minimize()
+                    onMinimize()
+                } else {
+                    isExitingToMini = true
+                    coroutineScope.launch {
+                        minimizeProgress.animateTo(
+                            targetValue = 1f,
+                            animationSpec = LumenDelightMotion.playerMinimizeSpec(isReducedMotion),
+                        )
+                        playbackViewModel.minimize()
+                        onMinimize()
+                    }
+                }
+            }
+            else -> {
+                playbackViewModel.stopSession()
+                onBack()
+            }
         }
     }
 
@@ -469,6 +508,21 @@ fun PlayerScreen(
                     else -> target.coerceAtLeast(0L)
                 },
             )
+            if (delta < 0) {
+                showDoubleTapLeftFeedback = true
+                dismissLeftJob?.cancel()
+                dismissLeftJob = coroutineScope.launch {
+                    kotlinx.coroutines.delay(600)
+                    showDoubleTapLeftFeedback = false
+                }
+            } else {
+                showDoubleTapRightFeedback = true
+                dismissRightJob?.cancel()
+                dismissRightJob = coroutineScope.launch {
+                    kotlinx.coroutines.delay(600)
+                    showDoubleTapRightFeedback = false
+                }
+            }
         },
         onSelectAudio = { playbackManager.selectAudioTrack(it.id) },
         onSelectSubtitle = { track ->
@@ -481,11 +535,31 @@ fun PlayerScreen(
     )
  
     val player by playbackManager.playerFlow.collectAsStateWithLifecycle()
+    val pipSupported = remember(context) { PictureInPictureHelper.isSupported(context) }
+
+    DisposableEffect(player, onRegisterPictureInPicture) {
+        onRegisterPictureInPicture?.invoke {
+            val activity = context as? android.app.Activity
+            if (activity != null) PictureInPictureHelper.enterPictureInPicture(activity, player) else false
+        }
+        onDispose {
+            onRegisterPictureInPicture?.invoke(null)
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(LumenTokens.Color.bg)
+            .graphicsLayer {
+                if (minimizeProgress.value > 0f) {
+                    translationY = minimizeProgress.value * 120f
+                    alpha = 1f - (minimizeProgress.value * 0.35f)
+                    val scale = 1f - (minimizeProgress.value * 0.04f)
+                    scaleX = scale
+                    scaleY = scale
+                }
+            }
     ) {
         // Video Player View
         AndroidView(
@@ -506,6 +580,10 @@ fun PlayerScreen(
                     view.player = player
                 }
             },
+            onRelease = { view ->
+                view.player = null
+                playbackManager.setPlayerView(null)
+            },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -519,7 +597,7 @@ fun PlayerScreen(
                     .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("◀◀ 10s", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = LumenType.size20)
+                Text("◀◀ 10s", color = LumenTokens.Color.textPrimary, style = LumenType.Title.toTextStyle(), fontWeight = FontWeight.Bold)
             }
         }
         if (showDoubleTapRightFeedback) {
@@ -531,7 +609,7 @@ fun PlayerScreen(
                     .background(LumenTokens.Color.bg.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("10s ▶▶", color = LumenTokens.Color.textPrimary, fontWeight = FontWeight.Bold, fontSize = LumenType.size20)
+                Text("10s ▶▶", color = LumenTokens.Color.textPrimary, style = LumenType.Title.toTextStyle(), fontWeight = FontWeight.Bold)
             }
         }
 
@@ -554,11 +632,11 @@ fun PlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(LumenTokens.Radius.md),
                     modifier = t.glassSurface(dropBlur = isLowRam)
                         .clip(LumenTokens.Shape.lg)
-                        .padding(horizontal = LumenLegacySpace.xxxl, vertical = LumenLegacySpace.xxl)
+                        .padding(horizontal = LumenTokens.Space.xl, vertical = LumenTokens.Space.lg)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                        horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
                     ) {
                         CircularProgressIndicator(
                             color = t.colors.brand,
@@ -566,14 +644,18 @@ fun PlayerScreen(
                             strokeWidth = LumenExtendedColors.focusRingWidth
                         )
                         Text(
-                            text = "Switching source...",
+                            text = stringResource(CoreUiR.string.player_switching_source),
                             color = t.colors.brandGlow,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    val displayMsg = if (!fallbackMsg.isNullOrBlank()) fallbackMsg else "Trying alternative track..."
+                    val displayMsg = if (!fallbackMsg.isNullOrBlank()) {
+                        fallbackMsg
+                    } else {
+                        stringResource(CoreUiR.string.player_trying_alternative)
+                    }
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn()
@@ -587,7 +669,7 @@ fun PlayerScreen(
                     }
 
                     Text(
-                        text = "Your video will resume shortly",
+                        text = stringResource(CoreUiR.string.player_video_resume_shortly),
                         color = t.colors.mutedForeground,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center
@@ -624,13 +706,14 @@ fun PlayerScreen(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .fillMaxWidth()
-                    .padding(horizontal = LumenLegacySpace.sm2, vertical = LumenLegacySpace.xs),
+                    .statusBarsPadding()
+                    .padding(horizontal = LumenTokens.Space.sm, vertical = LumenTokens.Space.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = ::handleBackPress, modifier = Modifier.size(LumenLayout.iconXl)) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(CoreUiR.string.cta_back),
                         tint = t.colors.foreground,
                         modifier = Modifier.size(LumenTokens.Radius.xl),
                     )
@@ -643,7 +726,25 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.List,
-                            contentDescription = "Channels",
+                            contentDescription = stringResource(CoreUiR.string.player_channels),
+                            tint = t.colors.foreground,
+                            modifier = Modifier.size(LumenTokens.Radius.xl),
+                        )
+                    }
+                }
+                if (!isLive && pipSupported) {
+                    IconButton(
+                        onClick = {
+                            val activity = context as? android.app.Activity
+                            if (activity != null) {
+                                PictureInPictureHelper.enterPictureInPicture(activity, player)
+                            }
+                        },
+                        modifier = Modifier.size(LumenLayout.iconXl),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PictureInPictureAlt,
+                            contentDescription = stringResource(CoreUiR.string.player_pip),
                             tint = t.colors.foreground,
                             modifier = Modifier.size(LumenTokens.Radius.xl),
                         )
@@ -655,10 +756,53 @@ fun PlayerScreen(
                 ) {
                     Icon(
                         Icons.Default.Settings,
-                        contentDescription = "Settings",
+                        contentDescription = stringResource(CoreUiR.string.nav_settings),
                         tint = t.colors.foreground,
                         modifier = Modifier.size(LumenTokens.Radius.xl),
                     )
+                }
+            }
+        }
+
+        // Autoplay next-episode countdown
+        if (showAutoplayCountdown && autoplayPayload != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(LumenTokens.Color.bg.copy(alpha = 0.72f))
+                    .clickable { },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5),
+                    modifier = Modifier.padding(LumenTokens.Space.s7),
+                ) {
+                    Text(
+                        text = stringResource(CoreUiR.string.player_autoplay_next, autoplayPayload!!.episodeLabel),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = t.colors.foreground,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = stringResource(CoreUiR.string.player_autoplay_countdown, autoplayCountdown),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = t.colors.mutedForeground,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5)) {
+                        TextButton(onClick = {
+                            showAutoplayCountdown = false
+                            autoplayCancelled = true
+                        }) {
+                            Text(stringResource(CoreUiR.string.player_autoplay_cancel))
+                        }
+                        Button(onClick = {
+                            showAutoplayCountdown = false
+                            autoplayPayload?.let { payload -> onAutoplayNext?.invoke(payload) }
+                        }) {
+                            Text(stringResource(CoreUiR.string.player_autoplay_play_now))
+                        }
+                    }
                 }
             }
         }
@@ -691,16 +835,16 @@ fun PlayerScreen(
                 modifier = Modifier
                     .width(LumenLayout.playerMenuWidth)
                     .fillMaxHeight()
-                    .padding(LumenLegacySpace.lg),
+                    .padding(LumenTokens.Space.md),
                 colors = CardDefaults.cardColors(containerColor = t.colors.card.copy(alpha = 0.95f)),
                 border = BorderStroke(1.dp, t.colors.border)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(LumenLegacySpace.lg)
+                        .padding(LumenTokens.Space.md)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                    verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
                 ) {
                     Text("Advanced Options", style = MaterialTheme.typography.titleMedium, color = t.colors.foreground)
                     HorizontalDivider(color = t.colors.border)
@@ -740,7 +884,7 @@ fun PlayerScreen(
                                     fallbackPolicy = policy 
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
-                                .padding(vertical = LumenLegacySpace.xs)
+                                .padding(vertical = LumenTokens.Space.xs)
                         ) {
                             RadioButton(
                                 selected = fallbackPolicy == policy,
@@ -749,7 +893,7 @@ fun PlayerScreen(
                                     com.example.calmsource.core.playback.FallbackPreferences.setPolicyAndPersist(context, policy)
                                 }
                             )
-                            Spacer(modifier = Modifier.width(LumenLegacySpace.sm2))
+                            Spacer(modifier = Modifier.width(LumenTokens.Space.sm))
                             Text(
                                 text = when (policy) {
                                     AutoFallbackPolicy.OFF -> "Off"
@@ -815,12 +959,12 @@ fun PlayerTrackSelectorSheet(
 ) {
     val t = LocalLumenTokens.current
     val subtitlesOff = remember(subtitleTracks) { subtitleTracks.none { it.isSelected } }
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = LumenLegacySpace.xxl)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = LumenTokens.Space.lg)) {
         Text(
             text = if (trackType == TrackType.AUDIO) "Audio track" else "Subtitles",
             style = MaterialTheme.typography.titleLarge,
             color = t.colors.foreground,
-            modifier = Modifier.padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
+            modifier = Modifier.padding(horizontal = LumenTokens.Space.md, vertical = LumenTokens.Space.sm)
         )
         LazyColumn(modifier = Modifier.fillMaxWidth()) {
             if (trackType == TrackType.AUDIO) {
@@ -902,7 +1046,7 @@ fun ChannelSwitcherSheet(
     LazyColumn(modifier = Modifier.fillMaxWidth()) {
         groups.forEach { (category, categoryChannels) ->
             item(key = "category-$category") {
-                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(LumenLegacySpace.lg), color = t.colors.brand)
+                Text(text = category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(LumenTokens.Space.md), color = t.colors.brand)
             }
             items(categoryChannels, key = { it.id }) { channel ->
                 ListItem(
@@ -930,13 +1074,13 @@ fun ErrorOverlay(
     val t = LocalLumenTokens.current
     LumenCard(
         modifier = modifier
-            .padding(LumenLegacySpace.xxxl)
+            .padding(LumenTokens.Space.xl)
             .widthIn(max = LumenLayout.sheetMaxWidth)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
-            modifier = Modifier.fillMaxWidth().padding(LumenLegacySpace.lg)
+            verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
+            modifier = Modifier.fillMaxWidth().padding(LumenTokens.Space.md)
         ) {
             val explanation = when (error) {
                 is PlaybackError.TerminalError -> "Automatic fallback exhausted. All available sources failed to play. Please go back and select a different source manually."

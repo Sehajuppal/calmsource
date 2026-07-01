@@ -15,14 +15,19 @@ class Mission27LiveParityTest {
             "app-mobile/src/main/java/com/example/calmsource/Navigation.kt"
         )
 
-        assertOrdered(
-            tvNavigation,
-            "TvNavRailItem(Icons.Default.Home, \"Home\"",
-            "TvNavRailItem(Icons.Default.LiveTv, \"Live\"",
-            "TvNavRailItem(Icons.Default.Favorite, \"Library\"",
-            "TvNavRailItem(Icons.Default.Search, \"Search\"",
-            "TvNavRailItem(Icons.Default.Settings, \"Setup\""
+        val sidebarSource = readProjectFile(
+            "app-tv/src/main/java/com/example/calmsource/tv/ui/OptimizedAppleTvSidebar.kt"
         )
+
+        assertOrdered(
+            sidebarSource,
+            "SidebarNavItem(0, \"Home\"",
+            "SidebarNavItem(1, \"Live TV\"",
+            "SidebarNavItem(2, \"Library\"",
+            "SidebarNavItem(3, \"Search\"",
+            "SidebarNavItem(4, \"Settings\"",
+        )
+        assertTrue(tvNavigation.contains("OptimizedAppleTvSidebar("))
         assertTrue(tvNavigation.contains("1 -> TvScreen.LiveGuide"))
         assertTrue(tvNavigation.contains("2 -> TvScreen.Library"))
         assertTrue(tvNavigation.contains("3 -> TvScreen.Search"))

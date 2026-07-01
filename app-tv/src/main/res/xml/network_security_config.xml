@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <!-- IPTV providers commonly expose user-approved HTTP portals and streams. -->
+    <base-config cleartextTrafficPermitted="true" />
     <domain-config cleartextTrafficPermitted="true">
         <!-- Android emulator host -->
         <domain includeSubdomains="true">10.0.2.2</domain>

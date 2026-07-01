@@ -167,9 +167,10 @@ object ChannelMapper {
         nowMs: Long,
         displayChannelId: String
     ): Program? {
-        return programs.firstOrNull {
-            it.channelId == epgId && it.startTimeMs > nowMs
-        }?.let {
+        return programs
+            .filter { it.channelId == epgId && it.startTimeMs > nowMs }
+            .minByOrNull { it.startTimeMs }
+            ?.let {
             Program(
                 id = it.id,
                 channelId = displayChannelId,

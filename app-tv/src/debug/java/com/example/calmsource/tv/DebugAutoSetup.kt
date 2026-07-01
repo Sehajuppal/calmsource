@@ -106,7 +106,7 @@ object DebugAutoSetup {
             Log.i(TAG, "Xtream provider added: ${provider.id}. Sync will happen in background.")
             prefs.edit().putBoolean(KEY_XTREAM_DONE, true).apply()
         } else {
-            Log.e(TAG, "Failed to add Xtream: ${result.exceptionOrNull()?.message}", result.exceptionOrNull())
+            Log.e(TAG, "Failed to add Xtream: ${com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(result.exceptionOrNull()?.message ?: "Unknown")}")
         }
     }
 

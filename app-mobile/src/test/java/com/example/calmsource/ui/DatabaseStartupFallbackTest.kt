@@ -78,7 +78,8 @@ class DatabaseStartupFallbackTest {
     fun testSearchViewModelFallbackWhenDatabaseThrows() {
         whenever(mockApp.applicationContext).thenThrow(RuntimeException("Simulated database startup failure"))
 
-        val searchViewModel = SearchViewModel(mockApp)
+        val mockProfileSessionManager = mock(com.example.calmsource.core.data.ProfileSessionManager::class.java)
+        val searchViewModel = SearchViewModel(mockApp, mockProfileSessionManager)
 
         val memoryRepoField = getMemoryRepositoryField(SearchViewModel::class.java)
         memoryRepoField.isAccessible = true

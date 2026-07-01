@@ -24,7 +24,7 @@ object HybridRecommendationRanker {
         currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
         enrichmentFeatures: (String) -> EnrichmentFeatures = { EnrichmentFeatures(mediaId = it) }
     ): List<RecommendationItem> {
-        return candidates.mapNotNull { media ->
+        val scoredCandidates = candidates.mapNotNull { media ->
             val state = userItemStates[media.id]
             
             // Skip hidden items and already completed items
@@ -110,14 +110,74 @@ object HybridRecommendationRanker {
                 reasons = reasons
             )
 
-            RecommendationItem(
+            val itemVector = com.example.calmsource.core.discoveryengine.normalization.Vectorizer.vectorize(
+                title = media.title,
+                overview = media.overview,
+                genres = genres,
+                cast = media.cast.split(",").filter { it.isNotEmpty() },
+                director = media.director,
+                language = media.language,
+                source = media.source
+            )
+
+            val recItem = RecommendationItem(
                 id = media.id,
                 type = media.type,
                 title = media.title,
                 score = totalScore,
                 reason = reasons.firstOrNull() ?: "Recommended for you",
-                scoreBreakdown = breakdown
+                scoreBreakdown = breakdown,
+                genres = genres,
             )
-        }.sortedByDescending { it.score }.take(limit)
+            recItem to itemVector
+        }
+
+        if (scoredCandidates.isEmpty()) return emptyList()
+
+        val selected = mutableListOf<RecommendationItem>()
+        val remaining = scoredCandidates.toMutableList()
+        val lambda = 0.6
+
+        while (selected.size < limit && remaining.isNotEmpty()) {
+            if (selected.isEmpty()) {
+                val bestPair = remaining.maxByOrNull { it.first.score } ?: break
+                selected.add(bestPair.first)
+                remaining.remove(bestPair)
+            } else {
+                var bestMmrScore = -Double.MAX_VALUE
+                var bestPair: Pair<RecommendationItem, FloatArray>? = null
+
+                for (pair in remaining) {
+                    val (item, itemVec) = pair
+                    var maxSimToSelected = 0.0
+                    for (selItem in selected) {
+                        val selVec = scoredCandidates.firstOrNull { it.first.id == selItem.id }?.second
+                        if (selVec != null) {
+                            val sim = com.example.calmsource.core.discoveryengine.normalization.Vectorizer.cosineSimilarity(itemVec, selVec)
+                            if (sim > maxSimToSelected) {
+                                maxSimToSelected = sim
+                            }
+                        }
+                    }
+
+                    // MMR Score formula with scaled similarity penalty
+                    val mmrScore = lambda * item.score - (1.0 - lambda) * maxSimToSelected * 35.0
+
+                    if (mmrScore > bestMmrScore) {
+                        bestMmrScore = mmrScore
+                        bestPair = pair
+                    }
+                }
+
+                if (bestPair != null) {
+                    selected.add(bestPair.first)
+                    remaining.remove(bestPair)
+                } else {
+                    break
+                }
+            }
+        }
+
+        return selected
     }
 }

@@ -24,5 +24,8 @@ kotlin {
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    // Compose runtime for @Immutable/@Stable annotations (compile-time only)
+    compileOnly(platform(libs.androidx.compose.bom))
+    compileOnly(libs.androidx.compose.runtime)
     testImplementation(libs.junit)
 }

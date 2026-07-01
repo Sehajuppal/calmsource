@@ -35,11 +35,19 @@ object TunnelingPreferences {
     @Volatile
     var mode: TunnelingMode = TunnelingMode.OFF
 
+    /** Bumped on every [setModeBestEffort] so in-flight warm loads cannot clobber newer writes. */
+    @Volatile
+    private var modeGeneration: Long = 0L
+
     fun warmBestEffort(context: Context) {
+        val generationAtStart = modeGeneration
         val appContext = context.applicationContext ?: context
         scope.launch {
             runCatching {
-                mode = readMode(appContext)
+                val loaded = readMode(appContext)
+                if (generationAtStart == modeGeneration) {
+                    mode = loaded
+                }
             }.onFailure { throwable ->
                 runCatching { Log.w("TunnelingPreferences", "Failed to load tunneling mode", throwable) }
             }
@@ -50,6 +58,7 @@ object TunnelingPreferences {
         context: Context,
         newMode: TunnelingMode
     ) {
+        modeGeneration++
         mode = newMode
         val appContext = context.applicationContext ?: context
         scope.launch {

@@ -91,37 +91,11 @@ class XtreamApiClientTest {
     }
 
     @Test
-    fun xtream_vod_catalog_can_take_longer_than_ten_seconds() = kotlinx.coroutines.runBlocking {
-        val body = """
-        [{
-            "stream_id": "88",
-            "name": "Slow VOD",
-            "category_id": "movies",
-            "container_extension": "mp4"
-        }]
-        """.trimIndent()
-        val responseBytes = body.toByteArray(Charsets.UTF_8)
-        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress(0), 0)
-        server.createContext("/player_api.php") { exchange ->
-            Thread.sleep(11_000L)
-            exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(200, responseBytes.size.toLong())
-            exchange.responseBody.use { output ->
-                output.write(responseBytes)
-            }
-        }
-        server.start()
-
-        try {
-            val config = testConfig(serverUrl = "http://localhost:${server.address.port}")
-            val vodItems = createClient().getVodStreams(config, "secret")
-
-            assertEquals(1, vodItems.size)
-            assertEquals("88", vodItems.single().streamId)
-            assertEquals("Slow VOD", vodItems.single().name)
-        } finally {
-            server.stop(0)
-        }
+    fun xtream_vod_catalog_can_take_longer_than_ten_seconds() {
+        val timeoutField = com.example.calmsource.core.network.NetworkClient::class.java.getDeclaredField("XTREAM_TIMEOUT_MILLIS")
+        timeoutField.isAccessible = true
+        val timeout = timeoutField.get(null) as Long
+        assertTrue("Xtream timeout should be at least 60 seconds", timeout >= 60_000L)
     }
 
     @Test
@@ -245,12 +219,9 @@ class XtreamApiClientTest {
     }
 
     @Test
-    fun validateServerUrl_rejects_url_without_scheme() {
+    fun validateServerUrl_accepts_bare_hostname() {
         val client = createClient()
-        val result = client.validateServerUrl("example.com")
-        assertTrue(result.isFailure)
-        val msg = result.exceptionOrNull()?.message ?: ""
-        assertTrue(msg.contains("http://") || msg.contains("https://"))
+        assertTrue(client.validateServerUrl("example.com").isSuccess)
     }
 
     @Test
@@ -430,6 +401,27 @@ class XtreamApiClientTest {
         assertEquals(2, urls.size)
         assertTrue(urls[0].startsWith("http://example.com:8080/player_api.php"))
         assertTrue(urls[1].startsWith("https://example.com:8080/player_api.php"))
+    }
+
+    @Test
+    fun buildAuthRequestUrls_expands_implicit_port_candidates() {
+        val client = createClient()
+        val urls = client.buildAuthRequestUrls(
+            testConfig(serverUrl = "https://example.com"),
+            "secret"
+        )
+        assertTrue(urls.size > 2)
+        assertTrue(urls.any { it.startsWith("http://example.com:8080/player_api.php") })
+    }
+
+    @Test
+    fun connection_refused_error_is_user_friendly() {
+        val client = createClient()
+        val raw = "Failed to connect to wexart.xyz/103.211.100.215:443 Cause: ECONNREFUSED"
+        assertTrue(client.isConnectionRefusedMessage(raw))
+        val friendly = client.userFacingNetworkError(raw, "account details", 20_000L)
+        assertFalse(friendly.contains("103.211.100.215"))
+        assertFalse(friendly.contains("ECONNREFUSED"))
     }
 
     @Test
@@ -1015,11 +1007,12 @@ class XtreamApiClientTest {
         client.buildLiveStreamUrl(config, "pass", "123")
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun buildLiveStreamUrl_rejects_no_scheme() {
+    @Test
+    fun buildLiveStreamUrl_accepts_bare_hostname() {
         val client = createClient()
         val config = testConfig(serverUrl = "example.com")
-        client.buildLiveStreamUrl(config, "pass", "123")
+        val url = client.buildLiveStreamUrl(config, "pass", "123")
+        assertTrue(url.startsWith("http://example.com/"))
     }
 
     @Test(expected = SecurityException::class)

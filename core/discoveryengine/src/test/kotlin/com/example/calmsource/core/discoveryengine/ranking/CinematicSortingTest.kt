@@ -78,7 +78,7 @@ class CinematicSortingTest {
         // Under BEST_MATCH:
         // Exclude files >20GB (heavy penalty like -150)
         // Sweet spot size (2-8GB gets +30)
-        // 1080p gets +80, 4K gets +60 if under 15GB
+        // Reasonable 4K (2-15GB) gets +100, 1080p gets +80
         
         val heavy4K = MediaStreamEntity(
             id = "heavy-4k",

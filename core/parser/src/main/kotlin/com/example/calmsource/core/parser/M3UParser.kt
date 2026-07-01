@@ -269,9 +269,12 @@ class M3UParser {
 
             val tvgLogo = tvgLogoRaw?.trim()?.ifEmpty { null }
 
-            // Performance / Product optimization: Reuse deterministic safe hash instead of blocking random UUID generator.
-            // Maintains stable channel IDs across imports to preserve favorites/EPG history.
-            val id = generateSafeSourceId("$providerId:$url")
+            // Prefer guide/display identity over credential-bearing URLs. Provider tokens commonly
+            // rotate, and hashing the URL made the same channel lose favourites/history after sync.
+            val stableIdentity = tvgId?.takeIf { it.isNotBlank() }?.let { "tvg:$it:${name.lowercase()}" }
+                ?: tvgName?.takeIf { it.isNotBlank() }?.let { "name:${it.lowercase()}:${groupTitle.orEmpty().lowercase()}" }
+                ?: "display:${name.lowercase()}:${groupTitle.orEmpty().lowercase()}"
+            val id = generateSafeSourceId("$providerId:$stableIdentity")
 
             return IPTVChannel(
                 id = id,

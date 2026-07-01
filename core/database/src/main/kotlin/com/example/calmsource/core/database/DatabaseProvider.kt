@@ -27,7 +27,17 @@ object DatabaseProvider {
 
     fun getDatabase(context: Context): CalmSourceDatabase {
         init(context)
-        return db
+        val instance = INSTANCE
+        if (instance != null) return instance
+        synchronized(LOCK) {
+            INSTANCE ?: run {
+                val dbInstance = CalmSourceDatabase.buildDatabase(context)
+                INSTANCE = dbInstance
+                _databaseReady.value = true
+                dbInstance
+            }
+            return INSTANCE!!
+        }
     }
 
     fun isInitialized(): Boolean = appContext != null
@@ -37,23 +47,18 @@ object DatabaseProvider {
     suspend fun warmup(context: Context): CalmSourceDatabase {
         init(context)
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            db
+            getDatabase(context)
         }
     }
 
-    /**
-     * Helper to get the database assuming it's already initialized.
-     * Throws an exception if called before initialization.
-     */
-    val db: CalmSourceDatabase
+    internal val db: CalmSourceDatabase
         get() = INSTANCE ?: synchronized(LOCK) {
-            INSTANCE ?: run {
-                val context = appContext ?: throw IllegalStateException("DatabaseProvider must be initialized with a Context first.")
-                val instance = CalmSourceDatabase.buildDatabase(context)
+            INSTANCE ?: appContext?.let { ctx ->
+                val instance = CalmSourceDatabase.buildDatabase(ctx)
                 INSTANCE = instance
                 _databaseReady.value = true
                 instance
-            }
+            } ?: throw IllegalStateException("DatabaseProvider must be initialized with a Context first.")
         }
 
     fun resetForTesting() {

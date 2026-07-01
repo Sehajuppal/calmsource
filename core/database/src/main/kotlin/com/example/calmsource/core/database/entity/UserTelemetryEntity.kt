@@ -7,9 +7,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "user_telemetry",
     indices = [
-        Index("profileId"),
-        Index("eventType"),
-        Index("timestamp")
+        Index(value = ["profileId", "timestamp"]),
+        Index("eventType")
     ]
 )
 data class UserTelemetryEntity(

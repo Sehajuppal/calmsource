@@ -244,11 +244,11 @@ class TvAuditRegressionTest {
         val source = readSourceFile("TvPlayerScreen.kt")
         assertTrue(
             "Error overlay should have large readable title",
-            source.contains("fontSize = LumenType.size28") && source.contains("Playback Failed")
+            source.contains("stringResource(CoreUiR.string.player_playback_failed)")
         )
         assertTrue(
-            "Error overlay should have explanation text at 16sp",
-            source.contains("fontSize = LumenType.size16") && source.contains("explanation")
+            "Error overlay should pass explanation to LumenErrorState body",
+            source.contains("LumenErrorState(") && source.contains("body = explanation")
         )
     }
 
@@ -384,6 +384,117 @@ class TvAuditRegressionTest {
         assertTrue(
             "TvIptvSettingsSection.kt should display 60s+ authenticating status",
             source.contains("\"Authenticating... (Retrieving IPTV channels list...)\"")
+        )
+    }
+
+    // --- TV-UX: Verification of Premium UX Enhancements ---
+
+    @Test
+    fun `TV-UX TvVODItemCard titles always visible outside card`() {
+        val source = readSourceFile("TvHomeScreen.kt")
+        val vodItemCardStart = source.indexOf("fun TvVODItemCard")
+        val vodItemCardSection = source.substring(vodItemCardStart)
+        assertTrue(
+            "TV-UX: TvVODItemCard should render item.title outside the GlassmorphicCard inside a Column",
+            vodItemCardSection.contains("Column(") && vodItemCardSection.contains("item.title")
+        )
+    }
+
+    @Test
+    fun `TV-UX TvLiveChannelCard does not use unreadable black text when focused`() {
+        val source = readSourceFile("TvHomeScreen.kt")
+        val liveChannelCardStart = source.indexOf("fun TvLiveChannelCard")
+        val liveChannelCardSection = source.substring(liveChannelCardStart)
+        assertFalse(
+            "TV-UX: TvLiveChannelCard should not use Color.Black for focused text",
+            liveChannelCardSection.contains("color = if (isActive) Color.Black else")
+        )
+    }
+
+    @Test
+    fun `TV-UX settings add-ons section is not nested in verticalScroll`() {
+        val source = readSourceFile("TvSettingsScreen.kt")
+        assertTrue(
+            "TV-UX: Add-ons should render outside the scrollable settings pane",
+            source.contains("activeSection == TvSettingsSection.AddOns") &&
+                source.contains("TvExtensionsScreen("),
+        )
+        val addonsBranch = source.substringAfter("if (activeSection == TvSettingsSection.AddOns)")
+        val scrollPane = addonsBranch.substringAfter("} else {").substringBefore("TvSettingsSection.Profile")
+        assertFalse(
+            "TV-UX: TvExtensionsScreen must not be placed inside verticalScroll",
+            scrollPane.contains("TvExtensionsScreen("),
+        )
+    }
+
+    @Test
+    fun `TV-UX settings tabs switch only on click not focus`() {
+        val source = readSourceFile("TvSettingsScreen.kt")
+        assertFalse(
+            "TV-UX: settings section tabs must not switch on focus alone",
+            source.contains("onFocus = { activeSection"),
+        )
+        assertTrue(
+            "TV-UX: settings section tabs should still switch on click",
+            source.contains("selectSettingsSection(TvSettingsSection.AddOns)"),
+        )
+    }
+
+    @Test
+    fun `TV-UX extension list focus does not cancel install flow`() {
+        val source = readSourceFile("TvExtensionSettingsSection.kt")
+        assertTrue(
+            "TV-UX: auto-select must stay disabled while preview manifest is visible",
+            source.contains("isInstallingOrPreviewing || previewManifest != null"),
+        )
+        assertTrue(
+            "TV-UX: extension install flow should block settings tab navigation",
+            source.contains("onInstallFlowActiveChanged"),
+        )
+        assertFalse(
+            "TV-UX: extension selection must not change on focus alone",
+            source.contains("if (it.isFocused && !isInstallingOrPreviewing && previewManifest == null)"),
+        )
+    }
+
+    @Test
+    fun `TV-UX settings tabs block section switch during addon install flow`() {
+        val source = readSourceFile("TvSettingsScreen.kt")
+        assertTrue(
+            "TV-UX: settings hub should guard section changes while addon flow is active",
+            source.contains("addonFlowBlocksNavigation") && source.contains("selectSettingsSection"),
+        )
+    }
+
+    @Test
+    fun `TV-UX settings screens request initial focus`() {
+        val extSource = readSourceFile("TvExtensionSettingsSection.kt")
+        val debridSource = readSourceFile("TvDebridSettingsSection.kt")
+        val providersSource = readSourceFile("TvDiscoveryProvidersSettingsSection.kt")
+        
+        assertTrue(
+            "TV-UX: TvExtensionsScreen should request focus on stableFocusRequester in LaunchedEffect",
+            extSource.contains("stableFocusRequester.requestFocus()")
+        )
+        assertTrue(
+            "TV-UX: TvDebridScreen should request focus on stableFocusRequester in LaunchedEffect",
+            debridSource.contains("stableFocusRequester.requestFocus()")
+        )
+        assertTrue(
+            "TV-UX: TvDiscoveryProvidersScreen should request focus on stableFocusRequester in LaunchedEffect",
+            providersSource.contains("stableFocusRequester.requestFocus()")
+        )
+    }
+
+    @Test
+    fun `TV-UX TvDebridScreen loading box does not trap focus`() {
+        val source = readSourceFile("TvDebridSettingsSection.kt")
+        val loadingBoxIdx = source.indexOf("\"Initializing auth session...\"")
+        assertTrue("TV-UX: Initializing auth session box should exist", loadingBoxIdx >= 0)
+        val nearbySection = source.substring(loadingBoxIdx - 300, loadingBoxIdx + 100)
+        assertFalse(
+            "TV-UX: TvDebridScreen loading box should not be focusable",
+            nearbySection.contains(".focusable()")
         )
     }
 }

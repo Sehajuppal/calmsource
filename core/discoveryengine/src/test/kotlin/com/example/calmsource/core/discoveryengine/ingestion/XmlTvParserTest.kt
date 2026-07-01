@@ -36,6 +36,7 @@ class XmlTvParserTest {
         val inputStream = ByteArrayInputStream(mockXmltv.toByteArray())
         val chunks = mutableListOf<List<com.example.calmsource.core.discoveryengine.models.EpgProgram>>()
 
+        XmlTvParser.bypassTimeWindowing = true
         XmlTvParser.parseEpg(inputStream, chunkSize = 2) { chunk ->
             chunks.add(chunk)
         }

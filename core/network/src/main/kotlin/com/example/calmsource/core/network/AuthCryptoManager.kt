@@ -4,11 +4,14 @@ import android.annotation.SuppressLint
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.PublicKey
 import java.security.spec.MGF1ParameterSpec
+import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
@@ -76,6 +79,24 @@ class AuthCryptoManager {
         val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
         keyPairGenerator.initialize(2048)
         fallbackKeyPair = keyPairGenerator.generateKeyPair()
+    }
+
+    /**
+     * Encrypts [plaintext] for the RSA public key exported by a TV pairing session.
+     * Uses RSA-OAEP (SHA-256 / MGF1-SHA1) to match [decrypt] and the web setup page.
+     */
+    fun encryptForPublicKey(publicKeyBase64: String, plaintext: String): String {
+        val publicKey = decodePublicKey(publicKeyBase64)
+        val cipher = Cipher.getInstance("RSA/ECB/OAEPPadding")
+        val oaepSpec = OAEPParameterSpec(
+            "SHA-256",
+            "MGF1",
+            MGF1ParameterSpec.SHA1,
+            PSource.PSpecified.DEFAULT
+        )
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey, oaepSpec)
+        val encryptedBytes = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
+        return encodeBase64(encryptedBytes)
     }
 
     fun getPublicKeyBase64(): String {
@@ -189,6 +210,13 @@ class AuthCryptoManager {
         val encryptedBytes = decodeBase64(ciphertextBase64)
         val decryptedBytes = cipher.doFinal(encryptedBytes)
         return String(decryptedBytes, Charsets.UTF_8)
+    }
+
+    private fun decodePublicKey(publicKeyBase64: String): PublicKey {
+        val sanitized = publicKeyBase64.trim().removeSurrounding("\"").removeSurrounding("'")
+        val decodedBytes = decodeBase64(sanitized)
+        val keyFactory = KeyFactory.getInstance("RSA")
+        return keyFactory.generatePublic(X509EncodedKeySpec(decodedBytes))
     }
 
     @SuppressLint("NewApi")

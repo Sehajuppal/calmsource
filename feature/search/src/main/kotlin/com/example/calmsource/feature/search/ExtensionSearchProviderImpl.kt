@@ -153,6 +153,9 @@ class ExtensionSearchProviderImpl : ExtensionSearchProvider {
         val jobs = supervisorScope {
             activeExtensions.map { provider ->
                 launch(Dispatchers.IO) {
+                    if (!isTest && com.example.calmsource.core.discoveryengine.providers.ProviderManager.isProviderCircuitOpen(provider.id)) {
+                        return@launch
+                    }
                     try {
                         kotlinx.coroutines.withTimeout(timeoutMs) {
                             val isDemo = isTest
@@ -179,19 +182,20 @@ class ExtensionSearchProviderImpl : ExtensionSearchProvider {
                                         matchedSources.addAll(extSources)
                                     }
                                 }
-                                mutex.withLock {
+                                val resultToSend = mutex.withLock {
                                     if (provider.capabilities.contains(ExtensionCapability.SearchCatalogProvider) || provider.capabilities.contains(ExtensionCapability.CatalogProvider)) {
                                         mediaItems.addAll(matched)
                                     }
                                     sources.addAll(matchedSources)
-                                    send(SearchProviderResult(
+                                    SearchProviderResult(
                                         providerId = id,
                                         providerName = name,
                                         query = query,
                                         mediaItems = mediaItems.distinctBy { it.id },
                                         streamSources = sources.distinctBy { it.id }
-                                    ))
+                                    )
                                 }
+                                send(resultToSend)
                             } else {
                                 // Real Stremio catalog search querying
                                 val searchableCatalogs = searchableCatalogsForQuery(provider)
@@ -211,6 +215,9 @@ class ExtensionSearchProviderImpl : ExtensionSearchProvider {
                                                     timeoutMs
                                                 )
                                                 if (res is StremioResult.Success) {
+                                                    com.example.calmsource.core.discoveryengine.providers.ProviderManager.recordResult(
+                                                        provider.id, "catalog", com.example.calmsource.core.discoveryengine.providers.ProviderResult.Success(Unit)
+                                                    )
                                                     res.data.metas.orEmpty().filter { meta ->
                                                         meta.id.isNotBlank() && meta.name.isNotBlank()
                                                     }.map { meta ->
@@ -234,30 +241,40 @@ class ExtensionSearchProviderImpl : ExtensionSearchProvider {
                                                         )
                                                     }
                                                 } else {
+                                                    com.example.calmsource.core.discoveryengine.providers.ProviderManager.recordResult(
+                                                        provider.id, "catalog", com.example.calmsource.core.discoveryengine.providers.ProviderResult.Failure("empty_meta")
+                                                    )
                                                     emptyList()
                                                 }
                                             }
                                         }.awaitAll().flatten()
                                     }
 
-                                    mutex.withLock {
+                                    val resultToSend = mutex.withLock {
                                         mediaItems.addAll(results.take(MAX_SEARCH_RESULTS_PER_PROVIDER))
-                                        send(SearchProviderResult(
+                                        SearchProviderResult(
                                             providerId = id,
                                             providerName = name,
                                             query = query,
                                             mediaItems = mediaItems.distinctBy { it.id },
                                             streamSources = sources.distinctBy { it.id }
-                                        ))
+                                        )
                                     }
+                                    send(resultToSend)
                                 }
                             }
                         }
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                        com.example.calmsource.core.discoveryengine.providers.ProviderManager.recordResult(
+                            provider.id, "catalog", com.example.calmsource.core.discoveryengine.providers.ProviderResult.Timeout
+                        )
                         StremioAddonClient.recordSignalDelegate?.invoke(provider.id, provider.url, true, "Timeout of ${timeoutMs}ms exceeded")
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Throwable) {
+                        com.example.calmsource.core.discoveryengine.providers.ProviderManager.recordResult(
+                            provider.id, "catalog", com.example.calmsource.core.discoveryengine.providers.ProviderResult.Failure("error", e.message)
+                        )
                         val redacted = UrlRedactor.redactErrorMessage(e.localizedMessage ?: e.javaClass.simpleName)
                         StremioAddonClient.recordSignalDelegate?.invoke(provider.id, provider.url, false, redacted)
                     }
