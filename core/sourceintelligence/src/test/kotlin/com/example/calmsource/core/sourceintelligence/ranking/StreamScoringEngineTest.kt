@@ -171,4 +171,27 @@ class StreamScoringEngineTest {
         assertTrue(result.breakdown.reasons.isNotEmpty())
         assertEquals(result.score, result.breakdown.totalScore, 0.001)
     }
+
+    @Test
+    fun phoneProfilePenalizes4KOver1080pCap() {
+        val fourK = source(id = "4k", title = "Movie 2160p HEVC", resolution = "4K")
+        val hd = source(id = "1080", title = "Movie 1080p HEVC", resolution = "1080p")
+        val phoneProfile = DeviceStreamProfile(maxRecommendedHeight = 1080)
+
+        val fourKScore = StreamScoringEngine.score(
+            StreamScoringInput(
+                source = fourK,
+                strategy = SortingPreference.BEST_MATCH,
+                deviceProfile = phoneProfile,
+            )
+        )
+        val hdScore = StreamScoringEngine.score(
+            StreamScoringInput(
+                source = hd,
+                strategy = SortingPreference.BEST_MATCH,
+                deviceProfile = phoneProfile,
+            )
+        )
+        assertTrue(hdScore > fourKScore)
+    }
 }

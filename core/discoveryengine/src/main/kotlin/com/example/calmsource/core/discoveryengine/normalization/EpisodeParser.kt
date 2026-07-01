@@ -16,7 +16,7 @@ object EpisodeParser {
         val clean = title.lowercase().trim()
 
         // 1. S01E04 / s1e4
-        val sEPattern = Regex("[sS](\\d+)\\s*[eE](\\d+)")
+        val sEPattern = Regex("[sS](\\d+)(?:[\\s._-]*)[eE](\\d+)")
         sEPattern.find(clean)?.let { match ->
             val s = match.groupValues[1].toIntOrNull()
             val e = match.groupValues[2].toIntOrNull()

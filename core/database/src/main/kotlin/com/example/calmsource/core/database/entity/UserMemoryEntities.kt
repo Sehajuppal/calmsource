@@ -6,7 +6,7 @@ import androidx.room.Index
 @Entity(
     tableName = "continue_watching",
     primaryKeys = ["profileId", "itemKey"],
-    indices = [Index("updatedAt")]
+    indices = [Index(value = ["profileId", "updatedAt"])]
 )
 data class ContinueWatchingEntity(
     val profileId: String = "default",
@@ -24,7 +24,7 @@ data class ContinueWatchingEntity(
 @Entity(
     tableName = "favorites",
     primaryKeys = ["profileId", "itemKey"],
-    indices = [Index("updatedAt")]
+    indices = [Index(value = ["profileId", "updatedAt"])]
 )
 data class FavoriteEntity(
     val profileId: String = "default",
@@ -41,7 +41,7 @@ data class FavoriteEntity(
 @Entity(
     tableName = "watch_history",
     primaryKeys = ["profileId", "itemKey"],
-    indices = [Index("lastWatchedAt")]
+    indices = [Index(value = ["profileId", "lastWatchedAt"])]
 )
 data class WatchHistoryEntity(
     val profileId: String = "default",
@@ -61,7 +61,7 @@ data class WatchHistoryEntity(
 @Entity(
     tableName = "recent_channels",
     primaryKeys = ["profileId", "itemKey"],
-    indices = [Index("lastWatchedAt")]
+    indices = [Index(value = ["profileId", "lastWatchedAt"])]
 )
 data class RecentChannelEntity(
     val profileId: String = "default",
@@ -78,7 +78,7 @@ data class RecentChannelEntity(
 @Entity(
     tableName = "search_history",
     primaryKeys = ["profileId", "normalizedQuery"],
-    indices = [Index("lastSearchedAt")]
+    indices = [Index(value = ["profileId", "lastSearchedAt"])]
 )
 data class SearchHistoryEntity(
     val profileId: String = "default",
@@ -91,7 +91,7 @@ data class SearchHistoryEntity(
 @Entity(
     tableName = "preference_signals",
     primaryKeys = ["profileId", "signalType", "signalKey"],
-    indices = [Index("lastSignaledAt")]
+    indices = [Index(value = ["profileId", "lastSignaledAt"])]
 )
 data class PreferenceSignalEntity(
     val profileId: String = "default",

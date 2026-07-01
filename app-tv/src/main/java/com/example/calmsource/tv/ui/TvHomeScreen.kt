@@ -36,6 +36,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.example.calmsource.core.ui.components.Hero
@@ -45,8 +47,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.calmsource.core.ui.R as CoreUiR
+import com.example.calmsource.core.ui.components.PreviewSamplerCard
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
 import com.example.calmsource.core.playback.PrefetchCoordinator
@@ -56,6 +61,8 @@ import com.example.calmsource.core.ui.components.LumenSkeleton
 import com.example.calmsource.core.ui.components.LumenEmptyState
 import com.example.calmsource.core.ui.components.LumenErrorState
 import com.example.calmsource.core.ui.components.LumenHorizontalRowFade
+import com.example.calmsource.core.ui.components.HomeSectionHeader
+import kotlinx.collections.immutable.toImmutableList
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import kotlinx.coroutines.Dispatchers
@@ -82,8 +89,20 @@ fun TvHomeScreen(
     val focusMemory = rememberTvFocusMemory()
     val homeListState = rememberLazyListState()
     val reducedMotion = LocalReducedMotion.current
-    val hasTopShelf = remember(homeRows) {
-        homeRows.any { row ->
+
+    val displayRows = remember(homeRows) {
+        homeRows.map { row ->
+            val items = if (row.rowType == "live_tv") {
+                row.items
+            } else {
+                row.items.filter { it.type != "channel" }
+            }
+            row.copy(items = items.toImmutableList())
+        }.filter { it.items.isNotEmpty() }
+    }
+
+    val hasTopShelf = remember(displayRows) {
+        displayRows.any { row ->
             row.rowType != "continue_watching" &&
                 row.rowType != "live_tv" &&
                 row.items.any { it.type != "channel" && !it.posterUrl.isNullOrBlank() }
@@ -92,11 +111,11 @@ fun TvHomeScreen(
 
     var activeBackdropUrl by remember { mutableStateOf<String?>(null) }
 
-    val homeRowsKey = remember(homeRows) { homeRows.map { "${it.rowType}-${it.items.size}" } }
+    val homeRowsKey = remember(displayRows) { displayRows.map { "${it.rowType}-${it.items.size}" } }
     LaunchedEffect(homeRowsKey) {
         withContext(Dispatchers.Default) {
             prefetchCoordinator.prefetch(
-                homeRows.asSequence()
+                displayRows.asSequence()
                     .flatMap { it.items.asSequence() }
                     .map { it.posterUrl }
                     .asIterable()
@@ -136,7 +155,7 @@ fun TvHomeScreen(
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            if (homeRows.isEmpty() && isLoading) {
+            if (displayRows.isEmpty() && isLoading) {
                 // Loading shimmer placeholders
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item(key = "skeleton_feed") {
@@ -157,33 +176,33 @@ fun TvHomeScreen(
                         }
                     }
                 }
-            } else if (homeRows.isEmpty() && loadError != null) {
+            } else if (displayRows.isEmpty() && loadError != null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     LumenErrorState(
-                        title = "Failed to load feed",
-                        body = loadError ?: "Unknown error",
+                        title = stringResource(CoreUiR.string.error_load_feed),
+                        body = loadError ?: stringResource(CoreUiR.string.error_unknown),
                         onRetry = { viewModel.retry() }
                     )
                 }
-            } else if (homeRows.isEmpty()) {
+            } else if (displayRows.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     LumenEmptyState(
-                        title = "Nothing to browse yet",
-                        body = "Connect a catalog provider in settings to begin.",
+                        title = stringResource(CoreUiR.string.empty_nothing_to_browse),
+                        body = stringResource(CoreUiR.string.empty_connect_provider),
                         icon = Icons.Default.Home,
-                        ctaText = "Go to Settings",
+                        ctaText = stringResource(CoreUiR.string.cta_go_to_settings),
                         onCtaClick = onSettingsClick
                     )
                 }
             } else {
-                val featuredItem = remember(homeRows) {
-                    homeRows.asSequence()
+                val featuredItem = remember(displayRows) {
+                    displayRows.asSequence()
                         .flatMap { it.items.asSequence() }
                         .firstOrNull { it.type != "channel" && !it.posterUrl.isNullOrBlank() }
                 }
@@ -209,14 +228,14 @@ fun TvHomeScreen(
                     activeBackdropUrl = spotlight?.backdropUrl
                 }
 
-                val spotlightSource = remember(spotlight?.id, homeRows) {
-                    homeRows.asSequence()
+                val spotlightSource = remember(spotlight?.id, displayRows) {
+                    displayRows.asSequence()
                         .flatMap { row -> row.items.asSequence().map { item -> row to item } }
                         .firstOrNull { (_, item) -> item.id == spotlight?.id }
                 }
 
-                val navigableRowKeys = remember(homeRows) {
-                    homeRows.mapNotNull { row ->
+                val navigableRowKeys = remember(displayRows) {
+                    displayRows.mapNotNull { row ->
                         if (row.items.isEmpty()) null else "${row.rowType}-${row.title}"
                     }
                 }
@@ -224,6 +243,7 @@ fun TvHomeScreen(
                     navigableRowKeys.associateWith { FocusRequester() }
                 }
                 val heroFocusRequester = remember { FocusRequester() }
+                val rowTargetProviders = remember { mutableMapOf<String, (Int?) -> FocusRequester?>() }
 
                 LazyColumn(
                     state = homeListState,
@@ -234,7 +254,7 @@ fun TvHomeScreen(
                         item(key = "top_shelf") {
                             TvTopShelf(
                                 item = spotlight!!,
-                                eyebrow = spotlightSource?.first?.title ?: "Featured",
+                                eyebrow = spotlightSource?.first?.title ?: stringResource(CoreUiR.string.home_featured),
                                 onOpen = {
                                     spotlight?.let { mediaItem ->
                                         val resumeAt = spotlightSource?.second?.resumePositionMs
@@ -252,7 +272,7 @@ fun TvHomeScreen(
                         }
                     }
 
-                    items(homeRows, key = { it.rowType + "-" + it.title }) { row ->
+                    items(displayRows, key = { it.rowType + "-" + it.title }) { row ->
                         val rowKey = "${row.rowType}-${row.title}"
                         val uniqueItems = remember(row.items) { row.items.distinctBy { it.id } }
                         if (uniqueItems.isEmpty()) return@items
@@ -262,7 +282,14 @@ fun TvHomeScreen(
                         Column(
                             modifier = Modifier,
                         ) {
-                        SectionTitle(row.title)
+                        HomeSectionHeader(
+                            title = if (row.rowType == "quick_preview") {
+                                stringResource(CoreUiR.string.home_quick_preview)
+                            } else {
+                                row.title
+                            },
+                            isTv = true
+                        )
 
                         val listState = rememberLazyListState()
                         TvFocusScope(
@@ -271,6 +298,16 @@ fun TvHomeScreen(
                             itemIds = uniqueItems.map { it.id },
                             listState = listState,
                         ) { restorer ->
+                            rowTargetProviders[rowKey] = { targetIndex ->
+                                val ids = uniqueItems.map { it.id }
+                                val lastFocusedId = restorer.targetId(ids)
+                                val targetId = if (targetIndex != null && targetIndex in ids.indices) {
+                                    ids[targetIndex]
+                                } else {
+                                    lastFocusedId
+                                }
+                                targetId?.let { restorer.requester(it) }
+                            }
                             LumenHorizontalRowFade(
                                 modifier = Modifier.padding(bottom = LumenLegacySpace.xxxl),
                             ) {
@@ -279,21 +316,25 @@ fun TvHomeScreen(
                                     flingBehavior = rememberSnapFlingBehavior(restorer.listState),
                                     contentPadding = PaddingValues(horizontal = LumenLayout.iconXl),
                                     horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                                    modifier = if (rowEntryRequester != null) Modifier.focusRequester(rowEntryRequester) else Modifier
                                 ) {
                                     itemsIndexed(uniqueItems, key = { _, item -> "${item.type}-${item.id}" }) { index, item ->
                                     val cardModifier = restorer.itemModifier(item.id)
-                                        .then(
-                                            if (index == 0 && rowEntryRequester != null) {
-                                                Modifier.focusRequester(rowEntryRequester)
-                                            } else {
-                                                Modifier
-                                            },
-                                        )
                                         .tvHomeVerticalRowNav(
-                                            rowIndex = rowIndex,
-                                            rowKeys = navigableRowKeys,
-                                            rowEntryRequesters = rowEntryFocusRequesters,
-                                            upTarget = if (rowIndex == 0) heroFocusRequester else null,
+                                            onMoveDown = {
+                                                val nextKey = navigableRowKeys.getOrNull(rowIndex + 1)
+                                                val target = nextKey?.let { rowTargetProviders[it]?.invoke(index) } ?: rowEntryFocusRequesters[nextKey]
+                                                target?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
+                                            },
+                                            onMoveUp = {
+                                                if (rowIndex == 0) {
+                                                    runCatching { heroFocusRequester.requestFocus() }.isSuccess
+                                                } else {
+                                                    val prevKey = navigableRowKeys.getOrNull(rowIndex - 1)
+                                                    val target = prevKey?.let { rowTargetProviders[it]?.invoke(index) } ?: rowEntryFocusRequesters[prevKey]
+                                                    target?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
+                                                }
+                                            }
                                         )
                                         .then(
                                             if (index == 0) {
@@ -314,6 +355,23 @@ fun TvHomeScreen(
                                             onClick = { onChannelClick(item.id) },
                                             modifier = cardModifier,
                                         )
+                                    } else if (row.rowType == "quick_preview") {
+                                        val mediaItem = MediaItem(
+                                            id = item.id,
+                                            title = item.title,
+                                            type = if (item.type == "series" || item.type == "show") MediaType.SHOW else MediaType.MOVIE,
+                                            overview = sanitizeHomeBlurb(item.reason),
+                                            posterUrl = item.posterUrl,
+                                            backdropUrl = item.backdropUrl,
+                                            externalIds = item.externalIds,
+                                        )
+                                        PreviewSamplerCard(
+                                            imageUrl = item.backdropUrl ?: item.posterUrl,
+                                            title = item.title,
+                                            contentLabel = context.getString(CoreUiR.string.home_preview_play, item.title),
+                                            onClick = { onMediaClick(mediaItem) },
+                                            modifier = cardModifier.width(172.dp),
+                                        )
                                     } else {
                                         val mediaItem = MediaItem(
                                             id = item.id,
@@ -324,33 +382,41 @@ fun TvHomeScreen(
                                             backdropUrl = item.backdropUrl,
                                             externalIds = item.externalIds,
                                         )
-                                        val isLeavingSoon = row.rowType == "leaving_soon" ||
-                                            row.title.contains("Leaving Soon", ignoreCase = true)
+                                        val progress = if (item.reason.startsWith("Resume watching (")) {
+                                            item.reason.substringAfter("(").substringBefore("%").toFloatOrNull()?.div(100f)
+                                        } else null
+
+                                        val cardWidth = if (row.rowType == "continue_watching") LumenLayout.tileWidthMd else LumenLayout.epgMinBlockWidthTv
+
                                         TvVODItemCard(
                                             item = mediaItem,
-                                            reason = if (isLeavingSoon) item.subtitle ?: item.reason else item.reason,
+                                            reason = item.subtitle,
+                                            progress = progress,
                                             landscape = row.rowType == "continue_watching",
-                                            progress = item.reason
-                                                .takeIf { row.rowType == "continue_watching" }
-                                                ?.substringAfter("(", "")
-                                                ?.substringBefore("%")
-                                                ?.toFloatOrNull()
-                                                ?.div(100f),
-                                            onFocused = { spotlight = mediaItem },
-                                            onClick = { onMediaClick(mediaItem) },
-                                            modifier = cardModifier,
+                                            onClick = {
+                                                val resumeAt = item.resumePositionMs
+                                                if (resumeAt != null && resumeAt > 0L) {
+                                                    onResumeClick(mediaItem, resumeAt)
+                                                } else {
+                                                    onMediaClick(mediaItem)
+                                                }
+                                            },
+                                            onFocused = {
+                                                spotlight = mediaItem
+                                            },
+                                            modifier = cardModifier.width(cardWidth),
                                         )
+                                    }
                                     }
                                 }
                             }
-                        }
                         }
                         }
                     }
                 }
             }
 
-            if (isLoading && homeRows.isNotEmpty()) {
+            if (isLoading && displayRows.isNotEmpty()) {
                 CircularProgressIndicator(
                     color = t.colors.brand,
                     modifier = Modifier
@@ -364,20 +430,6 @@ fun TvHomeScreen(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    val t = LocalLumenTokens.current
-    Text(
-        text = title,
-        fontSize = LumenType.size24,
-        fontWeight = FontWeight.SemiBold,
-        color = t.colors.foreground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(start = LumenLayout.iconXl, end = LumenLayout.iconXl, bottom = LumenLegacySpace.lg)
-    )
-}
-
-@Composable
 fun TvVODItemCard(
     item: MediaItem,
     reason: String? = null,
@@ -388,72 +440,58 @@ fun TvVODItemCard(
     modifier: Modifier = Modifier
 ) {
     val t = LocalLumenTokens.current
-    GlassmorphicCard(
-        onClick = onClick,
-        modifier = modifier
-            .width(if (landscape) LumenTokens.Tile.landscapeMobileW else LumenLayout.epgMinBlockWidthTv)
-            .aspectRatio(if (landscape) LumenTokens.AspectRatio.landscape else LumenTokens.AspectRatio.poster),
-        applyGlassFill = false,
-        onFocused = onFocused,
-    ) { isActive ->
-        AsyncImage(
-            model = item.posterUrl,
-            contentDescription = item.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f)),
-        )
+    Column(
+        modifier = modifier.width(if (landscape) LumenTokens.Tile.landscapeMobileW else LumenLayout.epgMinBlockWidthTv)
+    ) {
+        var isCardActive by remember { mutableStateOf(false) }
 
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomStart),
-        ) {
-            Column(
+        GlassmorphicCard(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(if (landscape) LumenTokens.AspectRatio.landscape else LumenTokens.AspectRatio.poster)
+                .onFocusChanged { isCardActive = it.isFocused },
+            applyGlassFill = false,
+            onFocused = onFocused,
+        ) { isActive ->
+            AsyncImage(
+                model = if (landscape) item.backdropUrl ?: item.posterUrl else item.posterUrl,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, t.colors.background.copy(alpha = 0.96f)),
-                        ),
-                    )
-                    .padding(
-                        start = LumenTokens.Space.s5,
-                        end = LumenTokens.Space.s5,
-                        top = LumenTokens.Space.s9,
-                        bottom = LumenTokens.Space.s5,
-                    ),
-            ) {
-                Text(
-                    text = item.title,
-                    color = t.colors.foreground,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    .fillMaxSize()
+                    .background(LumenTokens.Color.textPrimary.copy(alpha = 0.05f)),
+            )
+
+            if (progress != null) {
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(LumenTokens.Space.s2)
+                        .align(Alignment.BottomCenter),
+                    color = t.colors.brand,
+                    trackColor = Color.White.copy(alpha = 0.2f),
                 )
-                if (!reason.isNullOrBlank() && !reason.startsWith("poster:") && !reason.startsWith("Resume watching")) {
-                    Text(
-                        text = reason,
-                        color = t.colors.mutedForeground,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
-
-        if (progress != null) {
-            androidx.compose.material3.LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(LumenTokens.Space.s2)
-                    .align(Alignment.BottomCenter),
-                color = t.colors.brand,
-                trackColor = Color.White.copy(alpha = 0.2f),
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = item.title,
+            color = if (isCardActive) t.colors.brandGlow else t.colors.foreground,
+            style = lumenCaptionStyle(),
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (!reason.isNullOrBlank() && !reason.startsWith("poster:") && !reason.startsWith("Resume watching")) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = reason,
+                color = t.colors.mutedForeground,
+                style = LumenType.Meta.toTextStyle(lumenTextScale()),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -531,11 +569,18 @@ fun TvLiveChannelCard(
     ) { isActive ->
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(LumenLegacySpace.md),
+            modifier = Modifier
+                .padding(LumenLegacySpace.md)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = buildString {
+                        append(channelName)
+                        if (!category.isNullOrBlank()) append(", Category: $category")
+                    }
+                },
         ) {
             AsyncImage(
                 model = logoUrl,
-                contentDescription = channelName,
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(LumenLayout.iconXl)
@@ -546,8 +591,8 @@ fun TvLiveChannelCard(
             Column {
                 Text(
                     text = channelName,
-                    color = if (isActive) Color.Black else Color.White,
-                    fontSize = LumenType.size14,
+                    color = if (isActive) t.colors.brandGlow else Color.White,
+                    style = lumenCaptionStyle(),
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -555,8 +600,8 @@ fun TvLiveChannelCard(
                 if (!nowTitle.isNullOrBlank()) {
                     Text(
                         text = nowTitle,
-                        color = if (isActive) Color.Black.copy(alpha = 0.65f) else LumenTokens.Color.brand,
-                        fontSize = LumenType.size11,
+                        color = if (isActive) Color.White.copy(alpha = 0.9f) else LumenTokens.Color.brand,
+                        style = LumenType.Meta.toTextStyle(lumenTextScale()),
                         fontWeight = FontWeight.Medium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -564,8 +609,8 @@ fun TvLiveChannelCard(
                     progress?.let {
                         androidx.compose.material3.LinearProgressIndicator(
                             progress = { it.coerceIn(0f, 1f) },
-                            color = if (isActive) t.colors.background else t.colors.brand,
-                            trackColor = if (isActive) Color.Black.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.18f),
+                            color = t.colors.brandGlow,
+                            trackColor = Color.White.copy(alpha = 0.18f),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = LumenLegacySpace.sm),
@@ -573,9 +618,9 @@ fun TvLiveChannelCard(
                     }
                     nextTitle?.takeIf { it.isNotBlank() }?.let {
                         Text(
-                            text = "Next: $it",
-                            color = if (isActive) Color.Black.copy(alpha = 0.55f) else t.colors.mutedForeground,
-                            fontSize = LumenType.size11,
+                            text = stringResource(CoreUiR.string.live_next_program, it),
+                            color = if (isActive) Color.White.copy(alpha = 0.7f) else t.colors.mutedForeground,
+                            style = LumenType.Meta.toTextStyle(lumenTextScale()),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -583,8 +628,8 @@ fun TvLiveChannelCard(
                 } else if (category != null) {
                     Text(
                         text = category,
-                        color = if (isActive) Color.Black.copy(alpha = 0.65f) else t.colors.mutedForeground,
-                        fontSize = LumenType.size11,
+                        color = if (isActive) Color.White.copy(alpha = 0.7f) else t.colors.mutedForeground,
+                        style = LumenType.Meta.toTextStyle(lumenTextScale()),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

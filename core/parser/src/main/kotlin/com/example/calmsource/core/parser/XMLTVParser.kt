@@ -58,11 +58,8 @@ class XMLTVParser {
         const val DEFAULT_PAST_WINDOW_MS = 6L * 60L * 60L * 1000L
         const val DEFAULT_FUTURE_WINDOW_MS = 7L * 24L * 60L * 60L * 1000L
 
-        /** XMLTV date format with timezone offset, e.g. `"20260605100000 +0000"`. */
-        private const val DATE_FORMAT_WITH_TZ = "yyyyMMddHHmmss Z"
-
-        /** XMLTV date format without timezone offset, e.g. `"20260605100000"`. */
-        private const val DATE_FORMAT_SHORT = "yyyyMMddHHmmss"
+        /** Normalized XMLTV date format with timezone offset, e.g. `"20260605100000 +0000"`. */
+        private const val DATE_FORMAT_NORMALIZED = "yyyyMMddHHmmss Z"
 
         /**
          * Pre-compiled regex for extracting programme elements.
@@ -116,25 +113,15 @@ class XMLTVParser {
             )
         }
 
-        /**
-         * Whitespace splitter used during date normalization. Hoisted out of [parseDate]
-         * because every program element invokes parseDate twice and the original code
-         * allocated a new Regex per call.
-         */
-        private val WHITESPACE_REGEX = Regex("\\s+")
+        private val DATE_TZ_REGEX = Regex("""^(\d{8,20})\s*(?:Z|UTC|GMT|([+-]\d{2})(?::?(\d{2}))?)?$""", RegexOption.IGNORE_CASE)
 
         @RequiresApi(Build.VERSION_CODES.O)
         private object Api26Formatter {
-            private val formatterWithTz = DateTimeFormatter.ofPattern(DATE_FORMAT_WITH_TZ, Locale.ROOT)
-            private val formatterShort = DateTimeFormatter.ofPattern(DATE_FORMAT_SHORT, Locale.ROOT)
+            private val formatter = DateTimeFormatter.ofPattern(DATE_FORMAT_NORMALIZED, Locale.ROOT)
 
             fun parse(clean: String): Long {
                 return try {
-                    if (clean.contains(" ")) {
-                        OffsetDateTime.parse(clean, formatterWithTz).toInstant().toEpochMilli()
-                    } else {
-                        LocalDateTime.parse(clean, formatterShort).toInstant(ZoneOffset.UTC).toEpochMilli()
-                    }
+                    OffsetDateTime.parse(clean, formatter).toInstant().toEpochMilli()
                 } catch (e: Exception) {
                     0L
                 }
@@ -143,43 +130,46 @@ class XMLTVParser {
 
         private fun parseDateLegacy(clean: String): Long {
             return try {
-                if (clean.contains(" ")) {
-                    val sdf = java.text.SimpleDateFormat(DATE_FORMAT_WITH_TZ, Locale.ROOT).apply {
-                        timeZone = java.util.TimeZone.getTimeZone("UTC")
-                    }
-                    sdf.parse(clean)?.time ?: 0L
-                } else {
-                    val sdf = java.text.SimpleDateFormat(DATE_FORMAT_SHORT, Locale.ROOT).apply {
-                        timeZone = java.util.TimeZone.getTimeZone("UTC")
-                    }
-                    sdf.parse(clean)?.time ?: 0L
+                val sdf = java.text.SimpleDateFormat(DATE_FORMAT_NORMALIZED, Locale.ROOT).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
                 }
+                sdf.parse(clean)?.time ?: 0L
             } catch (e: Exception) {
                 0L
             }
         }
 
         /**
-         * Thread-safe date parsing helper using java.time DateTimeFormatter.
+         * Thread-safe date parsing helper that normalizes timezone offsets.
          */
         private fun parseDate(dateStr: String?): Long {
             if (dateStr == null) return 0L
-            var clean = dateStr.trim()
+            val clean = dateStr.trim()
             if (clean.isEmpty()) return 0L
-            if (clean.contains(" ")) {
-                val parts = clean.split(WHITESPACE_REGEX)
-                if (parts.size >= 2) {
-                    val tzPart = parts.last()
-                    if ((tzPart.startsWith("+") || tzPart.startsWith("-")) && tzPart.contains(":")) {
-                        val sanitizedTz = tzPart.replace(":", "")
-                        clean = parts.dropLast(1).joinToString(" ") + " " + sanitizedTz
-                    }
-                }
+            val match = DATE_TZ_REGEX.matchEntire(clean) ?: return 0L
+            var dateTimePart = match.groupValues[1]
+            val tzHours = match.groupValues[2]
+            val tzMinutes = match.groupValues[3]
+
+            if (dateTimePart.length > 14) {
+                dateTimePart = dateTimePart.substring(0, 14)
+            } else if (dateTimePart.length < 14) {
+                dateTimePart = dateTimePart.padEnd(14, '0')
             }
+
+            val tzOffset = when {
+                tzHours.isNotEmpty() -> {
+                    val minutes = if (tzMinutes.isNotEmpty()) tzMinutes else "00"
+                    "$tzHours$minutes"
+                }
+                else -> "+0000"
+            }
+
+            val normalized = "$dateTimePart $tzOffset"
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Api26Formatter.parse(clean)
+                Api26Formatter.parse(normalized)
             } else {
-                parseDateLegacy(clean)
+                parseDateLegacy(normalized)
             }
         }
 
@@ -412,7 +402,7 @@ class XMLTVParser {
                 } catch (_: NumberFormatException) {
                     return@replace match.value
                 }
-                code.toChar().toString()
+                String(Character.toChars(code))
             }
             return result
         }

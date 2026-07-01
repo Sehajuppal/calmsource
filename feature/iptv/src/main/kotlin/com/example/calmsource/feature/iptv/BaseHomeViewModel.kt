@@ -13,6 +13,7 @@ import com.example.calmsource.core.discoveryengine.DiscoveryEngine
 import com.example.calmsource.core.discoveryengine.database.DiscoveryEngineRepository
 import com.example.calmsource.core.discoveryengine.models.RecommendationRow
 import com.example.calmsource.feature.extensions.ExtensionRepository
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,8 +25,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 open class BaseHomeViewModel(
@@ -48,7 +49,6 @@ open class BaseHomeViewModel(
     val loadError: StateFlow<String?> = _loadError
 
     private var loadJob: Job? = null
-    private val loadMutex = Mutex()
     private var cachedExtensionRows = emptyList<RecommendationRow>()
 
     init {
@@ -57,8 +57,9 @@ open class BaseHomeViewModel(
             DatabaseProvider.databaseReady
                 .flatMapLatest { ready ->
                     if (!ready) {
+                        memoryRepository = FallbackUserMemoryRepository()
                         flowOf(Unit)
-                      } else {
+                    } else {
                         memoryRepository = runCatching {
                             withContext(Dispatchers.IO) {
                                 RoomUserMemoryRepository(DatabaseProvider.getDatabase(getApplication()))
@@ -78,7 +79,7 @@ open class BaseHomeViewModel(
                 }
                 .debounce(500)
                 .collect {
-                    if (IPTVRepository.isProviderSyncActive()) {
+                    if (IPTVRepository.isProviderSyncActive() && _homeRows.value.isNotEmpty()) {
                         refreshLiveRowOnly()
                     } else {
                         loadHomeRows()
@@ -106,17 +107,22 @@ open class BaseHomeViewModel(
     fun loadHomeRows() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            loadMutex.withLock {
-                _isLoading.value = true
-                try {
-                    val rows = withContext(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                val rows = withContext(Dispatchers.IO) {
+                    coroutineScope {
                         val currentProfileId = sessionManager?.activeProfile?.value?.id ?: "default"
-                        val preferenceSignals = memoryRepository.observePreferenceSignals(currentProfileId).first()
+                        val preferenceSignalsDeferred = async { memoryRepository.observePreferenceSignals(currentProfileId).first() }
+                        val continueWatchingDeferred = async { memoryRepository.observeContinueWatching(currentProfileId).first() }
+                        val watchHistoryDeferred = async { memoryRepository.observeWatchHistory(currentProfileId).first() }
+                        val favoritesDeferred = async { memoryRepository.observeFavorites(currentProfileId).first() }
+
+                        val preferenceSignals = preferenceSignalsDeferred.await()
                         DiscoveryEngine.syncUserMemory(
                             profileId = currentProfileId,
-                            continueWatching = memoryRepository.observeContinueWatching(currentProfileId).first(),
-                            watchHistory = memoryRepository.observeWatchHistory(currentProfileId).first(),
-                            favorites = memoryRepository.observeFavorites(currentProfileId).first()
+                            continueWatching = continueWatchingDeferred.await(),
+                            watchHistory = watchHistoryDeferred.await(),
+                            favorites = favoritesDeferred.await()
                         )
                         kotlinx.coroutines.yield()
 
@@ -130,46 +136,45 @@ open class BaseHomeViewModel(
                         val extensionRows = cachedExtensionRows.ifEmpty {
                             ExtensionRepository.getCachedDiscoveryCatalogHomeRows()
                         }
-                        localRows + iptvRows + extensionRows
+                        iptvRows + localRows.filterNot { it.rowType == "live_tv" } + extensionRows
                     }
-                    publishHomeRows(rows)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (primary: Exception) {
-                    runCatching {
-                        android.util.Log.e("BaseHomeViewModel", "Primary home-row load failed; attempting fallback", primary)
-                    }
-                    com.example.calmsource.core.observability.CrashReporter.recordNonFatal(primary, "home_rows_primary_load")
-                    try {
-                        val fallbackRows = withContext(Dispatchers.IO) {
+                }
+                publishHomeRows(rows)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (primary: Exception) {
+                runCatching {
+                    android.util.Log.e("BaseHomeViewModel", "Primary home-row load failed; attempting fallback", primary)
+                }
+                com.example.calmsource.core.observability.CrashReporter.recordNonFatal(primary, "home_rows_primary_load")
+                try {
+                    val fallbackRows = withContext(Dispatchers.IO) {
+                        coroutineScope {
                             val currentProfileId = sessionManager?.activeProfile?.value?.id ?: "default"
-                            val preferenceSignals = memoryRepository.observePreferenceSignals(currentProfileId).first()
+                            val preferenceSignalsDeferred = async { memoryRepository.observePreferenceSignals(currentProfileId).first() }
                             val iptvRows = listOfNotNull(IPTVRepository.getLiveChannelHomeRow())
                             val discoveryRows = repository.getHomeRows(
                                 profileId = currentProfileId,
                                 forceRefresh = true,
-                                preferenceSignals = preferenceSignals
+                                preferenceSignals = preferenceSignalsDeferred.await()
                             )
-                            iptvRows + discoveryRows + cachedExtensionRows
-                        }
-                        publishHomeRows(fallbackRows)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (fallback: Exception) {
-                        runCatching {
-                            android.util.Log.e("BaseHomeViewModel", "Fallback home-row load failed", fallback)
-                        }
-                        com.example.calmsource.core.observability.CrashReporter.recordNonFatal(fallback, "home_rows_fallback_load")
-                        if (_homeRows.value.isEmpty()) {
-                            _loadError.value = "We couldn't load your home feed. Check your connection and try again."
+                            iptvRows + discoveryRows.filterNot { it.rowType == "live_tv" } + cachedExtensionRows
                         }
                     }
-                } finally {
-                    val ctxJob = coroutineContext[Job]
-                    if (loadJob == ctxJob && ctxJob?.isCancelled != true) {
-                        _isLoading.value = false
+                    publishHomeRows(fallbackRows)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (fallback: Exception) {
+                    runCatching {
+                        android.util.Log.e("BaseHomeViewModel", "Fallback home-row load failed", fallback)
+                    }
+                    com.example.calmsource.core.observability.CrashReporter.recordNonFatal(fallback, "home_rows_fallback_load")
+                    if (_homeRows.value.isEmpty()) {
+                        _loadError.value = "We couldn't load your home feed. Check your connection and try again."
                     }
                 }
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -202,6 +207,7 @@ open class BaseHomeViewModel(
 
     fun retry() {
         _loadError.value = null
+        loadDeferredExtensionRows()
         loadHomeRows()
     }
 
@@ -212,9 +218,44 @@ open class BaseHomeViewModel(
         if (maxRows != null) {
             visibleRows = visibleRows.take(maxRows)
         }
+        val quickPreview = buildQuickPreviewRow(visibleRows)
+        if (quickPreview != null && visibleRows.none { it.rowType == "quick_preview" }) {
+            visibleRows = visibleRows + quickPreview
+        }
         if (visibleRows.isEmpty()) return false
-        _homeRows.value = visibleRows
+        val ordered = visibleRows.sortedBy { row ->
+            when (row.rowType) {
+                "continue_watching" -> 0
+                "live_tv" -> 1
+                "quick_preview" -> 2
+                else -> 3
+            }
+        }
+        _homeRows.value = ordered
         _loadError.value = null
         return true
+    }
+
+    private fun buildQuickPreviewRow(rows: List<RecommendationRow>): RecommendationRow? {
+        val items = rows.asSequence()
+            .filter {
+                it.rowType != "quick_preview" &&
+                    it.rowType != "live_tv" &&
+                    it.rowType != "continue_watching"
+            }
+            .flatMap { it.items.asSequence() }
+            .filter { item ->
+                item.type != "channel" &&
+                    (!item.backdropUrl.isNullOrBlank() || !item.posterUrl.isNullOrBlank())
+            }
+            .distinctBy { it.id }
+            .take(10)
+            .toList()
+        if (items.size < 3) return null
+        return RecommendationRow(
+            title = "quick_preview",
+            rowType = "quick_preview",
+            items = items.toImmutableList(),
+        )
     }
 }

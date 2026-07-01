@@ -13,14 +13,12 @@ class ProviderFeatureExtractor(private val cache: ProviderCacheStore) {
         val subtitles = cache.getSubtitles(mediaId)
 
         val averageRating = if (ratings.isEmpty()) 0.0
-        else ratings.map { it.value / it.scale * 10.0 }.average()
+        else ratings.map { rating ->
+            if (rating.scale == 0.0) 0.0 else rating.value / rating.scale * 10.0
+        }.average()
         val ratingCount = ratings.size
         val popularity = ratings.mapNotNull { it.popularity }.maxOrNull() ?: 0.0
-        val providerCount = (
-            ratings.map { 1 }.sum() +
-                similar.map { 1 }.sum() +
-                availability.map { 1 }.sum()
-        )
+        val providerCount = ratings.size + similar.size + availability.size
 
         return EnrichmentFeatures(
             mediaId = mediaId,

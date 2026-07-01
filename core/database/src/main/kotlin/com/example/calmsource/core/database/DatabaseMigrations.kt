@@ -228,7 +228,7 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL(
             """
             INSERT OR IGNORE INTO `profiles` (`id`, `name`, `avatarUrl`, `createdAt`)
-            VALUES ('default', 'Default Profile', NULL, 0)
+            VALUES ('default', 'Default Profile', NULL, (CAST(strftime('%s', 'now') AS INTEGER) * 1000))
             """.trimIndent()
         )
 
@@ -425,6 +425,14 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_preference_signals_lastSignaledAt` ON `preference_signals` (`lastSignaledAt`)")
     }
 }
+
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_epg_programs_channelId`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_epg_programs_channelId_startTimeMs` ON `epg_programs` (`channelId`, `startTimeMs`)")
+    }
+}
+
 
 
 

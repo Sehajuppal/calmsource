@@ -181,20 +181,28 @@ object SearchResultRanker {
     private var iptvProviderMapCache: Map<String, com.example.calmsource.core.model.IPTVProvider>? = null
 
     internal fun invalidateLookupCaches() {
-        extensionMapCache = null
-        iptvProviderMapCache = null
+        synchronized(this) {
+            extensionMapCache = null
+            iptvProviderMapCache = null
+        }
     }
 
     private fun getExtensionMap(): Map<String, com.example.calmsource.core.model.ExtensionProvider> {
-        return extensionMapCache ?: com.example.calmsource.feature.extensions.ExtensionRepository.getExtensions()
-            .associateBy { it.id }
-            .also { extensionMapCache = it }
+        synchronized(this) {
+            extensionMapCache?.let { return it }
+            return com.example.calmsource.feature.extensions.ExtensionRepository.getExtensions()
+                .associateBy { it.id }
+                .also { extensionMapCache = it }
+        }
     }
 
     private fun getIptvProviderMap(): Map<String, com.example.calmsource.core.model.IPTVProvider> {
-        return iptvProviderMapCache ?: com.example.calmsource.feature.iptv.IPTVRepository.providers.value
-            .associateBy { it.id }
-            .also { iptvProviderMapCache = it }
+        synchronized(this) {
+            iptvProviderMapCache?.let { return it }
+            return com.example.calmsource.feature.iptv.IPTVRepository.providers.value
+                .associateBy { it.id }
+                .also { iptvProviderMapCache = it }
+        }
     }
 
     private fun getProviderPriority(extensionId: String): Int? {

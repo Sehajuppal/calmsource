@@ -2,6 +2,8 @@ package com.example.calmsource.core.playback
 
 import com.example.calmsource.core.model.AutoFallbackPolicy
 import com.example.calmsource.core.model.IPTVChannel
+import com.example.calmsource.core.model.PlayerState
+import com.example.calmsource.core.model.PlayerUiState
 
 /**
  * Shared live-TV channel auto-switch policy used by mobile and TV player screens.
@@ -18,6 +20,20 @@ object LiveChannelRecovery {
         AutoFallbackPolicy.OFF, AutoFallbackPolicy.ASK_BEFORE_FALLBACK -> 0
         AutoFallbackPolicy.AUTO_FALLBACK_ONCE -> 1
         AutoFallbackPolicy.AUTO_FALLBACK_LIMITED -> 3
+    }
+
+    /** Wait for stream-level fallbacks to settle before auto-zapping live channels. */
+    const val AUTO_SWITCH_SETTLE_MS = 3_000L
+
+    fun shouldAttemptLiveChannelAutoSwitch(
+        uiState: PlayerUiState,
+        policy: AutoFallbackPolicy,
+    ): Boolean {
+        if (maxAutoSwitchCount(policy) == 0) return false
+        if (uiState.playerState != PlayerState.FAILED) return false
+        if (uiState.isTransitioningSource) return false
+        if (uiState.error == null) return false
+        return true
     }
 
     /**

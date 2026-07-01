@@ -5,6 +5,7 @@ import com.example.calmsource.core.discoveryengine.models.DiscoveryPack
 import com.example.calmsource.core.discoveryengine.models.MediaItem
 import com.example.calmsource.core.discoveryengine.models.MediaStream
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -28,6 +29,13 @@ class DiscoveryPacksTest {
         val repoField = DiscoveryEngine::class.java.getDeclaredField("repository")
         repoField.isAccessible = true
         repoField.set(DiscoveryEngine, mockRepository)
+    }
+
+    @After
+    fun tearDown() {
+        val repoField = DiscoveryEngine::class.java.getDeclaredField("repository")
+        repoField.isAccessible = true
+        repoField.set(DiscoveryEngine, null)
     }
 
     @Test

@@ -95,7 +95,11 @@ object SourceIntelligence {
         // Deduplicate by identity — identical inputs produce the same result.
         val seen = LinkedHashMap<RawSourceInput, SourceIntelligenceResult>(inputs.size)
         val deduped = inputs.filter { input ->
-            if (input in seen) false else true.also { seen[input] = computeResult(input, preferredLanguages, lowDataModeEnabled) }
+            if (input in seen) {
+                false
+            } else {
+                true.also { seen[input] = process(input, preferredLanguages, lowDataModeEnabled) }
+            }
         }
 
         // Fast path — all were unique, map in declaration order.

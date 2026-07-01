@@ -107,14 +107,18 @@ object ExtensionRepository {
             )
             override fun getAllExtensions(): kotlinx.coroutines.flow.Flow<List<com.example.calmsource.core.database.entity.ExtensionProviderEntity>> = flow
             override fun getExtensionById(id: String) = flow.map { list -> list.find { it.id == id } }
-            override fun insertExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity) {
+            override fun insertExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity): Long {
                 flow.value = flow.value.filter { it.id != extension.id } + extension
+                return 1L
             }
-            override fun updateExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity) {
+            override fun updateExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity): Int {
                 insertExtension(extension)
+                return 1
             }
-            override fun deleteExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity) {
+            override fun deleteExtension(extension: com.example.calmsource.core.database.entity.ExtensionProviderEntity): Int {
+                val existed = flow.value.any { it.id == extension.id }
                 flow.value = flow.value.filter { it.id != extension.id }
+                return if (existed) 1 else 0
             }
         }
     }
@@ -542,6 +546,7 @@ object ExtensionRepository {
         )
         return@withContext try {
             dao.updateExtension(updated.toEntity())
+            queueDiscoveryCatalogRefresh(updated)
             ExtensionInstallResult(isSuccess = true, manifest = manifest.copy(id = providerId))
         } catch (e: Exception) {
             ExtensionInstallResult(

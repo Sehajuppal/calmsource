@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.calmsource.core.ui.components.LumenCard
+import com.example.calmsource.core.ui.components.PrimaryButton
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
@@ -36,23 +38,23 @@ fun CloudAuthScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenLegacySpace.lg)
+            .padding(LumenTokens.Space.md)
             .verticalScroll(rememberScrollState())
     ) {
         SubScreenHeader(title = "Cloud Sync", onBack = onBack)
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
 
         if (uiState.error != null) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = LumenExtendedColors.dangerContainer),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = LumenLegacySpace.lg),
+                    .padding(bottom = LumenTokens.Space.md),
                 shape = LumenTokens.Shape.sm
             ) {
                 Row(
-                    modifier = Modifier.padding(LumenLegacySpace.lg),
+                    modifier = Modifier.padding(LumenTokens.Space.md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -70,11 +72,11 @@ fun CloudAuthScreen(
                 colors = CardDefaults.cardColors(containerColor = LumenExtendedColors.successContainer),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = LumenLegacySpace.lg),
+                    .padding(bottom = LumenTokens.Space.md),
                 shape = LumenTokens.Shape.sm
             ) {
                 Row(
-                    modifier = Modifier.padding(LumenLegacySpace.lg),
+                    modifier = Modifier.padding(LumenTokens.Space.md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -111,12 +113,12 @@ fun UnauthenticatedForm(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    LumenCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = LumenLegacySpace.xl),
-            horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
+                .padding(bottom = LumenTokens.Space.s7),
+            horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.md)
         ) {
             Column(
                 modifier = Modifier
@@ -134,11 +136,11 @@ fun UnauthenticatedForm(
                     color = if (activeTab == 0) t.colors.brand else t.colors.mutedForeground,
                     style = LumenType.RowTitle.toTextStyle()
                 )
-                Spacer(modifier = Modifier.height(LumenLegacySpace.xs))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(LumenLegacySpace.xxs)
+                        .height(LumenTokens.Space.s1)
                         .background(if (activeTab == 0) t.colors.brand else Color.Transparent)
                 )
             }
@@ -159,11 +161,11 @@ fun UnauthenticatedForm(
                     color = if (activeTab == 1) t.colors.brand else t.colors.mutedForeground,
                     style = LumenType.RowTitle.toTextStyle()
                 )
-                Spacer(modifier = Modifier.height(LumenLegacySpace.xs))
+                Spacer(modifier = Modifier.height(LumenTokens.Space.xs))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(LumenLegacySpace.xxs)
+                        .height(LumenTokens.Space.s1)
                         .background(if (activeTab == 1) t.colors.brand else Color.Transparent)
                 )
             }
@@ -178,7 +180,7 @@ fun UnauthenticatedForm(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.md))
 
         OutlinedTextField(
             value = password,
@@ -190,7 +192,7 @@ fun UnauthenticatedForm(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
 
         if (loading) {
             Box(
@@ -202,7 +204,7 @@ fun UnauthenticatedForm(
                 CircularProgressIndicator(color = t.colors.brand)
             }
         } else {
-            PremiumButton(
+            PrimaryButton(
                 text = if (activeTab == 0) "Login" else "Register",
                 onClick = {
                     if (activeTab == 0) {
@@ -226,12 +228,13 @@ fun AuthenticatedSyncControls(
     val t = LocalLumenTokens.current
     var backupPassword by remember { mutableStateOf("") }
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    LumenCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "CalmSource Central Account",
             color = t.colors.brand,
             style = LumenType.Title.toTextStyle(),
-            modifier = Modifier.padding(bottom = LumenLegacySpace.sm2)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.sm)
         )
         
         Text(
@@ -243,7 +246,7 @@ fun AuthenticatedSyncControls(
             text = email,
             color = t.colors.foreground,
             style = LumenType.Body.toTextStyle().copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = LumenLegacySpace.xl)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.s7)
         )
 
         Box(
@@ -251,22 +254,22 @@ fun AuthenticatedSyncControls(
                 .fillMaxWidth()
                 .height(1.dp)
                 .background(t.colors.border)
-                .padding(bottom = LumenLegacySpace.xl)
+                .padding(bottom = LumenTokens.Space.s7)
         )
         
-        Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.md))
 
         Text(
             text = "Vault Protection",
             color = t.colors.foreground,
             style = LumenType.Body.toTextStyle().copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = LumenLegacySpace.sm)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.s3)
         )
         Text(
             text = "Enter a password to encrypt your credentials before backing up or to decrypt when restoring.",
             color = t.colors.mutedForeground,
             style = LumenType.Meta.toTextStyle(),
-            modifier = Modifier.padding(bottom = LumenLegacySpace.md)
+            modifier = Modifier.padding(bottom = LumenTokens.Space.s5)
         )
 
         OutlinedTextField(
@@ -279,7 +282,7 @@ fun AuthenticatedSyncControls(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
 
         if (loading) {
             Box(
@@ -291,13 +294,13 @@ fun AuthenticatedSyncControls(
                 CircularProgressIndicator(color = t.colors.brand)
             }
         } else {
-            PremiumButton(
+            PrimaryButton(
                 text = "Backup to Cloud",
                 onClick = { viewModel.backup(backupPassword) },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(LumenLegacySpace.md))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.s5))
 
             OutlinedButton(
                 onClick = { viewModel.restore(backupPassword) },
@@ -313,7 +316,7 @@ fun AuthenticatedSyncControls(
             }
         }
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.lg))
 
         TextButton(
             onClick = { viewModel.logout() },
@@ -321,6 +324,7 @@ fun AuthenticatedSyncControls(
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("Logout", color = LumenExtendedColors.errorBright, fontWeight = FontWeight.Bold)
+        }
         }
     }
 }

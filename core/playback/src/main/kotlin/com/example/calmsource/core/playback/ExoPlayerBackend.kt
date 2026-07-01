@@ -144,7 +144,11 @@ internal class ExoPlayerBackend(
         if (!skipStop) {
             runCatching { p.stop() }
         }
-        runCatching { p.release() }
+        runCatching { p.release() }.onFailure {
+            android.os.Handler(android.os.Looper.getMainLooper()).postAtFrontOfQueue {
+                runCatching { p.release() }
+            }
+        }
         host.hostedPlayer = null
     }
 

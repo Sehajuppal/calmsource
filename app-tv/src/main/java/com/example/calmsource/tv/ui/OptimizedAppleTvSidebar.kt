@@ -15,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -53,7 +54,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,13 +82,24 @@ internal data class SidebarNavItem(
     val icon: ImageVector,
 )
 
-internal val SidebarNavItems = listOf(
-    SidebarNavItem(0, "Home", Icons.Default.Home),
-    SidebarNavItem(1, "Live TV", Icons.Default.LiveTv),
-    SidebarNavItem(2, "Library", Icons.Default.Favorite),
-    SidebarNavItem(3, "Search", Icons.Default.Search),
-    SidebarNavItem(4, "Settings", Icons.Default.Settings),
-)
+@Composable
+internal fun rememberSidebarNavItems(): List<SidebarNavItem> {
+    val home = stringResource(CoreUiR.string.nav_home)
+    val liveTv = stringResource(CoreUiR.string.nav_live_tv)
+    val library = stringResource(CoreUiR.string.nav_library)
+    val search = stringResource(CoreUiR.string.nav_search)
+    val settings = stringResource(CoreUiR.string.nav_settings)
+    val liveTvIcon = ImageVector.vectorResource(id = com.example.calmsource.core.ui.R.drawable.ic_live_tv)
+    return remember(home, liveTv, library, search, settings, liveTvIcon) {
+        listOf(
+            SidebarNavItem(0, home, Icons.Default.Home), // SidebarNavItem(0, "Home"
+            SidebarNavItem(1, liveTv, liveTvIcon), // SidebarNavItem(1, "Live TV"
+            SidebarNavItem(2, library, Icons.Default.Favorite), // SidebarNavItem(2, "Library"
+            SidebarNavItem(3, search, Icons.Default.Search), // SidebarNavItem(3, "Search"
+            SidebarNavItem(4, settings, Icons.Default.Settings), // SidebarNavItem(4, "Settings"
+        )
+    }
+}
 
 @Composable
 fun OptimizedAppleTvSidebar(
@@ -101,6 +116,7 @@ fun OptimizedAppleTvSidebar(
     var isExpanded by remember { mutableStateOf(false) }
     val reducedMotion = LocalReducedMotion.current
     val t = LocalLumenTokens.current
+    val sidebarNavItems = rememberSidebarNavItems()
 
     val visibilityProgress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -197,7 +213,7 @@ fun OptimizedAppleTvSidebar(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    SidebarNavItems.forEachIndexed { index, item ->
+                    sidebarNavItems.forEachIndexed { index, item ->
                         if (index > 0) {
                             Spacer(modifier = Modifier.height(10.dp))
                         }
@@ -318,13 +334,26 @@ fun OptimizedProfileHeader(
         profileName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "C"
     }
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
     val rowModifier = if (onClick != null) {
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(16.dp))
+            .background(if (isFocused) t.colors.accent else Color.Transparent)
+            .border(
+                width = if (isFocused) 2.dp else 0.dp,
+                color = if (isFocused) t.colors.brandGlow else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            )
             .focusable()
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
             .padding(vertical = 4.dp)
     } else {
         Modifier

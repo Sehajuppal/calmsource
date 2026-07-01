@@ -23,9 +23,7 @@ class IPTVAdversarialUrlTest {
         
         for (url in badUrls) {
             val error = XtreamRepository.validateServerUrl(url)
-            // If it returns an error, it is correctly blocking.
-            // If it returns null, it thinks it's valid.
-            println("URL: $url -> Error: $error")
+            assertNotNull("Adversarial URL $url should be rejected", error)
         }
     }
 

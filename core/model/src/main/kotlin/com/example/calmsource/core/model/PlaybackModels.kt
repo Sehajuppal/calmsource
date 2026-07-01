@@ -146,13 +146,33 @@ data class PlaybackSource(
 }
 
 /**
+ * Series context carried through episode playback for autoplay and mini-player labels.
+ */
+data class SeriesPlaybackContext(
+    val seriesId: String,
+    val seriesTitle: String,
+    val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+)
+
+/**
+ * Resolved next-episode autoplay payload for the player handoff.
+ */
+data class AutoplayNextPayload(
+    val request: PlaybackRequest,
+    val fallbackSources: List<PlaybackSource> = emptyList(),
+    val episodeLabel: String,
+)
+
+/**
  * Represents a request to play a source.
  */
 data class PlaybackRequest(
     val source: PlaybackSource,
     val startPositionMs: Long = 0L,
     val playWhenReady: Boolean = true,
-    val userMemoryReference: UserMemoryReference? = null
+    val userMemoryReference: UserMemoryReference? = null,
+    val seriesContext: SeriesPlaybackContext? = null,
 )
 
 /**

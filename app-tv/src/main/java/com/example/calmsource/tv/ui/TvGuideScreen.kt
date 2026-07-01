@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,7 +40,6 @@ import com.example.calmsource.feature.epg.mapGuideToEpgGrid
 import com.example.calmsource.feature.iptv.EpgNowNext
 import com.example.calmsource.feature.iptv.LiveGuideUiState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
 import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -63,7 +64,7 @@ fun TvGuideScreen(
             LumenEmptyState(
                 title = "Schedule unavailable",
                 body = "No channels are loaded or match the active filters.",
-                icon = Icons.Default.List,
+                icon = ImageVector.vectorResource(id = com.example.calmsource.core.ui.R.drawable.ic_list),
             )
         }
         return
@@ -124,9 +125,8 @@ fun TvGuideScreen(
                 color = t.colors.foreground,
             )
 
-            var isJumpFocused by remember { mutableStateOf(false) }
-
-            TvFocusable(
+            AdaptiveButton(
+                text = "Jump to now",
                 onClick = {
                     val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
                     scope.launch {
@@ -134,20 +134,10 @@ fun TvGuideScreen(
                         horizontalScrollState.animateScrollTo(px)
                     }
                 },
-                modifier = Modifier.onFocusChanged { isJumpFocused = it.isFocused },
-            ) {
-                AdaptiveButton(
-                    text = "Jump to now",
-                    onClick = {
-                        val nowMinutes = max(0, ((System.currentTimeMillis() - startOfCurrentHour) / 60_000).toInt())
-                        scope.launch {
-                            val px = with(density) { (LumenLayout.epgPxPerMinute * nowMinutes).roundToPx() }
-                            horizontalScrollState.animateScrollTo(px)
-                        }
-                    },
-                    backdropLuminance = if (isJumpFocused) 1f else 0f,
-                )
-            }
+                backdropLuminance = 0f,
+                modifier = Modifier
+                    .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
+            )
         }
 
         LumenCard(

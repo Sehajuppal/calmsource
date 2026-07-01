@@ -249,7 +249,7 @@ class DatabaseMigrationTest {
         verify(db).execSQL(
             """
             INSERT OR IGNORE INTO `profiles` (`id`, `name`, `avatarUrl`, `createdAt`)
-            VALUES ('default', 'Default Profile', NULL, 0)
+            VALUES ('default', 'Default Profile', NULL, (CAST(strftime('%s', 'now') AS INTEGER) * 1000))
             """.trimIndent()
         )
 

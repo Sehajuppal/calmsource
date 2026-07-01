@@ -35,6 +35,7 @@ import java.util.Locale
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.example.calmsource.feature.iptv.xtream.XtreamApiClientImpl
+import com.example.calmsource.feature.iptv.xtream.XtreamServerUrlNormalizer
 import com.example.calmsource.feature.iptv.xtream.XtreamStreamUrlBuilder
 import com.example.calmsource.feature.iptv.XtreamApiClient
 import com.example.calmsource.core.model.TestEnvironment
@@ -63,7 +64,7 @@ object IPTVRepository {
 
     /** Clears in-memory EPG resolution caches (e.g. after credential or provider changes). */
     fun clearResolvedUrlCache() {
-        epgCache.clear()
+        epgCache.evictAll()
     }
     
     @VisibleForTesting
@@ -89,7 +90,7 @@ object IPTVRepository {
     // Separate from `scope` so cancelBackgroundWork() only cancels
     // discovery ingestion, not the provider sync the user just initiated.
     private val syncScope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob()
+        (if (isTest) kotlinx.coroutines.Dispatchers.Unconfined else kotlinx.coroutines.Dispatchers.IO) + kotlinx.coroutines.SupervisorJob()
     )
 
     fun setCoroutineScopeForTesting(testScope: kotlinx.coroutines.CoroutineScope) {
@@ -147,74 +148,87 @@ object IPTVRepository {
             override suspend fun getProviderByIdDirect(id: String): com.example.calmsource.core.database.entity.IPTVProviderEntity? = synchronized(fallbackLock) {
                 provMem.firstOrNull { it.id == id }
             }
-            override fun insertProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity) {
+            override fun insertProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity): Long {
                 synchronized(fallbackLock) {
                     provMem = provMem.filter { it.id != provider.id } + provider
                     provFlow.value = provMem
                 }
+                return 1L
             }
-            override fun updateProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity) { insertProvider(provider) }
-            override fun deleteProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity) {
+            override fun updateProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity): Int {
+                insertProvider(provider)
+                return 1
+            }
+            override fun deleteProvider(provider: com.example.calmsource.core.database.entity.IPTVProviderEntity): Int {
                 synchronized(fallbackLock) {
                     provMem = provMem.filter { it.id != provider.id }
                     provFlow.value = provMem
                 }
+                return 1
             }
             override fun getAllChannels() = chanFlow
             override fun getChannelsByProvider(providerId: String) = chanFlow.map { list -> list.filter { it.providerId == providerId } }
-            override fun insertChannels(channels: List<com.example.calmsource.core.database.entity.IPTVChannelEntity>) {
+            override fun insertChannels(channels: List<com.example.calmsource.core.database.entity.IPTVChannelEntity>): List<Long> {
                 val ids = channels.map { it.id }.toSet()
                 synchronized(fallbackLock) {
                     chanMem = chanMem.filter { it.id !in ids } + channels
                     chanFlow.value = chanMem
                 }
+                return channels.map { 1L }
             }
-            override fun deleteChannelsByProvider(providerId: String) {
+            override fun deleteChannelsByProvider(providerId: String): Int {
                 synchronized(fallbackLock) {
                     chanMem = chanMem.filter { it.providerId != providerId }
                     chanFlow.value = chanMem
                 }
+                return 1
             }
             override fun getAllEPGSources() = epgSrcFlow
-            override fun insertEPGSource(source: com.example.calmsource.core.database.entity.EPGSourceEntity) {
+            override fun insertEPGSource(source: com.example.calmsource.core.database.entity.EPGSourceEntity): Long {
                 synchronized(fallbackLock) {
                     epgSrcMem = epgSrcMem.filter { it.id != source.id } + source
                     epgSrcFlow.value = epgSrcMem
                 }
+                return 1L
             }
-            override fun deleteEPGSource(source: com.example.calmsource.core.database.entity.EPGSourceEntity) {
+            override fun deleteEPGSource(source: com.example.calmsource.core.database.entity.EPGSourceEntity): Int {
                 synchronized(fallbackLock) {
                     epgSrcMem = epgSrcMem.filter { it.id != source.id }
                     epgSrcFlow.value = epgSrcMem
                 }
+                return 1
             }
-            override fun deleteEPGSourcesByProvider(providerId: String) {
+            override fun deleteEPGSourcesByProvider(providerId: String): Int {
                 synchronized(fallbackLock) {
                     epgSrcMem = epgSrcMem.filter { it.providerId != providerId }
                     epgSrcFlow.value = epgSrcMem
                 }
+                return 1
             }
             override fun getEPGProgramsByChannel(channelId: String) = progFlow.map { list -> list.filter { it.channelId == channelId } }
-            override fun insertEPGPrograms(programs: List<com.example.calmsource.core.database.entity.EPGProgramEntity>) {
+            override fun insertEPGPrograms(programs: List<com.example.calmsource.core.database.entity.EPGProgramEntity>): List<Long> {
                 val ids = programs.map { it.id }.toSet()
                 synchronized(fallbackLock) {
                     progMem = progMem.filter { it.id !in ids } + programs
                     progFlow.value = progMem
                 }
+                return programs.map { 1L }
             }
-            override fun deleteEPGProgramsByChannel(channelId: String) {
+            override fun deleteEPGProgramsByChannel(channelId: String): Int {
                 synchronized(fallbackLock) {
                     progMem = progMem.filter { it.channelId != channelId }
                     progFlow.value = progMem
                 }
+                return 1
             }
-            override fun deleteEPGProgramsByChannels(channelIds: Set<String>) {
+            override fun deleteEPGProgramsByChannels(channelIds: Set<String>): Int {
                 synchronized(fallbackLock) {
                     progMem = progMem.filter { it.channelId !in channelIds }
                     progFlow.value = progMem
                 }
+                return 1
             }
-            override fun deleteEPGProgramsByProvider(providerId: String) {
+            override fun deleteEPGProgramsByProvider(providerId: String): Int {
                 synchronized(fallbackLock) {
                     val providerChannelIds = chanMem
                         .asSequence()
@@ -231,13 +245,15 @@ object IPTVRepository {
                     }
                     progFlow.value = progMem
                 }
+                return 1
             }
             override suspend fun getAllEPGPrograms() = progFlow.value
-            override fun pruneOldEPGPrograms(cutoffTime: Long) {
+            override fun pruneOldEPGPrograms(cutoffTime: Long): Int {
                 synchronized(fallbackLock) {
                     progMem = progMem.filter { it.endTimeMs >= cutoffTime }
                     progFlow.value = progMem
                 }
+                return 1
             }
             override suspend fun getUniqueEPGChannelIds(): List<String> {
                 return synchronized(fallbackLock) {
@@ -246,7 +262,7 @@ object IPTVRepository {
             }
             override suspend fun getEPGProgramsByChannelDirect(channelId: String): List<com.example.calmsource.core.database.entity.EPGProgramEntity> {
                 return synchronized(fallbackLock) {
-                    progMem.filter { it.channelId == channelId }
+                    progMem.filter { it.channelId == channelId }.sortedBy { it.startTimeMs }
                 }
             }
             override suspend fun getEPGProgramsByChannelsDirect(channelIds: List<String>): List<com.example.calmsource.core.database.entity.EPGProgramEntity> {
@@ -268,15 +284,16 @@ object IPTVRepository {
 
     private val dao: com.example.calmsource.core.database.dao.IPTVDao
         get() {
-            DatabaseProvider.databaseOrNull()?.iptvDao()?.let { roomDao ->
-                _cachedDao = roomDao
-                return roomDao
-            }
             val cached = _cachedDao
             if (cached != null) return cached
             return synchronized(daoLock) {
                 val cachedAgain = _cachedDao
                 if (cachedAgain != null) return@synchronized cachedAgain
+                val roomDao = DatabaseProvider.databaseOrNull()?.iptvDao()
+                if (roomDao != null) {
+                    _cachedDao = roomDao
+                    return@synchronized roomDao
+                }
                 val resolved = resolveDao()
                 _cachedDao = resolved
                 return@synchronized resolved
@@ -298,35 +315,7 @@ object IPTVRepository {
     private val migrationDone = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private suspend fun migrateFallbackToRoom() {
-        if (!migrationDone.compareAndSet(false, true)) return
-        val database = DatabaseProvider.databaseOrNull() ?: return
-        val roomDao = database.iptvDao()
-        val providers = fallbackDao.getAllProviders().firstOrNull() ?: emptyList()
-        val channels = fallbackDao.getAllChannels().firstOrNull() ?: emptyList()
-        val epgSources = fallbackDao.getAllEPGSources().firstOrNull() ?: emptyList()
-        val epgPrograms = fallbackDao.getAllEPGPrograms()
-        if (providers.isEmpty() && channels.isEmpty() && epgSources.isEmpty() && epgPrograms.isEmpty()) {
-            return
-        }
-        android.util.Log.i("IPTVRepository", "Migrating fallback in-memory data to Room: ${providers.size} providers, ${channels.size} channels, ${epgSources.size} EPG sources, ${epgPrograms.size} EPG programs")
-        withContext(Dispatchers.IO) {
-            database.withTransaction {
-                providers.forEach { roomDao.insertProvider(it) }
-                if (channels.isNotEmpty()) {
-                    roomDao.insertChannels(channels)
-                }
-                epgSources.forEach { roomDao.insertEPGSource(it) }
-                if (epgPrograms.isNotEmpty()) {
-                    roomDao.insertEPGPrograms(epgPrograms)
-                }
-            }
-            providers.forEach { fallbackDao.deleteProvider(it) }
-            epgSources.forEach { fallbackDao.deleteEPGSource(it) }
-            providers.forEach { p ->
-                fallbackDao.deleteChannelsByProvider(p.id)
-                fallbackDao.deleteEPGProgramsByProvider(p.id)
-            }
-        }
+        IptvMigrationHelper.migrateFallbackToRoom(fallbackDao)
     }
 
     val providers: StateFlow<List<IPTVProvider>> by lazy {
@@ -378,9 +367,11 @@ object IPTVRepository {
 
     private var parsedChannels: List<IPTVChannel> = emptyList()
     private var parsedPrograms: List<EPGProgram> = emptyList()
-    private val epgCache = java.util.concurrent.ConcurrentHashMap<String, List<EPGProgram>>()
+    private val epgCache = android.util.LruCache<String, List<EPGProgram>>(200)
     private var matches: Map<String, EPGMatch> = emptyMap()
     private var sourceHealthMap: Map<String, SourceHealth> = emptyMap()
+    private val onDemandVodCache = java.util.concurrent.ConcurrentHashMap<String, XtreamVodItem>()
+    private val onDemandSeriesCache = java.util.concurrent.ConcurrentHashMap<String, XtreamSeriesItem>()
 
     private var sortedChannelsCache: List<IPTVChannel> = emptyList()
 
@@ -397,7 +388,24 @@ object IPTVRepository {
      */
     private val dataUpdateTick = kotlinx.coroutines.flow.MutableStateFlow(0L)
 
+    private val matchEpgRequests = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
+
+    private fun triggerMatchEpg() {
+        matchEpgRequests.tryEmit(Unit)
+    }
+
     init {
+        scope.launch {
+            val stream = if (isTest) matchEpgRequests else matchEpgRequests.debounce(100L)
+            stream.collect {
+                matchEPGSync()
+            }
+        }
+
         // Eagerly populate parsedChannels when database becomes ready,
         // bypassing the debounce pipeline to avoid the 750ms delay on
         // first load (and to prevent 'sync required' while channels exist).
@@ -408,6 +416,7 @@ object IPTVRepository {
                     invalidateDaoCache()
                     if (ready) {
                         migrateFallbackToRoom()
+                        IptvMigrationHelper.migrateLegacyXtreamPseudoUrls(dao)
                     }
                     val entities = withContext(Dispatchers.IO) {
                         dao.getAllChannels().first()
@@ -416,7 +425,7 @@ object IPTVRepository {
                         parsedChannels = entities.map { it.toDomain() }
                     }
                     updateSortedChannelsCacheSync()
-                    matchEPGSync()
+                    triggerMatchEpg()
                     refreshHealthCache()
                     publishChannels(getChannels())
                     _channelsReady.value = true
@@ -440,7 +449,7 @@ object IPTVRepository {
                         }
                         updateSortedChannelsCacheSync()
                         if (!isProviderSyncInProgress() && !isEpgBackgroundSyncInProgress()) {
-                            matchEPGSync()
+                            triggerMatchEpg()
                         }
                         refreshHealthCache()
                         entities
@@ -454,7 +463,7 @@ object IPTVRepository {
 
                         // Bump the debounce tick so the consumer below (and the
                         // discovery ingestion job) see that new data is available.
-                        dataUpdateTick.value = dataUpdateTick.value + 1
+                        dataUpdateTick.update { it + 1 }
 
                         if (!isTest && entities.isNotEmpty() &&
                             !isProviderSyncInProgress() &&
@@ -542,10 +551,10 @@ object IPTVRepository {
                             parsedPrograms = entities.map { it.toDomain() }
                         }
                     }
-                    matchEPGSync()
+                    triggerMatchEpg()
                     // Bump the tick so the EPG match triggers a `_channels` re-emit
                     // after the debounce window.
-                    dataUpdateTick.value = dataUpdateTick.value + 1
+                    dataUpdateTick.update { it + 1 }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -584,6 +593,32 @@ object IPTVRepository {
         }
     }
 
+    private class BoundedInputStream(
+        input: java.io.InputStream,
+        private val maxBytes: Long
+    ) : java.io.FilterInputStream(input) {
+        private var bytesRead = 0L
+
+        private fun record(count: Int): Int {
+            if (count > 0) {
+                bytesRead += count
+                if (bytesRead > maxBytes) {
+                    throw java.io.IOException("IPTV download exceeds the supported size limit")
+                }
+            }
+            return count
+        }
+
+        override fun read(): Int {
+            val value = super.read()
+            if (value >= 0) record(1)
+            return value
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            record(super.read(buffer, offset, length))
+    }
+
     private fun publishChannels(channelsList: List<IPTVChannel>) {
         _channels.value = channelsList
         _liveGuideIndex.value = IptvLiveGuideIndex.buildFromChannels(channelsList)
@@ -617,10 +652,10 @@ object IPTVRepository {
 
     internal fun endEpgBackgroundSync(providerId: String) {
         epgBackgroundSyncProviders.remove(providerId)
-        epgCache.clear()
+        epgCache.evictAll()
         scope.launch(Dispatchers.IO) {
-            matchEPGSync()
-            dataUpdateTick.value = dataUpdateTick.value + 1
+            triggerMatchEpg()
+            dataUpdateTick.update { it + 1 }
         }
     }
 
@@ -713,12 +748,12 @@ object IPTVRepository {
         transform: (IptvOptimizationPreferences) -> IptvOptimizationPreferences
     ) {
         IptvOptimizationStore.update(transform)
-        publishChannels(getChannels())
+        dataUpdateTick.update { it + 1 }
     }
 
     fun resetOptimizationPreferences() {
         IptvOptimizationStore.reset()
-        publishChannels(getChannels())
+        dataUpdateTick.update { it + 1 }
     }
 
     fun getLiveChannels(limit: Int = Int.MAX_VALUE): List<IPTVChannel> {
@@ -734,19 +769,27 @@ object IPTVRepository {
         }
     }
 
-    fun getLiveChannelHomeRow(limit: Int = 30): com.example.calmsource.core.discoveryengine.models.RecommendationRow? {
-        val items = getLiveChannels(limit).map { channel ->
+    suspend fun getLiveChannelHomeRow(limit: Int = 30): com.example.calmsource.core.discoveryengine.models.RecommendationRow? {
+        val channels = getLiveChannels(limit)
+        val nowNextByChannel = getNowNextForChannels(channels.map { it.id })
+        val items = channels.map { channel ->
+            val nowNext = nowNextByChannel[channel.id]
+            val nowTitle = nowNext?.currentProgram?.title
+            val nextTitle = nowNext?.nextProgram?.title
             com.example.calmsource.core.discoveryengine.models.RecommendationItem(
                 id = channel.id,
                 type = "channel",
                 title = channel.name,
                 score = 0.0,
-                reason = "Live channel",
+                reason = nowTitle?.let { "Live now: $it" } ?: "Live channel",
                 scoreBreakdown = com.example.calmsource.core.discoveryengine.models.ScoreBreakdown(
                     reasons = listOf("IPTV")
                 ),
                 subtitle = channel.groupTitle,
                 posterUrl = channel.tvgLogo,
+                liveNowTitle = nowTitle,
+                liveNextTitle = nextTitle,
+                liveProgress = nowNext?.progressPercentage,
                 source = channel.providerId
             )
         }
@@ -886,8 +929,16 @@ object IPTVRepository {
                 .searchVod(escapedQuery, normalizedQuery, coercedLimit)
                 .map { it.toDomain() }
         }.getOrDefault(emptyList())
-        indexXtreamVodResults(results)
-        results
+        val finalResults = if (results.isEmpty() && XtreamRepository.usesOnDemandCatalogSearch()) {
+            XtreamRepository.searchVodOnDemand(trimmedQuery, coercedLimit).also { remote ->
+                if (onDemandVodCache.size > 1_000) onDemandVodCache.clear()
+                remote.forEach { onDemandVodCache[it.id] = it }
+            }
+        } else {
+            results
+        }
+        indexXtreamVodResults(finalResults)
+        finalResults
     }
 
     suspend fun searchXtreamSeries(query: String, limit: Int = 100): List<XtreamSeriesItem> = withContext(Dispatchers.IO) {
@@ -922,8 +973,16 @@ object IPTVRepository {
                 .searchSeries(escapedQuery, normalizedQuery, coercedLimit)
                 .map { it.toDomain() }
         }.getOrDefault(emptyList())
-        indexXtreamSeriesResults(results)
-        results
+        val finalResults = if (results.isEmpty() && XtreamRepository.usesOnDemandCatalogSearch()) {
+            XtreamRepository.searchSeriesOnDemand(trimmedQuery, coercedLimit).also { remote ->
+                if (onDemandSeriesCache.size > 1_000) onDemandSeriesCache.clear()
+                remote.forEach { onDemandSeriesCache[it.id] = it }
+            }
+        } else {
+            results
+        }
+        indexXtreamSeriesResults(finalResults)
+        finalResults
     }
 
     private suspend fun indexXtreamVodResults(items: List<XtreamVodItem>) {
@@ -993,6 +1052,23 @@ object IPTVRepository {
     }
 
     suspend fun findIptvStreamSource(itemId: String): StreamSource? = withContext(Dispatchers.IO) {
+        if (itemId.startsWith(com.example.calmsource.core.model.PlaybackSource.XTREAM_SERIES_EPISODE_SOURCE_PREFIX)) {
+            val parts = itemId.removePrefix(com.example.calmsource.core.model.PlaybackSource.XTREAM_SERIES_EPISODE_SOURCE_PREFIX).split("|")
+            if (parts.size >= 3) {
+                val providerId = parts[0]
+                val seriesId = parts[1]
+                val episodeId = parts[2]
+                return@withContext StreamSource(
+                    id = itemId,
+                    name = "Episode Stream",
+                    url = "xtream://stream_id/$providerId/$episodeId",
+                    extensionId = providerId,
+                    resolution = "VOD",
+                    language = "Unknown"
+                )
+            }
+        }
+
         val channel = findChannel(itemId)
         if (channel != null) {
             val resolution = if (channel.isVod) "VOD" else ChannelMapper.extractResolution(channel).ifEmpty { "Live" }
@@ -1004,6 +1080,20 @@ object IPTVRepository {
                 resolution = resolution,
                 language = ChannelMapper.extractLanguage(channel).ifEmpty { "Unknown" }
             )
+        }
+
+        onDemandVodCache[itemId]?.let { vod ->
+            return@withContext StreamSource(
+                id = vod.id,
+                name = vod.name,
+                url = XtreamStreamUrlBuilder.createPseudoUrl(vod.providerId, vod.streamId) ?: vod.id,
+                extensionId = vod.providerId,
+                resolution = "VOD",
+                language = "Unknown"
+            )
+        }
+        onDemandSeriesCache[itemId]?.let { series ->
+            return@withContext buildXtreamSeriesEpisodeSources(series, limit = 1).firstOrNull()
         }
 
         val database = databaseOrNull()
@@ -1105,7 +1195,24 @@ object IPTVRepository {
             )
         }
 
-        findChannel(itemId) ?: runCatching {
+        findChannel(itemId) ?: onDemandVodCache[itemId]?.let { vod ->
+            IPTVChannel(
+                id = vod.id,
+                tvgId = null,
+                tvgName = vod.name,
+                tvgLogo = vod.poster?.ifEmpty { null },
+                groupTitle = "VOD",
+                name = vod.name,
+                streamUrl = XtreamStreamUrlBuilder.createPseudoUrl(vod.providerId, vod.streamId) ?: vod.streamId,
+                providerId = vod.providerId,
+                rawAttributes = mapOf(
+                    "xtream_stream_id" to vod.streamId,
+                    "xtream_source" to "true",
+                    "xtream_content_type" to "vod",
+                    "container_extension" to vod.containerExtension
+                )
+            )
+        } ?: runCatching {
             databaseOrNull()?.xtreamDao()?.getVodById(itemId)
         }.onFailure { e ->
             android.util.Log.e("IPTVRepository", "findPlaybackChannel: VOD lookup failed for $itemId", e)
@@ -1187,13 +1294,33 @@ object IPTVRepository {
 
     fun isProviderSyncActive(): Boolean = isProviderSyncInProgress()
 
+    /** Retries providers currently carrying an error/warning while preserving per-provider locks. */
+    fun retryFailedProviderSyncs() {
+        val states = _syncStates.value
+        providers.value
+            .filter { provider ->
+                if (!provider.isEnabled) return@filter false
+                val state = states[provider.id]
+                state?.status == ProviderSyncStatus.ERROR ||
+                    !state?.error.isNullOrBlank() ||
+                    !state?.warning.isNullOrBlank()
+            }
+            .forEach { provider ->
+                if (provider.type == IPTVProviderType.XTREAM) {
+                    startXtreamProviderSync(provider.id)
+                } else {
+                    syncScope.launch { syncPlaylistFromUrl(provider.id) }
+                }
+            }
+    }
+
     private suspend fun refreshHealthCache() = withContext(Dispatchers.IO) {
         val healthList = SourceHealthRepository.getAllSourceHealth()
         synchronized(dataLock) {
             sourceHealthMap = healthList.associateBy { it.sourceId }
         }
         updateSortedChannelsCacheSync()
-        dataUpdateTick.value = dataUpdateTick.value + 1
+        dataUpdateTick.update { it + 1 }
         publishChannels(getChannels())
     }
 
@@ -1240,8 +1367,12 @@ object IPTVRepository {
                     refreshHealthCache()
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
-                } catch (_: Throwable) {
-                    // Recovery check failed, will retry next cycle
+                } catch (e: Throwable) {
+                    android.util.Log.w(
+                        "IPTVRepository",
+                        "Periodic provider health recovery check failed; will retry next cycle",
+                        e,
+                    )
                 }
             }
         }
@@ -1265,7 +1396,7 @@ object IPTVRepository {
                 synchronized(dataLock) {
                     sourceHealthMap = sourceHealthMap + (safeSourceId to health)
                 }
-                updateSortedChannelsCache()
+                updateSortedChannelsCacheSync()
             }
         }
     }
@@ -1287,7 +1418,7 @@ object IPTVRepository {
                 synchronized(dataLock) {
                     sourceHealthMap = sourceHealthMap + (safeSourceId to health)
                 }
-                updateSortedChannelsCache()
+                updateSortedChannelsCacheSync()
             }
         }
     }
@@ -1320,7 +1451,7 @@ object IPTVRepository {
     }
 
     private suspend fun getEPGProgramsForChannelCached(epgId: String): List<EPGProgram> = withContext(Dispatchers.IO) {
-        val cached = epgCache[epgId]
+        val cached = epgCache.get(epgId)
         if (cached != null) {
             return@withContext cached
         }
@@ -1328,11 +1459,11 @@ object IPTVRepository {
         if (database != null) {
             val entities = dao.getEPGProgramsByChannelDirect(epgId)
             val domainPrograms = entities.map { it.toDomain() }
-            epgCache[epgId] = domainPrograms
+            epgCache.put(epgId, domainPrograms)
             domainPrograms
         } else {
             val fallback = synchronized(dataLock) { parsedPrograms }.filter { it.channelId == epgId }
-            epgCache[epgId] = fallback
+            epgCache.put(epgId, fallback)
             fallback
         }
     }
@@ -1437,8 +1568,16 @@ object IPTVRepository {
         }
         val password = XtreamRepository.getPassword(provider.id, username)
         if (password == null) {
-            android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: Secure playback material missing for provider ${provider.id}")
-            return@withContext ResolveResult(channel.streamUrl, "IPTV credentials missing — re-enter your username and password in settings")
+            val credentialMessage = when {
+                !XtreamRepository.isEncryptedStorageAvailable() ->
+                    "Secure credential storage is unavailable on this device. Re-enter your IPTV provider in settings."
+                XtreamRepository.tokenStore.hasPassword(provider.id, username) ->
+                    "IPTV credentials could not be read — secure storage may be corrupted after a system update. Re-enter your username and password in settings."
+                else ->
+                    "IPTV credentials missing — re-enter your username and password in settings"
+            }
+            android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: $credentialMessage (provider=${provider.id})")
+            return@withContext ResolveResult(channel.streamUrl, credentialMessage)
         }
         
         val streamId = com.example.calmsource.feature.iptv.xtream.XtreamStreamUrlBuilder.extractStreamId(channel.streamUrl)
@@ -1446,8 +1585,7 @@ object IPTVRepository {
             android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: Invalid stream ID in pseudo-URL for channel ${channel.id}")
             return@withContext ResolveResult(channel.streamUrl, "Invalid stream identifier")
         }
-        val serverUrl = provider.serverUrl.takeIf { it.isNotBlank() }
-            ?: com.example.calmsource.feature.iptv.xtream.XtreamPlaybackHelper.extractBaseUrl(provider.playlistUrl)
+        val serverUrl = resolveXtreamPortalUrl(provider)
         if (serverUrl == null) {
             android.util.Log.w("IPTVRepository", "resolvePlaybackUrl: Cannot determine server URL for provider ${provider.id}")
             return@withContext ResolveResult(channel.streamUrl, "Provider server URL is invalid")
@@ -1490,6 +1628,12 @@ object IPTVRepository {
         }
     }
 
+    private fun resolveXtreamPortalUrl(provider: IPTVProvider): String? {
+        return XtreamRepository.resolveProviderPortalUrl(provider.id, provider.serverUrl)
+            .takeIf { it.isNotBlank() }
+            ?: com.example.calmsource.feature.iptv.xtream.XtreamPlaybackHelper.extractBaseUrl(provider.playlistUrl)
+    }
+
     private suspend fun findProviderForPlayback(providerId: String): IPTVProvider? {
         providers.value.firstOrNull { it.id == providerId && it.isEnabled }?.let { return it }
         return runCatching {
@@ -1530,8 +1674,7 @@ object IPTVRepository {
         val provider = findProviderForPlayback(series.providerId) ?: return emptyList()
         val username = provider.username ?: return emptyList()
         val password = XtreamRepository.getPassword(provider.id, username) ?: return emptyList()
-        val serverUrl = provider.serverUrl.takeIf { it.isNotBlank() }
-            ?: com.example.calmsource.feature.iptv.xtream.XtreamPlaybackHelper.extractBaseUrl(provider.playlistUrl)
+        val serverUrl = resolveXtreamPortalUrl(provider)
             ?: return emptyList()
         val config = XtreamProviderConfig(
             id = provider.id,
@@ -1638,6 +1781,41 @@ object IPTVRepository {
         provider
     }
 
+    /** Updates M3U metadata and secure playlist material in place so channels, favourites,
+     * history, and EPG associations keep the same provider identity. */
+    suspend fun updateM3uProvider(
+        providerId: String,
+        name: String,
+        playlistUrl: String
+    ): IPTVProvider = withContext(Dispatchers.IO) {
+        val trimmedUrl = playlistUrl.trim()
+        val scheme = runCatching { java.net.URI(trimmedUrl).scheme?.lowercase() }.getOrNull()
+        require(scheme == "http" || scheme == "https") { "Playlist URL must use http or https" }
+
+        val existingEntity = dao.getProviderByIdDirect(providerId)
+            ?: throw IllegalArgumentException("IPTV provider not found")
+        val existing = existingEntity.toDomain()
+        require(existing.type == IPTVProviderType.M3U) { "Provider is not an M3U playlist" }
+
+        val oldSecureUrl = XtreamRepository.tokenStore.readPassword(providerId, "m3u_playlist_url")
+        val updated = existing.copy(
+            name = name.trim().ifBlank { "M3U Playlist" },
+            playlistUrl = com.example.calmsource.core.network.UrlRedactor.redactUrl(trimmedUrl)
+        )
+        try {
+            XtreamRepository.tokenStore.savePassword(providerId, "m3u_playlist_url", trimmedUrl)
+            dao.updateProvider(updated.toEntity())
+        } catch (error: Exception) {
+            if (oldSecureUrl != null) {
+                runCatching {
+                    XtreamRepository.tokenStore.savePassword(providerId, "m3u_playlist_url", oldSecureUrl)
+                }
+            }
+            throw error
+        }
+        updated
+    }
+
     suspend fun addXtreamProvider(name: String, serverUrl: String, username: String, password: String): Result<IPTVProvider> {
         val result = XtreamRepository.addXtreamProvider(
             name = name,
@@ -1665,10 +1843,82 @@ object IPTVRepository {
         return result
     }
 
+    /** Validates replacement Xtream credentials before changing the existing provider. */
+    suspend fun updateXtreamProvider(
+        providerId: String,
+        name: String,
+        serverUrl: String,
+        username: String,
+        password: String
+    ): Result<IPTVProvider> = withContext(Dispatchers.IO) {
+        val existingEntity = dao.getProviderByIdDirect(providerId)
+            ?: return@withContext Result.failure(IllegalArgumentException("IPTV provider not found"))
+        val existing = existingEntity.toDomain()
+        if (existing.type != IPTVProviderType.XTREAM) {
+            return@withContext Result.failure(IllegalArgumentException("Provider is not an Xtream account"))
+        }
+
+        val validatedResult = XtreamRepository.addXtreamProvider(
+            name = name,
+            serverUrl = serverUrl,
+            username = username,
+            password = password,
+            persistProvider = false
+        )
+        if (validatedResult.isFailure) return@withContext validatedResult
+
+        val temporary = validatedResult.getOrThrow()
+        val oldUsername = existing.username.orEmpty()
+        val oldPassword = oldUsername.takeIf { it.isNotBlank() }?.let {
+            XtreamRepository.tokenStore.readPassword(providerId, it)
+        }
+        val oldPortal = XtreamRepository.tokenStore.readPortalUrl(providerId)
+        val updated = temporary.copy(id = providerId, isEnabled = existing.isEnabled)
+        val userPortalUrl = XtreamServerUrlNormalizer.normalizePortalUrl(
+            XtreamServerUrlNormalizer.preprocessPortalInput(serverUrl)
+        ) ?: updated.serverUrl
+
+        try {
+            XtreamRepository.tokenStore.savePortalUrl(providerId, userPortalUrl)
+            XtreamRepository.tokenStore.savePassword(providerId, updated.username.orEmpty(), password)
+            dao.updateProvider(updated.copy(serverUrl = userPortalUrl, playlistUrl = userPortalUrl).toEntity())
+            if (oldUsername.isNotBlank() && oldUsername != updated.username) {
+                XtreamRepository.tokenStore.deletePassword(providerId, oldUsername)
+            }
+            XtreamRepository.markProviderRecentlyAuthed(providerId)
+            _syncStates.update { current ->
+                current + (providerId to ProviderSyncState(providerId, ProviderSyncStatus.IDLE))
+            }
+            Result.success(updated.copy(serverUrl = userPortalUrl, playlistUrl = userPortalUrl))
+        } catch (error: Exception) {
+            val newUsername = updated.username.orEmpty()
+            if (newUsername.isNotBlank() && newUsername != oldUsername) {
+                runCatching { XtreamRepository.tokenStore.deletePassword(providerId, newUsername) }
+            }
+            if (oldPassword != null && oldUsername.isNotBlank()) {
+                runCatching { XtreamRepository.tokenStore.savePassword(providerId, oldUsername, oldPassword) }
+            } else if (newUsername.isNotBlank() && newUsername == oldUsername) {
+                runCatching { XtreamRepository.tokenStore.deletePassword(providerId, newUsername) }
+            }
+            if (oldPortal != null) {
+                runCatching { XtreamRepository.tokenStore.savePortalUrl(providerId, oldPortal) }
+            } else {
+                runCatching { XtreamRepository.tokenStore.deletePortalUrl(providerId) }
+            }
+            val safeMessage = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(
+                error.message ?: "Failed to update Xtream provider"
+            )
+            Result.failure(Exception(safeMessage))
+        } finally {
+            runCatching { XtreamRepository.tokenStore.clearProvider(temporary.id) }
+            XtreamRepository.clearRecentlyAuthed(temporary.id)
+        }
+    }
+
     suspend fun deleteProvider(providerId: String) = withContext(Dispatchers.IO) {
         activeSyncJobs[providerId]?.cancel()
         activeSyncJobs.remove(providerId)
-        epgCache.clear()
+        epgCache.evictAll()
         val database = databaseOrNull()
         val providerEntity = dao.getAllProviders().first().find { it.id == providerId }
         if (providerEntity == null) {
@@ -1717,7 +1967,7 @@ object IPTVRepository {
         }
         updateSortedChannelsCacheSync()
         publishChannels(getChannels())
-        matchEPGSync()
+        triggerMatchEpg()
         refreshHealthCache()
     }
 
@@ -1866,125 +2116,45 @@ object IPTVRepository {
     }
 
     suspend fun syncPlaylistFromUrl(providerId: String) = withContext(Dispatchers.IO) {
-        kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { registerSyncJob(providerId, it) }
-        try {
-            updateSyncState(providerId, ProviderSyncStatus.SYNCING, 10)
-            val providerEntity = dao.getAllProviders().first().find { it.id == providerId }
-            if (providerEntity == null) {
-                updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Provider not found")
-                return@withContext
-            }
-            val provider = providerEntity.toDomain()
-            // The real playlist URL lives in the secure store; provider.playlistUrl is the redacted
-            // copy persisted in Room. Only fall back to it when it carries no redaction markers
-            // (i.e. a credential-free URL). Never sync a "password=REDACTED" URL — it would fail
-            // silently — surface a clear re-enter prompt instead (bug #8).
-            val originalUrl = XtreamRepository.tokenStore.readPassword(providerId, "m3u_playlist_url")
-                ?: provider.playlistUrl.takeUnless { it.contains("REDACTED") }
-            if (originalUrl == null) {
-                updateSyncState(
-                    providerId,
-                    ProviderSyncStatus.ERROR,
-                    100,
-                    "Saved playlist URL is unavailable — please re-enter the playlist URL for this provider."
-                )
-                return@withContext
-            }
+        IptvProviderSyncCoordinator.withProviderLock(providerId) {
+            kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { registerSyncJob(providerId, it) }
             try {
-                val scheme = try { java.net.URI(originalUrl).scheme?.lowercase() } catch (e: Exception) { null }
-                if (scheme != "http" && scheme != "https") {
-                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Unsafe or invalid URL scheme")
-                    return@withContext
+                updateSyncState(providerId, ProviderSyncStatus.SYNCING, 10)
+                val providerEntity = dao.getAllProviders().first().find { it.id == providerId }
+                if (providerEntity == null) {
+                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Provider not found")
+                    return@withProviderLock
                 }
-                
-                var downloadSuccess = false
-                var errorMsg: String? = null
-                
-                // Retry up to 3 times with backoff for transient network failures
-                for (downloadAttempt in 1..3) {
-                    try {
-                        com.example.calmsource.core.network.NetworkClient.client.get(originalUrl) {
-                            timeout {
-                                requestTimeoutMillis = 300_000L
-                                connectTimeoutMillis = 30_000L
-                                socketTimeoutMillis = 300_000L
-                            }
-                        }.use { response ->
-                            if (response.status.value in 200..299) {
-                                response.bodyAsChannel().toInputStream().use { stream ->
-                                    syncPlaylist(providerId, stream)
-                                }
-                                downloadSuccess = true
-                            } else if (response.status.value in listOf(429, 502, 503, 504) && downloadAttempt < 3) {
-                                errorMsg = "HTTP ${response.status.value}"
-                                kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
-                            } else {
-                                errorMsg = "HTTP ${response.status.value}"
-                            }
-                        }
-                        if (downloadSuccess) break
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        errorMsg = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(
-                            e.message ?: "Download failed"
-                        )
-                        if (downloadAttempt < 3) {
-                            kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
-                        }
+                val provider = providerEntity.toDomain()
+                // The real playlist URL lives in the secure store; provider.playlistUrl is the redacted
+                // copy persisted in Room. Only fall back to it when it carries no redaction markers
+                // (i.e. a credential-free URL). Never sync a "password=REDACTED" URL — it would fail
+                // silently — surface a clear re-enter prompt instead (bug #8).
+                val originalUrl = XtreamRepository.tokenStore.readPassword(providerId, "m3u_playlist_url")
+                    ?: provider.playlistUrl.takeUnless { it.contains("REDACTED") }
+                if (originalUrl == null) {
+                    updateSyncState(
+                        providerId,
+                        ProviderSyncStatus.ERROR,
+                        100,
+                        "Saved playlist URL is unavailable — please re-enter the playlist URL for this provider."
+                    )
+                    return@withProviderLock
+                }
+                try {
+                    val scheme = try { java.net.URI(originalUrl).scheme?.lowercase() } catch (e: Exception) { null }
+                    if (scheme != "http" && scheme != "https") {
+                        updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Unsafe or invalid URL scheme")
+                        return@withProviderLock
                     }
-                }
-                
-                if (!downloadSuccess) {
-                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, errorMsg ?: "Download failed")
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch(e: Exception) {
-                val safeMessage = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(e.message ?: "Unknown error")
-                updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, safeMessage)
-            }
-        } finally {
-            kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { unregisterSyncJob(providerId, it) }
-        }
-    }
-
-    suspend fun syncEpgFromUrl(sourceId: String) = withContext(Dispatchers.IO) {
-        val sourceEntity = dao.getAllEPGSources().first().find { it.id == sourceId } ?: return@withContext
-        val source = sourceEntity.toDomain()
-        val providerId = source.providerId
-        kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { registerSyncJob(providerId, it) }
-        try {
-            val resolvedUrl = EpgSourceUrlStorage.resolve(source)
-            if (resolvedUrl == null) {
-                updateSyncState(
-                    providerId,
-                    ProviderSyncStatus.ERROR,
-                    100,
-                    "Saved EPG URL is unavailable — please re-enter the XMLTV URL."
-                )
-                return@withContext
-            }
-            val sanitizedUrl = EpgSourceUrlStorage.sanitizeForPersistence(resolvedUrl)
-            if (sanitizedUrl != source.url) {
-                // One-time migration for EPG sources created before secure URL storage existed.
-                EpgSourceUrlStorage.persist(providerId, source.id, resolvedUrl)
-                dao.insertEPGSource(source.copy(url = sanitizedUrl).toEntity())
-            }
-            val scheme = try { java.net.URI(resolvedUrl).scheme?.lowercase() } catch (e: Exception) { null }
-            if (scheme != "http" && scheme != "https") {
-                android.util.Log.e("IPTVRepository", "Invalid EPG URL scheme: $scheme for source: ${source.id}")
-                updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Invalid EPG URL scheme")
-                return@withContext
-            }
-            try {
+                    
                     var downloadSuccess = false
-                    var syncSucceeded = false
+                    var errorMsg: String? = null
                     
                     // Retry up to 3 times with backoff for transient network failures
                     for (downloadAttempt in 1..3) {
                         try {
-                            com.example.calmsource.core.network.NetworkClient.client.get(resolvedUrl) {
+                            com.example.calmsource.core.network.NetworkClient.iptvClient.get(originalUrl) {
                                 timeout {
                                     requestTimeoutMillis = 300_000L
                                     connectTimeoutMillis = 30_000L
@@ -1993,62 +2163,134 @@ object IPTVRepository {
                             }.use { response ->
                                 if (response.status.value in 200..299) {
                                     response.bodyAsChannel().toInputStream().use { stream ->
-                                        syncSucceeded = syncEPG(sourceId, stream)
+                                        syncPlaylist(providerId, stream, alreadyLocked = true)
                                     }
                                     downloadSuccess = true
                                 } else if (response.status.value in listOf(429, 502, 503, 504) && downloadAttempt < 3) {
+                                    errorMsg = "HTTP ${response.status.value}"
                                     kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
                                 } else {
-                                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "EPG download failed: HTTP ${response.status.value}")
+                                    errorMsg = "HTTP ${response.status.value}"
                                 }
                             }
                             if (downloadSuccess) break
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (e: Exception) {
+                            errorMsg = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(
+                                e.message ?: "Download failed"
+                            )
                             if (downloadAttempt < 3) {
                                 kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
-                            } else {
-                                throw e  // Let outer catch handle the error
                             }
                         }
                     }
                     
-                    if (downloadSuccess) {
-                        if (syncSucceeded) {
-                            updateSyncState(providerId, ProviderSyncStatus.SUCCESS, 100)
-                        }
+                    if (!downloadSuccess) {
+                        updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, errorMsg ?: "Download failed")
                     }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val safeMessage = com.example.calmsource.core.network.UrlRedactor
-                    .redactErrorMessage(e.message ?: e.javaClass.simpleName)
-                android.util.Log.e("IPTVRepository", "EPG sync failed: $safeMessage")
-                updateSyncState(
-                    providerId,
-                    ProviderSyncStatus.ERROR,
-                    100,
-                    "EPG sync: $safeMessage"
-                )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch(e: Exception) {
+                    val safeMessage = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(e.message ?: "Unknown error")
+                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, safeMessage)
+                }
+            } finally {
+                kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { unregisterSyncJob(providerId, it) }
             }
-        } finally {
-            kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { unregisterSyncJob(providerId, it) }
         }
     }
 
-    suspend fun syncPlaylist(providerId: String, m3uStream: java.io.InputStream) = withContext(Dispatchers.IO) {
+    suspend fun syncEpgFromUrl(sourceId: String) = withContext(Dispatchers.IO) {
+        val sourceEntity = dao.getAllEPGSources().first().find { it.id == sourceId } ?: return@withContext
+        val source = sourceEntity.toDomain()
+        val providerId = source.providerId
         IptvProviderSyncCoordinator.withProviderLock(providerId) {
+            kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { registerSyncJob(providerId, it) }
+            try {
+                val resolvedUrl = EpgSourceUrlStorage.resolve(source)
+                if (resolvedUrl == null) {
+                    updateSyncState(
+                        providerId,
+                        ProviderSyncStatus.ERROR,
+                        100,
+                        "Saved EPG URL is unavailable — please re-enter the XMLTV URL."
+                    )
+                    return@withProviderLock
+                }
+                val sanitizedUrl = EpgSourceUrlStorage.sanitizeForPersistence(resolvedUrl)
+                if (sanitizedUrl != source.url) {
+                    // One-time migration for EPG sources created before secure URL storage existed.
+                    EpgSourceUrlStorage.persist(providerId, source.id, resolvedUrl)
+                    dao.insertEPGSource(source.copy(url = sanitizedUrl).toEntity())
+                }
+                val scheme = try { java.net.URI(resolvedUrl).scheme?.lowercase() } catch (e: Exception) { null }
+                if (scheme != "http" && scheme != "https") {
+                    android.util.Log.e("IPTVRepository", "Invalid EPG URL scheme: $scheme for source: ${source.id}")
+                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Invalid EPG URL scheme")
+                    return@withProviderLock
+                }
+                try {
+                        var downloadSuccess = false
+                        var syncSucceeded = false
+                        
+                        // Retry up to 3 times with backoff for transient network failures
+                        for (downloadAttempt in 1..3) {
+                            try {
+                                com.example.calmsource.core.network.NetworkClient.iptvClient.get(resolvedUrl) {
+                                    timeout {
+                                        requestTimeoutMillis = 300_000L
+                                        connectTimeoutMillis = 30_000L
+                                        socketTimeoutMillis = 300_000L
+                                    }
+                                }.use { response ->
+                                    if (response.status.value in 200..299) {
+                                        response.bodyAsChannel().toInputStream().use { stream ->
+                                            syncSucceeded = syncEPG(sourceId, stream, alreadyLocked = true)
+                                        }
+                                        downloadSuccess = true
+                                    } else if (response.status.value in listOf(429, 502, 503, 504) && downloadAttempt < 3) {
+                                        kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
+                                    }
+                                }
+                                if (downloadSuccess) break
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                if (downloadAttempt < 3) {
+                                    kotlinx.coroutines.delay(if (downloadAttempt == 1) 2_000L else 5_000L)
+                                }
+                            }
+                        }
+                        
+                        if (downloadSuccess && syncSucceeded) {
+                            // Sync completed successfully
+                        } else if (!downloadSuccess) {
+                            updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, "Download failed")
+                        }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val safeMessage = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(e.message ?: "Unknown error")
+                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, safeMessage)
+                }
+            } finally {
+                kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.let { unregisterSyncJob(providerId, it) }
+            }
+        }
+    }
+
+    suspend fun syncPlaylist(providerId: String, m3uStream: java.io.InputStream, alreadyLocked: Boolean = false) = withContext(Dispatchers.IO) {
+        val block = suspend {
           playlistSyncMutex.withLock {
             updateSyncState(providerId, ProviderSyncStatus.SYNCING, 10)
             var tempFile: java.io.File? = null
             try {
                 tempFile = java.io.File.createTempFile("m3u_", ".tmp")
                 tempFile.outputStream().use { output ->
-                    m3uStream.copyToBounded(output, MAX_M3U_DOWNLOAD_BYTES)
+                    val boundedStream = BoundedInputStream(m3uStream, MAX_M3U_DOWNLOAD_BYTES)
+                    boundedStream.copyTo(output)
                 }
-
-                val database = databaseOrNull()
 
                 suspend fun prepareChunk(chunk: List<IPTVChannel>) = withContext(Dispatchers.Default) {
                     chunk.map { channel ->
@@ -2066,61 +2308,52 @@ object IPTVRepository {
                     }
                 }
 
-                val fallbackEntities = if (database == null) {
-                    mutableListOf<com.example.calmsource.core.database.entity.IPTVChannelEntity>()
-                } else null
-                lateinit var parseResult: PlaylistImportResult
+                val database = databaseOrNull()
+                val collectedEntities = mutableListOf<List<com.example.calmsource.core.database.entity.IPTVChannelEntity>>()
+
+                val parseResult = withContext(Dispatchers.Default) {
+                    tempFile.inputStream().use { input ->
+                        M3UParser.parse(
+                            input,
+                            providerId,
+                            maxChannels = MAX_IMPORTED_CHANNELS,
+                            parsingContext = kotlin.coroutines.coroutineContext
+                        ) { chunk ->
+                            val prepared = prepareChunk(chunk)
+                            collectedEntities.add(prepared)
+                        }
+                    }
+                }
+
+                if (!parseResult.isSuccess) {
+                    val reason = parseResult.warnings.take(3).joinToString("; ")
+                    throw java.io.IOException(reason.ifBlank { "Playlist import failed" })
+                }
+
                 if (database != null) {
                     database.withTransaction {
                         dao.deleteChannelsByProvider(providerId)
-                        parseResult = tempFile.inputStream().use { input ->
-                            M3UParser.parse(
-                                input,
-                                providerId,
-                                maxChannels = MAX_IMPORTED_CHANNELS,
-                                parsingContext = kotlin.coroutines.coroutineContext
-                            ) { chunk ->
-                                dao.insertChannels(prepareChunk(chunk))
-                            }
-                        }
-                        if (!parseResult.isSuccess) {
-                            val reason = parseResult.warnings.take(3).joinToString("; ")
-                            throw java.io.IOException(reason.ifBlank { "Playlist import failed" })
-                        }
-                    }
-                } else {
-                    parseResult = tempFile.inputStream().use { input ->
-                        M3UParser.parse(input, providerId, maxChannels = MAX_IMPORTED_CHANNELS) { chunk ->
-                            fallbackEntities!!.addAll(prepareChunk(chunk))
-                        }
-                    }
-                }
-
-                val result = parseResult
-
-                if (result.isSuccess) {
-                    if (database == null) {
-                        dao.deleteChannelsByProvider(providerId)
-                        fallbackEntities.orEmpty().chunked(100).forEach { batch ->
+                        collectedEntities.forEach { batch ->
+                            currentCoroutineContext().ensureActive()
                             dao.insertChannels(batch)
                         }
                     }
-                    val dbChannels = dao.getChannelsByProvider(providerId).first().map { it.toDomain() }
-                    synchronized(dataLock) {
-                        parsedChannels = parsedChannels.filter { it.providerId != providerId } + dbChannels
-                    }
-                    updateSortedChannelsCacheSync()
-                    publishChannels(getChannels())
-                    _channelsReady.value = true
-                    updateSyncState(providerId, ProviderSyncStatus.SUCCESS, 100)
-                    schedulePostSyncDiscoveryIngest(providerId)
                 } else {
-                    val errorMsg = result.warnings
-                        .take(3)
-                        .joinToString(separator = "; ")
-                        .ifBlank { "Import failed" }
-                    updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, errorMsg)
+                    dao.deleteChannelsByProvider(providerId)
+                    collectedEntities.forEach { batch ->
+                        dao.insertChannels(batch)
+                    }
                 }
+
+                val dbChannels = dao.getChannelsByProvider(providerId).first().map { it.toDomain() }
+                synchronized(dataLock) {
+                    parsedChannels = parsedChannels.filter { it.providerId != providerId } + dbChannels
+                }
+                updateSortedChannelsCacheSync()
+                publishChannels(getChannels())
+                _channelsReady.value = true
+                updateSyncState(providerId, ProviderSyncStatus.SUCCESS, 100)
+                schedulePostSyncDiscoveryIngest(providerId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2132,12 +2365,17 @@ object IPTVRepository {
             }
           }
         }
+        if (alreadyLocked) {
+            block()
+        } else {
+            IptvProviderSyncCoordinator.withProviderLock(providerId) { block() }
+        }
     }
 
-    suspend fun syncEPG(sourceId: String, xmltvStream: java.io.InputStream): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncEPG(sourceId: String, xmltvStream: java.io.InputStream, alreadyLocked: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val providerId = dao.getAllEPGSources().first().find { it.id == sourceId }?.providerId
             ?: return@withContext false
-        IptvProviderSyncCoordinator.withProviderLock(providerId) {
+        val block = suspend {
           epgSyncMutex.withLock {
             val syncNowMs = System.currentTimeMillis()
             var tempFile: java.io.File? = null
@@ -2184,9 +2422,8 @@ object IPTVRepository {
                         .joinToString(separator = "; ")
                         .ifBlank { "EPG import failed" }
                     updateSyncState(providerId, ProviderSyncStatus.ERROR, 100, errorMsg)
-                    return@withLock false
-                }
-
+                    false
+                } else {
                 flushParseBuffers()
                 if (collectedChunks.isEmpty()) {
                     updateSyncState(
@@ -2195,8 +2432,8 @@ object IPTVRepository {
                         100,
                         "EPG import produced no programs in the sync window"
                     )
-                    return@withLock false
-                }
+                    false
+                } else {
 
                 if (database != null) {
                     database.withTransaction {
@@ -2227,7 +2464,7 @@ object IPTVRepository {
                     indexDiscoveryEpgPrograms(chunk.map { it.toDomain() })
                 }
                 dao.pruneOldEPGPrograms(syncNowMs)
-                epgCache.clear()
+                epgCache.evictAll()
 
                 if (database == null) {
                     val entities = dao.getAllEPGPrograms()
@@ -2240,8 +2477,10 @@ object IPTVRepository {
                 if (currentSource != null) {
                     dao.insertEPGSource(currentSource.copy(lastSyncMs = System.currentTimeMillis()).toEntity())
                 }
-                matchEPGSync()
+                triggerMatchEpg()
                 true
+                }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2254,6 +2493,11 @@ object IPTVRepository {
                 tempFile?.delete()
             }
           }
+        }
+        if (alreadyLocked) {
+            block()
+        } else {
+            IptvProviderSyncCoordinator.withProviderLock(providerId) { block() }
         }
     }
 
@@ -2304,9 +2548,9 @@ object IPTVRepository {
         }
     }
 
-    fun matchEPG() {
+    fun matchEP() {
         runIO {
-            matchEPGSync()
+            triggerMatchEpg()
         }
     }
 
@@ -2452,7 +2696,7 @@ object IPTVRepository {
             return channelIds.associateWith { EpgNowNext(null, null, 0f) }
         }
 
-        val missingEpgIds = uniqueEpgIds.filter { !epgCache.containsKey(it) }
+        val missingEpgIds = uniqueEpgIds.filter { epgCache.get(it) == null }
         val database = databaseOrNull()
         if (database != null && missingEpgIds.isNotEmpty()) {
             val allPrograms = withContext(Dispatchers.IO) {
@@ -2462,14 +2706,14 @@ object IPTVRepository {
             for (epgId in missingEpgIds) {
                 val entities = programsByChannel[epgId] ?: emptyList()
                 val domainPrograms = entities.map { it.toDomain() }
-                epgCache[epgId] = domainPrograms
+                epgCache.put(epgId, domainPrograms)
             }
         } else if (database == null && missingEpgIds.isNotEmpty()) {
             val fallbackPrograms = synchronized(dataLock) { parsedPrograms }
             val programsByChannel = fallbackPrograms.groupBy { it.channelId }
             for (epgId in missingEpgIds) {
                 val programs = programsByChannel[epgId] ?: emptyList()
-                epgCache[epgId] = programs
+                epgCache.put(epgId, programs)
             }
         }
 

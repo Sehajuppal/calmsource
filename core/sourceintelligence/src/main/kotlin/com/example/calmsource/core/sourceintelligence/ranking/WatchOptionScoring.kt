@@ -43,6 +43,7 @@ object WatchOptionScoring {
         preferredAudio: List<String> = emptyList(),
         preferredSub: List<String> = emptyList(),
         signalsFor: (WatchOption) -> StreamScoringSignals = { StreamScoringSignals() },
+        deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
     ): List<ScoredWatchOption> {
         return options.map { option ->
             val result = StreamScoringEngine.scoreDetailed(
@@ -53,6 +54,7 @@ object WatchOptionScoring {
                     preferredAudio = preferredAudio,
                     preferredSub = preferredSub,
                     signals = signalsFor(option),
+                    deviceProfile = deviceProfile,
                 )
             )
             ScoredWatchOption(
@@ -70,6 +72,7 @@ object WatchOptionScoring {
         preferredAudio: List<String> = emptyList(),
         preferredSub: List<String> = emptyList(),
         signalsFor: (WatchOption) -> StreamScoringSignals = { StreamScoringSignals() },
+        deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
     ): List<Pair<WatchOption, Int>> {
         return scoreWatchOptionsDetailed(
             options = options,
@@ -78,6 +81,7 @@ object WatchOptionScoring {
             preferredAudio = preferredAudio,
             preferredSub = preferredSub,
             signalsFor = signalsFor,
+            deviceProfile = deviceProfile,
         ).map { it.option to it.score }
     }
 }

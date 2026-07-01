@@ -3,9 +3,9 @@ package com.example.calmsource.core.discoveryengine.normalization
 import java.nio.ByteBuffer
 
 object Vectorizer {
-    const val DIMENSIONS = 128
-    const val VERSION = 1
-    const val NAME = "feature_hash_v1"
+    const val DIMENSIONS = 256
+    const val VERSION = 2
+    const val NAME = "feature_hash_v2"
 
     private val STOP_WORDS = setOf(
         "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", 
@@ -17,6 +17,14 @@ object Vectorizer {
         "each", "few", "more", "most", "other", "some", "such", "no", 
         "nor", "not", "only", "own", "same", "so", "than", "too", 
         "very", "s", "t", "can", "will", "just", "don", "should", "now"
+    )
+
+    private val COMMON_MOVIE_WORDS = setOf(
+        "movie", "movies", "show", "shows", "series", "season", "seasons", 
+        "episode", "episodes", "film", "films", "story", "stories", "drama", 
+        "comedy", "action", "thriller", "world", "life", "finds", "must", 
+        "young", "new", "two", "man", "woman", "time", "first", "years", 
+        "living", "lives", "star", "stars", "plays", "playing", "about"
     )
 
     fun vectorize(
@@ -33,7 +41,7 @@ object Vectorizer {
         // 1. Title (Weight = 3.0)
         val titleTokens = tokenize(title)
         for (token in titleTokens) {
-            addTokenToVector(vector, token, 3.0f)
+            addTokenToVector(vector, token, computeTfidfWeight(token, 3.0f))
         }
 
         // 2. Normalized Title and Aliases (Weight = 3.0)
@@ -81,9 +89,9 @@ object Vectorizer {
         overview?.let { ov ->
             val ovTokens = tokenize(ov)
             for (token in ovTokens) {
-                addTokenToVector(vector, token, 1.0f)
+                addTokenToVector(vector, token, computeTfidfWeight(token, 1.0f))
                 if (token.length >= 4) {
-                    addTokenToVector(vector, "keyword_$token", 2.0f)
+                    addTokenToVector(vector, "keyword_$token", computeTfidfWeight(token, 2.0f))
                 }
             }
         }
@@ -103,9 +111,9 @@ object Vectorizer {
         if (tokens.isEmpty()) return vector
 
         for (token in tokens) {
-            addTokenToVector(vector, token, 1.0f)
+            addTokenToVector(vector, token, computeTfidfWeight(token, 1.0f))
             if (token.length >= 4) {
-                addTokenToVector(vector, "keyword_$token", 1.5f)
+                addTokenToVector(vector, "keyword_$token", computeTfidfWeight(token, 1.5f))
             }
         }
 
@@ -147,27 +155,91 @@ object Vectorizer {
         return floatArray
     }
 
-    private fun tokenize(text: String): List<String> {
-        return text.lowercase()
+    fun tokenize(text: String): List<String> {
+        val unigrams = text.lowercase()
             .split(Regex("[^a-z0-9]"))
             .filter { it.isNotEmpty() && it !in STOP_WORDS }
+        
+        val bigrams = unigrams.zipWithNext { a, b -> "${a}_${b}" }
+        return unigrams + bigrams
+    }
+
+    private fun computeTfidfWeight(token: String, baseWeight: Float): Float {
+        // If it's a structured metadata token, do not scale by length or common words
+        if (token.startsWith("genre_") || 
+            token.startsWith("director_") || 
+            token.startsWith("cast_") || 
+            token.startsWith("lang_") || 
+            token.startsWith("region_") || 
+            token.startsWith("norm_title_") || 
+            token.startsWith("alias_") || 
+            token.startsWith("source_")) {
+            return baseWeight
+        }
+        
+        val cleanToken = token.substringAfter("keyword_").substringAfter("query_")
+        val isBigram = cleanToken.contains("_")
+        
+        val lengthFactor = if (isBigram) 1.2f else (cleanToken.length / 5.0f).coerceIn(0.6f, 1.8f)
+        val commonWordPenalty = if (cleanToken in COMMON_MOVIE_WORDS) 0.25f else 1.0f
+        
+        return baseWeight * lengthFactor * commonWordPenalty
     }
 
     private fun addTokenToVector(vector: FloatArray, token: String, weight: Float) {
-        val hash1 = fnv1a(token, 0x811c9dc5.toInt())
-        val index = Math.floorMod(hash1, DIMENSIONS)
-        val hash2 = fnv1a(token, 0xda1e2d3f.toInt())
-        val sign = if ((hash2 and 1) == 0) 1.0f else -1.0f
-        vector[index] += sign * weight
+        val hash = murmur3(token, 0x811c9dc5.toInt())
+        val index = Math.floorMod(hash, DIMENSIONS)
+        vector[index] += weight
     }
 
-    private fun fnv1a(str: String, seed: Int): Int {
-        var hash = seed
-        for (i in 0 until str.length) {
-            hash = hash xor str[i].code
-            hash = hash * 16777619
+    /**
+     * MurmurHash3 32-bit implementation for fast, uniform hashing.
+     */
+    private fun murmur3(data: String, seed: Int): Int {
+        var h1 = seed
+        val bytes = data.toByteArray(Charsets.UTF_8)
+        val length = bytes.size
+        val nblocks = length / 4
+
+        for (i in 0 until nblocks) {
+            val index = i * 4
+            var k1 = (bytes[index].toInt() and 0xff) or
+                     ((bytes[index + 1].toInt() and 0xff) shl 8) or
+                     ((bytes[index + 2].toInt() and 0xff) shl 16) or
+                     ((bytes[index + 3].toInt() and 0xff) shl 24)
+
+            k1 *= 0xcc9e2d51.toInt()
+            k1 = Integer.rotateLeft(k1, 15)
+            k1 *= 0x1b873593
+
+            h1 = h1 xor k1
+            h1 = Integer.rotateLeft(h1, 13)
+            h1 = h1 * 5 + 0xe6546b64.toInt()
         }
-        return hash
+
+        var k1 = 0
+        val tailStart = nblocks * 4
+        val remaining = length - tailStart
+        if (remaining > 0) {
+            if (remaining >= 3) k1 = k1 or ((bytes[tailStart + 2].toInt() and 0xff) shl 16)
+            if (remaining >= 2) k1 = k1 or ((bytes[tailStart + 1].toInt() and 0xff) shl 8)
+            if (remaining >= 1) {
+                k1 = k1 or (bytes[tailStart].toInt() and 0xff)
+                k1 *= 0xcc9e2d51.toInt()
+                k1 = Integer.rotateLeft(k1, 15)
+                k1 *= 0x1b873593
+                h1 = h1 xor k1
+            }
+        }
+
+        h1 = h1 xor length
+        h1 = h1 xor (h1 ushr 16)
+        h1 *= 0x85ebca6b.toInt()
+        h1 = h1 xor (h1 ushr 13)
+        h1 *= 0xc2b2ae35.toInt()
+        h1 = h1 xor (h1 ushr 16)
+
+        return h1
     }
 
     private fun normalize(vector: FloatArray): FloatArray {

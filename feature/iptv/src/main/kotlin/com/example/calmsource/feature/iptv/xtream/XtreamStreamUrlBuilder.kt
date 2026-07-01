@@ -16,7 +16,7 @@ object XtreamStreamUrlBuilder {
 
     /** URL-encode a credential path segment safely. */
     private fun encodePathSegment(value: String): String =
-        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+        URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.name()).replace("+", "%20")
 
     /**
      * Normalizes a portal URL for stream path construction (may include a subdirectory base path).
@@ -119,7 +119,7 @@ object XtreamStreamUrlBuilder {
      */
     fun extractStreamId(pseudoUrl: String?): String? {
         val suffix = extractRawSuffix(pseudoUrl) ?: return null
-        val parts = suffix.split("/")
+        val parts = suffix.split("/").filter { it.isNotEmpty() }
         // New format: providerId/streamId
         val candidate = parts.lastOrNull() ?: return null
         return candidate.takeIf { STREAM_ID.matches(it) }
@@ -132,7 +132,7 @@ object XtreamStreamUrlBuilder {
      */
     fun extractProviderId(pseudoUrl: String?): String? {
         val suffix = extractRawSuffix(pseudoUrl) ?: return null
-        val parts = suffix.split("/")
+        val parts = suffix.split("/").filter { it.isNotEmpty() }
         return if (parts.size >= 2) parts[parts.size - 2].takeIf { it.isNotBlank() } else null
     }
 

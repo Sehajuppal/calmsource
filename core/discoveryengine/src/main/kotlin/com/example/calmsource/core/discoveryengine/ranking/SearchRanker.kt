@@ -5,8 +5,13 @@ import com.example.calmsource.core.discoveryengine.models.ScoreBreakdown
 import com.example.calmsource.core.discoveryengine.models.SearchResult
 import com.example.calmsource.core.discoveryengine.normalization.MetadataNormalizer
 import com.example.calmsource.core.discoveryengine.normalization.Vectorizer
-import kotlinx.serialization.json.Json
+import com.example.calmsource.core.database.repository.UserPreferencesRepository
+import com.example.calmsource.core.sourceintelligence.ranking.DeviceStreamProfile
 import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityScorer
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 object SearchRanker {
 
@@ -14,16 +19,17 @@ object SearchRanker {
      * Ranks raw database search results by calculating text match similarity,
      * quality boosts, profile history affinity, and live TV signals.
      */
-    fun rankSearchResults(
+    suspend fun rankSearchResults(
         dao: DiscoveryEngineDao,
         profileId: String,
         query: String,
         rawResults: List<Map<String, String>>,
-        limit: Int = 20
-    ): List<SearchResult> {
+        limit: Int = 20,
+        isTelevision: Boolean = false,
+    ): List<SearchResult> = withContext(Dispatchers.Default) {
         val normQuery = MetadataNormalizer.normalizeSearchQuery(query)
         val compactQuery = normQuery.replace(" ", "")
-        if (normQuery.isEmpty() || rawResults.isEmpty()) return emptyList()
+        if (rawResults.isEmpty()) return@withContext emptyList()
 
         val ids = rawResults.mapNotNull { it["id"] }
         
@@ -64,6 +70,10 @@ object SearchRanker {
             allStreamIds.chunkedFlatMap(MAX_VARS) { dao.getPlaybackFailureCounts(it) }.associate { it.streamId to it.count }
         } else emptyMap()
 
+        val prefs = UserPreferencesRepository.preferences.value
+        val deviceProfile = DeviceStreamProfile.forPlayback(isTelevision, prefs)
+        val healthById = StreamScoringSupport.prefetchSourceHealth(allStreamIds)
+
         val rankedResults = rawResults.mapNotNull { raw ->
             val id = raw["id"] ?: return@mapNotNull null
             val type = raw["type"] ?: "movie"
@@ -80,30 +90,34 @@ object SearchRanker {
             var ftsScore = 10.0 // Base match score
             var exactPrefixBoost = 0.0
 
-            if (normTitle == normQuery || compactTitle == compactQuery) {
-                exactPrefixBoost += 100.0
-                reasons.add("Exact title match")
-            } else if (normTitle.startsWith(normQuery)) {
-                exactPrefixBoost += 50.0
-                reasons.add("Title prefix match")
-            } else {
-                val words = normTitle.split(" ")
-                val wordMatch = words.any { it.startsWith(normQuery) }
-                if (wordMatch) {
-                    exactPrefixBoost += 20.0
-                    reasons.add("Word prefix match")
-                } else if (normTitle.contains(normQuery)) {
-                    ftsScore += 10.0
-                    reasons.add("Title contains query")
+            if (normQuery.isNotEmpty()) {
+                if (normTitle == normQuery || compactTitle == compactQuery) {
+                    exactPrefixBoost += 100.0
+                    reasons.add("Exact title match")
+                } else if (normTitle.startsWith(normQuery)) {
+                    exactPrefixBoost += 50.0
+                    reasons.add("Title prefix match")
+                } else {
+                    val words = normTitle.split(" ")
+                    val wordMatch = words.any { it.startsWith(normQuery) }
+                    if (wordMatch) {
+                        exactPrefixBoost += 20.0
+                        reasons.add("Word prefix match")
+                    } else if (normTitle.contains(normQuery)) {
+                        ftsScore += 10.0
+                        reasons.add("Title contains query")
+                    }
                 }
             }
 
             // 2. Vector Similarity Score (Weight = 0.35)
             var vectorSimilarity = 0.0
-            val emb = embeddingsMap[id]
-            if (emb != null) {
-                val itemVec = Vectorizer.bytesToVector(emb.embedding)
-                vectorSimilarity = Vectorizer.cosineSimilarity(queryVector, itemVec).coerceAtLeast(0.0)
+            if (normQuery.isNotEmpty()) {
+                val emb = embeddingsMap[id]
+                if (emb != null) {
+                    val itemVec = Vectorizer.bytesToVector(emb.embedding)
+                    vectorSimilarity = Vectorizer.cosineSimilarity(queryVector, itemVec).coerceAtLeast(0.0)
+                }
             }
             val vectorScore = vectorSimilarity * 100.0 * 0.35
             if (vectorSimilarity > 0.1) {
@@ -112,17 +126,19 @@ object SearchRanker {
 
             // 3. Alias Match Boost
             var aliasBoost = 0.0
-            val aliases = if (type == "channel") {
-                MetadataNormalizer.generateChannelAliases(title)
-            } else {
-                MetadataNormalizer.generateTitleAliases(title)
-            }
-            if (aliases.contains(normQuery)) {
-                aliasBoost += 30.0
-                reasons.add("Exact alias match")
-            } else if (aliases.any { it.startsWith(normQuery) }) {
-                aliasBoost += 15.0
-                reasons.add("Alias prefix match")
+            if (normQuery.isNotEmpty()) {
+                val aliases = if (type == "channel") {
+                    MetadataNormalizer.generateChannelAliases(title)
+                } else {
+                    MetadataNormalizer.generateTitleAliases(title)
+                }
+                if (aliases.contains(normQuery)) {
+                    aliasBoost += 30.0
+                    reasons.add("Exact alias match")
+                } else if (aliases.any { it.startsWith(normQuery) }) {
+                    aliasBoost += 15.0
+                    reasons.add("Alias prefix match")
+                }
             }
 
             // 4. Quality Metrics Boost
@@ -233,10 +249,13 @@ object SearchRanker {
                 val streams = streamsMap[id] ?: emptyList()
                 MediaAvailabilityScorer.scoreFromStreams(
                     streams = streams.map { it.toStreamSource() },
+                    prefs = prefs,
                     preferredAudio = preferredAudio,
                     preferredSub = preferredSub,
                     streamSuccessCount = { streamId -> successCounts[streamId] ?: 0 },
                     streamFailureCount = { streamId -> failureCounts[streamId] ?: 0 },
+                    sourceHealthById = healthById,
+                    deviceProfile = deviceProfile,
                 ).additiveScore
             }
             if (availabilityScore > 0.0) {
@@ -273,7 +292,7 @@ object SearchRanker {
             )
         }.sortedByDescending { it.score }
 
-        return rankedResults.take(limit)
+        rankedResults.take(limit)
     }
 
     private const val MAX_VARS = 900

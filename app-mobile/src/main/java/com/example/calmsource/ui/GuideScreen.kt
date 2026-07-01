@@ -3,13 +3,15 @@ package com.example.calmsource.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.calmsource.core.model.Channel
 import com.example.calmsource.core.model.Program
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import com.example.calmsource.core.ui.components.LumenEmptyState
 import com.example.calmsource.feature.epg.EpgGrid
 import com.example.calmsource.feature.epg.mapGuideToEpgGrid
@@ -28,9 +30,9 @@ fun GuideScreen(
     if (channels.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             LumenEmptyState(
-                title = "Schedule unavailable",
-                body = "No channels are loaded or match the active filters.",
-                icon = Icons.Default.List,
+                title = stringResource(CoreUiR.string.guide_schedule_unavailable),
+                body = stringResource(CoreUiR.string.guide_schedule_unavailable_body),
+                icon = Icons.AutoMirrored.Filled.List,
             )
         }
         return

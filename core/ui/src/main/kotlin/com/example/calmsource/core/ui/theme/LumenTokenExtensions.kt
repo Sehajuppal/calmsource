@@ -1,11 +1,13 @@
 package com.example.calmsource.core.ui.theme
 
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 
-/** Legacy spacing aliases for screens (maps to tokens/lumen.json s-scale). */
+/** @deprecated Use [LumenTokens.Space] or [LumenSpacing] from [LocalLumenTokens]. */
+@Deprecated("Use LumenTokens.Space or t.spacing from LocalLumenTokens")
 object LumenLegacySpace {
     val xxs get() = LumenTokens.Space.s1
     val xs get() = LumenTokens.Space.s2
@@ -72,6 +74,16 @@ val LumenType.size48 get() = 48.sp
 val LumenType.line1 get() = 1.sp
 val LumenType.line1_6 get() = 1.6.sp
 val LumenType.line2 get() = 2.sp
+
+/** Decorative rank numeral used in Top 10 rows. */
+fun LumenType.rankNumeralStyle(): TextStyle =
+    Display.toTextStyle(size48.value / 44f)
+
+/** Large pairing / device codes in setup flows. */
+fun LumenType.pinCodeStyle(): TextStyle = H1.toTextStyle()
+
+/** Compact tab-bar labels under icons. */
+fun LumenType.tabLabelStyle(): TextStyle = Meta.toTextStyle()
 
 
 val LumenLayout.width480 get() = 480.dp

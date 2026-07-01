@@ -43,6 +43,7 @@ data class StreamScoringInput(
     val preferredSub: List<String> = emptyList(),
     val intelligence: SourceIntelligenceResult? = null,
     val signals: StreamScoringSignals = StreamScoringSignals(),
+    val deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
 )
 
 /**
@@ -140,6 +141,8 @@ object StreamScoringEngine {
             }
         }
 
+        acc.add(deviceProfileScore(parsedHeight, features, parsed, input.deviceProfile), "Device fit")
+
         when (input.signals.providerHealth) {
             ProviderHealth.HEALTHY -> acc.add(StreamScoringConstants.PROVIDER_HEALTHY_BONUS.points(), "Healthy provider")
             ProviderHealth.SLOW -> acc.add(StreamScoringConstants.PROVIDER_SLOW_PENALTY.points(), "Slow provider")
@@ -207,6 +210,7 @@ object StreamScoringEngine {
         preferredAudio: List<String> = emptyList(),
         preferredSub: List<String> = emptyList(),
         signalsFor: (StreamSource) -> StreamScoringSignals = { StreamScoringSignals() },
+        deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
     ): List<Pair<StreamSource, Double>> {
         if (sources.isEmpty()) return emptyList()
         val preferredLangs = buildPreferredLanguages(prefs, preferredAudio)
@@ -225,7 +229,8 @@ object StreamScoringEngine {
                     preferredAudio = preferredAudio,
                     preferredSub = preferredSub,
                     intelligence = intelligence,
-                    signals = signalsFor(source)
+                    signals = signalsFor(source),
+                    deviceProfile = deviceProfile,
                 )
             )
             source to streamScore
@@ -417,6 +422,30 @@ object StreamScoringEngine {
             }
             else -> StreamScoringConstants.RESOLUTION_UNKNOWN.points()
         }
+    }
+
+    internal fun deviceProfileScore(
+        parsedHeight: Int,
+        features: SourceRankingFeatures,
+        parsed: ParsedSourceMetadata,
+        profile: DeviceStreamProfile,
+    ): Double {
+        if (profile.maxRecommendedHeight >= 4320 && !profile.penalizeHdr) return 0.0
+        var score = 0.0
+        if (parsedHeight > profile.maxRecommendedHeight) {
+            score += StreamScoringConstants.DEVICE_OVER_RESOLUTION_PENALTY.points()
+        }
+        if (profile.penalizeHdr && (
+                features.isDolbyVision ||
+                    parsed.hdrFormat != com.example.calmsource.core.sourceintelligence.models.SourceHdrFormat.SDR
+                )
+        ) {
+            score += StreamScoringConstants.DEVICE_HDR_PENALTY.points()
+        }
+        if (profile.maxRecommendedHeight <= 1080 && features.isAtmos) {
+            score += StreamScoringConstants.DEVICE_ATMOS_PENALTY.points()
+        }
+        return score
     }
 
     private fun hdrBonusFromTitle(titleLower: String): Double {

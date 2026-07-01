@@ -32,13 +32,15 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Keep Ktor client and OkHttp/Okio transitive dependencies
--keep class io.ktor.** { *; }
+# Ktor/OkHttp/Okio - rely on consumer rules packaged with libraries.
+# Only keep what's needed for reflection-based usage.
 -dontwarn io.ktor.**
--keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
--keep class okio.** { *; }
 -dontwarn okio.**
+# Keep OkHttp's platform detection (it uses reflection)
+-keepnames class okhttp3.internal.platform.** { *; }
+# Keep Ktor serialization if used
+-keep class io.ktor.serialization.** { *; }
 
 # Keep Hilt / Dependency Injection
 -keep class dagger.hilt.** { *; }

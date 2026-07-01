@@ -2,9 +2,14 @@ package com.example.calmsource.core.playback
 
 import com.example.calmsource.core.model.AutoFallbackPolicy
 import com.example.calmsource.core.model.IPTVChannel
+import com.example.calmsource.core.model.PlaybackError
+import com.example.calmsource.core.model.PlayerState
+import com.example.calmsource.core.model.PlayerUiState
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class LiveChannelRecoveryTest {
@@ -97,6 +102,30 @@ class LiveChannelRecoveryTest {
             healthScoreFor = { health[it] ?: 100 }
         )
         assertEquals("b", next?.id)
+    }
+
+    @Test
+    fun `shouldAttemptLiveChannelAutoSwitch requires failed settled state`() {
+        val policy = AutoFallbackPolicy.AUTO_FALLBACK_LIMITED
+        val failed = PlayerUiState(
+            playerState = PlayerState.FAILED,
+            error = PlaybackError.SourceUnavailable("x"),
+            isTransitioningSource = false,
+        )
+        assertTrue(LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(failed, policy))
+
+        val transitioning = failed.copy(isTransitioningSource = true)
+        assertFalse(LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(transitioning, policy))
+
+        val buffering = failed.copy(playerState = PlayerState.BUFFERING)
+        assertFalse(LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(buffering, policy))
+
+        assertFalse(
+            LiveChannelRecovery.shouldAttemptLiveChannelAutoSwitch(
+                failed,
+                AutoFallbackPolicy.OFF,
+            )
+        )
     }
 
     @Test

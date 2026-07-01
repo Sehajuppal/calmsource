@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 object DiscoveryEngine {
@@ -29,6 +30,13 @@ object DiscoveryEngine {
 
     @Volatile
     private var appContext: Context? = null
+
+    fun isTelevisionFormFactor(): Boolean {
+        val ctx = appContext ?: return false
+        val pm = ctx.packageManager
+        return pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK) ||
+            pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TELEVISION)
+    }
 
     @Volatile
     private var repository: DiscoveryEngineRepository? = null
@@ -572,6 +580,10 @@ object DiscoveryEngine {
         subtitleLanguages: List<String>
     ) {
         getRepoOrThrow().updateProfileLanguages(profileId, audioLanguages, subtitleLanguages)
+    }
+
+    suspend fun lookupMediaPosterUrl(mediaId: String): String? {
+        return runCatching { getRepoOrThrow().lookupMediaPosterUrl(mediaId) }.getOrNull()
     }
 
     private fun MediaItem.toExternalIdSet(): ExternalIdSet {

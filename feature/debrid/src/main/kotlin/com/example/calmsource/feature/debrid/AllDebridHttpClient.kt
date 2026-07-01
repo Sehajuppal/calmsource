@@ -121,6 +121,7 @@ class AllDebridHttpClient(
     )
 
     private val AGENT = "CalmSource"
+
     internal data class AllDebridSessionState(
         val pin: String,
         val check: String,

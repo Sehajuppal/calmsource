@@ -1,3 +1,46 @@
+/**
+ * ============================================================================
+ * LUMEN DESIGN SYSTEM CONTRACT
+ * ============================================================================
+ * 
+ * 1. RADIUS TIERS
+ *    - xs (6.dp)   : Mini elements (e.g., badges, small status tags).
+ *    - sm (10.dp)  : Secondary elements (e.g., small buttons, nested cards).
+ *    - md (14.dp)  : Standard components (e.g., list items, grid cards, text fields).
+ *    - lg (16.dp)  : Primary containers (e.g., media cards, hero banner buttons).
+ *    - xl (20.dp)  : Overlay elements (e.g., sheets, bottom bars, mini-players).
+ *    - xxl (24.dp) : Large structural containers (e.g., dialogs, modals).
+ *    - pill (999.dp): Fully rounded elements (e.g., tab indicators, pill buttons).
+ *
+ * 2. SPACING ALIASES (Responsive Grid)
+ *    - xs (s2 - 4.dp)   : Dense spacing (e.g., label-to-icon, badge padding).
+ *    - sm (s4 - 8.dp)   : Standard element padding.
+ *    - md (s6 - 16.dp)  : Primary component margins & internal card padding.
+ *    - lg (s8 - 24.dp)  : Row/section spacing on mobile.
+ *    - xl (s9 - 32.dp)  : Row/section spacing on TV.
+ *    - xxl (s10 - 40.dp): Screen-level margins.
+ *    
+ *    Responsive Layout Helpers:
+ *    - Row Gutter   : Mobile = 16.dp (md) | TV = 24.dp (lg)
+ *    - Section Gap  : Mobile = 32.dp (xl) | TV = 40.dp (xxl)
+ *    - Side Padding : Mobile = 20.dp      | TV = 48.dp
+ *
+ * 3. GLASS EFFECT GUIDELINES
+ *    - Visual Stack: A glass container MUST consist of:
+ *      1. Translucent background: `LumenTokens.Color.glass` (60% alpha) or `glassStrong` (80% alpha).
+ *      2. Blurring modifier: `GlassSurface` or `Modifier.graphicsLayer` with RenderEffect (API 31+).
+ *      3. Border definition: `LumenTokens.Color.borderSubtle` or `borderStrong` with a vertical gradient.
+ *    - Fallback: Older Android versions (API < 31) do not support RenderEffect. Implementations
+ *      must degrade gracefully by displaying a solid background color (`LumenTokens.Color.surface`).
+ *      - Text Contrast: Ensure all text placed on glass surfaces uses high-contrast tokens
+ *      (e.g., `textPrimary` or `textSecondary`).
+ *
+ * 4. TYPOGRAPHY
+ *    - Use [LumenType] styles via [LumenTokens.Style.toTextStyle]; never raw `fontSize` in screens.
+ *    - Display headings route through [LumenFontFamily.display]; body copy through [LumenFontFamily.body].
+ *    - [MaterialTheme.typography] is pre-mapped in [LumenTheme]; prefer `LumenType.*.toTextStyle()` in UI.
+ * ============================================================================
+ */
 // core/ui/src/main/kotlin/com/calmsource/core/ui/theme/LumenTokens.kt
 // SINGLE SOURCE OF TRUTH — DO NOT FORK.
 // Generated from /tokens/lumen.json. Re-run codegen instead of hand-editing.
@@ -37,12 +80,23 @@ object LumenTokens {
         val glassStrong   = androidx.compose.ui.graphics.Color(0xCC1A1A22) // 80% alpha
         // Text
         val textPrimary   = androidx.compose.ui.graphics.Color(0xFFFAFAFA)
-        val textSecondary = androidx.compose.ui.graphics.Color(0xFFA3A3AD)
-        val textMuted     = androidx.compose.ui.graphics.Color(0xFF6B7280)
+        val textSecondary = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f)
+        val textMuted     = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.45f)
         val onBrand       = androidx.compose.ui.graphics.Color(0xFFFCFCFC)
         // Brand — soft signal blue
         val brand         = androidx.compose.ui.graphics.Color(0xFF6E8BFF)
         val brandGlow     = androidx.compose.ui.graphics.Color(0xFF94A8FF)
+        
+        // Gradients
+        val DefaultGlassGradient = Brush.verticalGradient(
+            listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.08f), androidx.compose.ui.graphics.Color.White.copy(alpha = 0.02f))
+        )
+        val ActiveGlassGradient = Brush.verticalGradient(
+            listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f), androidx.compose.ui.graphics.Color.White.copy(alpha = 0.06f))
+        )
+        val BrandHighlightGradient = Brush.verticalGradient(
+            listOf(brand, brand.copy(alpha = 0.50f))
+        )
         // Borders (white over surface)
         val borderSubtle  = androidx.compose.ui.graphics.Color(0x14FFFFFF) // 8%
         val border        = androidx.compose.ui.graphics.Color(0x1AFFFFFF) // 10%
@@ -140,6 +194,7 @@ object LumenTokens {
         val letterSpacingEm: Float,
     ) {
         fun toTextStyle(scale: Float = 1f): TextStyle = TextStyle(
+            fontFamily = LumenFontFamily.forStyle(this),
             fontSize = (fontSize.value * scale).sp,
             lineHeight = (lineHeight.value * scale).sp,
             fontWeight = weight,

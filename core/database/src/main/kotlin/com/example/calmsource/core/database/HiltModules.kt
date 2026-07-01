@@ -27,10 +27,7 @@ object DatabaseModule {
     @Singleton
     fun provideCalmSourceDatabase(@ApplicationContext context: Context): CalmSourceDatabase {
         DatabaseProvider.init(context)
-        val db = DatabaseProvider.getDatabase(context)
-        // Eagerly trigger database open and migrations so Hilt and ExtensionRepository share one DB.
-        db.openHelper.writableDatabase
-        return db
+        return DatabaseProvider.getDatabase(context)
     }
 
     @Provides

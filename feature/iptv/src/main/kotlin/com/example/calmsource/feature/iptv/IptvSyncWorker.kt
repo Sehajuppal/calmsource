@@ -86,7 +86,7 @@ class IptvSyncWorker(
             throw e
         } catch (e: Exception) {
             val safeMsg = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(e.message ?: "Unknown error")
-            android.util.Log.e("IptvSyncWorker", "WorkManager sync failed: $safeMsg", e)
+            android.util.Log.e("IptvSyncWorker", "WorkManager sync failed: $safeMsg (type=${e.javaClass.simpleName})")
             return retryOrFail()
         }
     }

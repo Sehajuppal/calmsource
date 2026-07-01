@@ -31,9 +31,9 @@ import org.junit.Test
 class PlaybackFallbackTest {
     private val harness = PlaybackManagerTestHarness()
 
-    private val source1 = PlaybackSource("src1", PlaybackSourceType.IPTV, "Source 1", "https://example.com/src1.m3u8")
-    private val source2 = PlaybackSource("src2", PlaybackSourceType.IPTV, "Source 2", "https://example.com/src2.m3u8")
-    private val source3 = PlaybackSource("src3", PlaybackSourceType.IPTV, "Source 3", "https://example.com/src3.m3u8")
+    private val source1 = PlaybackSource("src1", PlaybackSourceType.EXTENSION, "Source 1", "https://example.com/src1.m3u8")
+    private val source2 = PlaybackSource("src2", PlaybackSourceType.EXTENSION, "Source 2", "https://example.com/src2.m3u8")
+    private val source3 = PlaybackSource("src3", PlaybackSourceType.EXTENSION, "Source 3", "https://example.com/src3.m3u8")
 
     @Before
     fun setup() {

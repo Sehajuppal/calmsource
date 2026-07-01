@@ -32,8 +32,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.calmsource.core.ui.R as CoreUiR
 import coil.compose.AsyncImage
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.MediaType
@@ -61,6 +63,7 @@ fun TvSearchScreen(
     onInitialQueryConsumed: () -> Unit = {},
     onMediaClick: (MediaItem) -> Unit,
     onChannelClick: (String) -> Unit = {},
+    onOpenSidebar: () -> Unit = {},
     viewModel: TvSearchViewModel = hiltViewModel()
 ) {
     val t = LocalLumenTokens.current
@@ -68,6 +71,7 @@ fun TvSearchScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
     val scrollPosition by viewModel.scrollPosition.collectAsState()
+    val filters by viewModel.filters.collectAsState()
 
     val titlesGroup = remember(searchResults) { searchResults.filter { it.type != "channel" } }
     val channelsGroup = remember(searchResults) { searchResults.filter { it.type == "channel" } }
@@ -124,7 +128,7 @@ fun TvSearchScreen(
             .padding(LumenLegacySpace.xxl)
     ) {
         Text(
-            text = "Search",
+            text = stringResource(CoreUiR.string.search_title),
             fontSize = LumenType.size38,
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
@@ -134,7 +138,7 @@ fun TvSearchScreen(
         TvTextField(
             value = query,
             onValueChange = viewModel::search,
-            placeholder = { Text("Search a title, channel, genre, or mood…", color = t.colors.mutedForeground) },
+            placeholder = { Text(stringResource(CoreUiR.string.search_placeholder), color = t.colors.mutedForeground) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submitQuery() }),
             onSearchAction = { submitQuery() },
@@ -143,6 +147,7 @@ fun TvSearchScreen(
                 .fillMaxWidth()
                 .padding(bottom = LumenLegacySpace.lg)
                 .focusRequester(searchFieldFocusRequester)
+                .openTvSidebarOnLeftKey(onOpenSidebar)
         )
 
         when {
@@ -165,7 +170,7 @@ fun TvSearchScreen(
                     }
                 }
             }
-            searchResults.isEmpty() && query.isNotEmpty() -> {
+            searchResults.isEmpty() && (query.isNotEmpty() || filters.isNotEmpty()) -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -173,27 +178,27 @@ fun TvSearchScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     LumenEmptyState(
-                        title = "Nothing matched '$query'",
-                        body = "Try checking the spelling or look for different keywords.",
+                        title = if (query.isNotEmpty()) stringResource(CoreUiR.string.search_nothing_matched, query) else "Nothing matched the active filters",
+                        body = stringResource(CoreUiR.string.search_nothing_matched_body),
                         icon = androidx.compose.material.icons.Icons.Default.Search
                     )
                 }
             }
-            query.isEmpty() -> {
+            query.isEmpty() && filters.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
                     LumenEmptyState(
-                        title = "What are you in the mood for?",
-                        body = "Try a title, genre, live channel, or a feeling like “funny and light.”",
+                        title = stringResource(CoreUiR.string.search_mood_title),
+                        body = stringResource(CoreUiR.string.search_mood_body),
                         icon = androidx.compose.material.icons.Icons.Default.Search,
                         modifier = Modifier.weight(1f)
                     )
                     val suggestedTags = listOf("thriller", "drama", "sci-fi", "comedy", "documentary", "news", "sports")
                     Text(
-                        text = "Start with a mood",
+                        text = stringResource(CoreUiR.string.search_start_mood),
                         fontSize = LumenType.size14,
                         fontWeight = FontWeight.Bold,
                         color = t.colors.mutedForeground,
@@ -234,19 +239,6 @@ fun TvSearchScreen(
                             }
                         }
                     }
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Search by title, channel, genre, or mood.",
-                            color = t.colors.mutedForeground,
-                            fontSize = LumenType.size16
-                        )
-                    }
                 }
             }
             else -> {
@@ -259,7 +251,7 @@ fun TvSearchScreen(
                 ) {
                     if (titlesGroup.isNotEmpty()) {
                         item(key = "titles-section") {
-                            RowSection(title = "Titles") {
+                            RowSection(title = stringResource(CoreUiR.string.search_titles_section)) {
                                 TvFocusScope(
                                     memory = focusMemory,
                                     scopeId = "search/titles",
@@ -294,7 +286,7 @@ fun TvSearchScreen(
                     }
                     if (channelsGroup.isNotEmpty()) {
                         item(key = "channels-section") {
-                            RowSection(title = "Live Channels") {
+                            RowSection(title = stringResource(CoreUiR.string.home_live_channels)) {
                                 TvFocusScope(
                                     memory = focusMemory,
                                     scopeId = "search/channels",
@@ -325,11 +317,12 @@ fun TvSearchScreen(
     }
 }
 
+@Composable
 private fun String.toTvItemTypeLabel(): String = when (this) {
-    "movie" -> "Movie"
-    "series" -> "Series"
-    "episode" -> "Episode"
-    "channel" -> "Live Channel"
+    "movie" -> stringResource(CoreUiR.string.search_type_movie)
+    "series" -> stringResource(CoreUiR.string.search_type_series)
+    "episode" -> stringResource(CoreUiR.string.search_type_episode)
+    "channel" -> stringResource(CoreUiR.string.search_type_channel)
     else -> replaceFirstChar { it.uppercase() }
 }
 

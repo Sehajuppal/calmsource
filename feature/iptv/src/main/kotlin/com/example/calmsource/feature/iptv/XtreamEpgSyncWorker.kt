@@ -36,7 +36,7 @@ class XtreamEpgSyncWorker(
             val safeMsg = com.example.calmsource.core.network.UrlRedactor.redactErrorMessage(
                 e.message ?: "Unknown error"
             )
-            android.util.Log.e(TAG, "Deferred Xtream EPG sync failed for $providerId: $safeMsg", e)
+            android.util.Log.e(TAG, "Deferred Xtream EPG sync failed for $providerId: $safeMsg (type=${e.javaClass.simpleName})")
             if (runAttemptCount >= MAX_RETRY_ATTEMPTS) {
                 Result.failure()
             } else {

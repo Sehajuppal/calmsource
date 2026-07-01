@@ -2,6 +2,7 @@ package com.example.calmsource.core.discoveryengine.ranking
 
 import com.example.calmsource.core.discoveryengine.database.*
 import com.example.calmsource.core.discoveryengine.models.RecommendationType
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,7 +11,7 @@ import org.mockito.Mockito.*
 class SearchRankerTest {
 
     @Test
-    fun testSearchRankingAndScoring() {
+    fun testSearchRankingAndScoring() = runTest {
         val mockDao = mock(DiscoveryEngineDao::class.java)
         val profileId = "p-adult"
         val query = "Inception"

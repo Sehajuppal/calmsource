@@ -19,8 +19,12 @@ import com.example.calmsource.core.model.FavoriteItem
 import com.example.calmsource.core.model.WatchHistoryItem
 import com.example.calmsource.core.model.UserPreferenceSignal
 import com.example.calmsource.core.model.SortingPreference
+import android.content.pm.PackageManager
+import com.example.calmsource.core.database.repository.UserPreferencesRepository
+import com.example.calmsource.core.sourceintelligence.ranking.DeviceStreamProfile
 import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityResult
 import com.example.calmsource.core.sourceintelligence.ranking.MediaAvailabilityScorer
+import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -134,21 +138,22 @@ class DiscoveryEngineRepository(
         val batchTitleYearMap = mutableMapOf<Pair<String, Int>, String>()
 
         val entities = items.map { item ->
+            val safeExternalIds = item.externalIds
             var resolvedId = com.example.calmsource.core.discoveryengine.normalization.EntityResolver.resolveMediaItemId(
                 dao = dao,
                 title = item.title,
                 year = item.releaseYear,
                 director = item.director,
-                externalIds = item.externalIds
+                externalIds = safeExternalIds
             )
             if (resolvedId == null) {
-                val imdbId = item.externalIds["imdb"] ?: item.externalIds["IMDb"]
+                val imdbId = safeExternalIds["imdb"] ?: safeExternalIds["IMDb"]
                 if (!imdbId.isNullOrEmpty()) {
                     resolvedId = batchImdbMap[imdbId]
                 }
             }
             if (resolvedId == null) {
-                val tmdbId = item.externalIds["tmdb"] ?: item.externalIds["TMDb"]
+                val tmdbId = safeExternalIds["tmdb"] ?: safeExternalIds["TMDb"]
                 if (!tmdbId.isNullOrEmpty()) {
                     resolvedId = batchTmdbMap[tmdbId]
                 }
@@ -164,11 +169,11 @@ class DiscoveryEngineRepository(
             resolvedMap[item.id] = finalId
 
             // Store in the batch maps for subsequent items in this same batch
-            val imdbId = item.externalIds["imdb"] ?: item.externalIds["IMDb"]
+            val imdbId = safeExternalIds["imdb"] ?: safeExternalIds["IMDb"]
             if (!imdbId.isNullOrEmpty()) {
                 batchImdbMap[imdbId] = finalId
             }
-            val tmdbId = item.externalIds["tmdb"] ?: item.externalIds["TMDb"]
+            val tmdbId = safeExternalIds["tmdb"] ?: safeExternalIds["TMDb"]
             if (!tmdbId.isNullOrEmpty()) {
                 batchTmdbMap[tmdbId] = finalId
             }
@@ -179,8 +184,8 @@ class DiscoveryEngineRepository(
                 }
             }
 
-            val extId = item.externalIds["imdb"] ?: item.externalIds["tmdb"] ?: item.externalIds.values.firstOrNull()
-            val extJson = Json.encodeToString(item.externalIds)
+            val extId = safeExternalIds["imdb"] ?: safeExternalIds["tmdb"] ?: safeExternalIds.values.firstOrNull()
+            val extJson = Json.encodeToString(safeExternalIds)
             val normTitle = MetadataNormalizer.normalizeTitle(item.title)
             MediaItemEntity(
                 id = finalId,
@@ -685,9 +690,13 @@ class DiscoveryEngineRepository(
         val isLowMem = isLowMemory()
         val cleanLimit = if (isLowMem) minOf(limit, 10) else limit
         val cleanQuery = MetadataNormalizer.normalizeSearchQuery(query)
-        if (cleanQuery.isEmpty()) return@withContext emptyList()
+        if (cleanQuery.isEmpty() && filters.isEmpty()) return@withContext emptyList()
 
-        val rawResults = searchFts(query, cleanLimit * 3).toMutableList()
+        val rawResults = if (cleanQuery.isNotEmpty()) {
+            searchFts(query, cleanLimit * 3).toMutableList()
+        } else {
+            mutableListOf()
+        }
         val seenIds = rawResults.mapNotNullTo(linkedSetOf()) { it["id"] }
 
         fun addMediaCandidate(media: MediaItemEntity) {
@@ -720,63 +729,71 @@ class DiscoveryEngineRepository(
             )
         }
 
-        dao.searchMediaItemsByNormalizedTitle(cleanQuery, cleanLimit * 4)
-            .forEach(::addMediaCandidate)
-        dao.searchChannelsByName(query, cleanLimit * 4)
-            .forEach(::addChannelCandidate)
-
-        // Typo-tolerant candidates augment FTS/substring results. This matters when
-        // FTS returns a few metadata matches but misses the intended title typo.
-        val maxDistance = if (cleanQuery.length <= 3) 1 else 2
-
-        val shouldLoadFuzzyCandidates =
-            DiscoverySearchFeatureFlags.enableFuzzyFallback && rawResults.size < cleanLimit
-        val mediaCandidates = if (shouldLoadFuzzyCandidates) {
-            dao.getSearchCandidates(if (isLowMem) 100 else 500)
+        if (cleanQuery.isEmpty()) {
+            val typeFilter = filters["type"]?.lowercase()
+            val mediaCandidates = if (typeFilter == "channel") emptyList() else dao.getSearchCandidates(if (isLowMem) 100 else 500)
+            val channelCandidates = if (typeFilter != null && typeFilter != "channel") emptyList() else dao.getChannelCandidates(if (isLowMem) 50 else 200)
+            mediaCandidates.forEach(::addMediaCandidate)
+            channelCandidates.forEach(::addChannelCandidate)
         } else {
-            emptyList()
-        }
-        val channelCandidates = if (shouldLoadFuzzyCandidates) {
-            dao.getChannelCandidates(if (isLowMem) 50 else 200)
-        } else {
-            emptyList()
-        }
-        val compactQuery = cleanQuery.replace(" ", "")
-        val queryTokens = cleanQuery.split(" ").filter { it.isNotBlank() }
+            dao.searchMediaItemsByNormalizedTitle(cleanQuery, cleanLimit * 4)
+                .forEach(::addMediaCandidate)
+            dao.searchChannelsByName(query, cleanLimit * 4)
+                .forEach(::addChannelCandidate)
 
-        fun fuzzyTitleMatches(candidate: String): Boolean {
-            if (candidate.isBlank()) return false
-            if (candidate.contains(cleanQuery)) return true
-            val compactCandidate = candidate.replace(" ", "")
-            if (
-                compactCandidate == compactQuery ||
-                compactCandidate.contains(compactQuery) ||
-                compactQuery.contains(compactCandidate) ||
-                Levenshtein.distance(compactQuery, compactCandidate) <= maxDistance
-            ) {
-                return true
+            // Typo-tolerant candidates augment FTS/substring results. This matters when
+            // FTS returns a few metadata matches but misses the intended title typo.
+            val maxDistance = if (cleanQuery.length <= 3) 1 else 2
+
+            val shouldLoadFuzzyCandidates =
+                DiscoverySearchFeatureFlags.enableFuzzyFallback && rawResults.size < cleanLimit
+            val mediaCandidates = if (shouldLoadFuzzyCandidates) {
+                dao.getSearchCandidates(if (isLowMem) 100 else 500)
+            } else {
+                emptyList()
             }
-            if (queryTokens.isEmpty()) return false
-            val candidateTokens = candidate.split(" ").filter { it.isNotBlank() }
-            return queryTokens.all { queryToken ->
-                candidateTokens.any { token ->
-                    token.startsWith(queryToken) ||
-                        Levenshtein.distance(queryToken, token) <= maxDistance
+            val channelCandidates = if (shouldLoadFuzzyCandidates) {
+                dao.getChannelCandidates(if (isLowMem) 50 else 200)
+            } else {
+                emptyList()
+            }
+            val compactQuery = cleanQuery.replace(" ", "")
+            val queryTokens = cleanQuery.split(" ").filter { it.isNotBlank() }
+
+            fun fuzzyTitleMatches(candidate: String): Boolean {
+                if (candidate.isBlank()) return false
+                if (candidate.contains(cleanQuery)) return true
+                val compactCandidate = candidate.replace(" ", "")
+                if (
+                    compactCandidate == compactQuery ||
+                    compactCandidate.contains(compactQuery) ||
+                    compactQuery.contains(compactCandidate) ||
+                    Levenshtein.distance(compactQuery, compactCandidate) <= maxDistance
+                ) {
+                    return true
+                }
+                if (queryTokens.isEmpty()) return false
+                val candidateTokens = candidate.split(" ").filter { it.isNotBlank() }
+                return queryTokens.all { queryToken ->
+                    candidateTokens.any { token ->
+                        token.startsWith(queryToken) ||
+                            Levenshtein.distance(queryToken, token) <= maxDistance
+                    }
                 }
             }
-        }
 
-        mediaCandidates.forEach { media ->
-            val normTitle = media.normalizedTitle
-            if (fuzzyTitleMatches(normTitle)) {
-                addMediaCandidate(media)
+            mediaCandidates.forEach { media ->
+                val normTitle = media.normalizedTitle
+                if (fuzzyTitleMatches(normTitle)) {
+                    addMediaCandidate(media)
+                }
             }
-        }
 
-        channelCandidates.forEach { channel ->
-            val normName = MetadataNormalizer.normalizeChannelName(channel.name)
-            if (fuzzyTitleMatches(normName)) {
-                addChannelCandidate(channel)
+            channelCandidates.forEach { channel ->
+                val normName = MetadataNormalizer.normalizeChannelName(channel.name)
+                if (fuzzyTitleMatches(normName)) {
+                    addChannelCandidate(channel)
+                }
             }
         }
 
@@ -786,7 +803,9 @@ class DiscoveryEngineRepository(
             applySearchFilters(rawResults, filters)
         }
 
-        SearchRanker.rankSearchResults(dao, profileId, query, effectiveResults, cleanLimit)
+        SearchRanker.rankSearchResults(
+            dao, profileId, query, effectiveResults, cleanLimit, isTelevisionFormFactor()
+        )
     }
 
     /**
@@ -1203,7 +1222,11 @@ class DiscoveryEngineRepository(
             true
         }
         val candidatesById = filteredCandidates.associateBy { it.id }
-        val streamAvailabilityByMedia = batchMediaAvailability(filteredCandidates.map { it.id }, preferredAudio, preferredSub)
+        val streamAvailabilityByMedia = batchMediaAvailability(
+            filteredCandidates.map { it.id },
+            preferredAudio,
+            preferredSub,
+        )
 
         val ranked = HybridRecommendationRanker.rank(
             tasteProfile = tasteProfile,
@@ -1217,29 +1240,14 @@ class DiscoveryEngineRepository(
             }
         )
 
-        val rankedIds = ranked.map { it.id }
-        val availScores = rankedIds.associateWith { mediaId ->
-            streamAvailabilityByMedia[mediaId]?.additiveScore ?: 0.0
-        }
-
         ranked.map { recItem ->
             val media = candidatesById[recItem.id]
-            val availabilityScore = availScores[recItem.id] ?: 0.0
-            val newReasons = recItem.scoreBreakdown.reasons.toMutableList()
-            if (availabilityScore > 0.0) {
-                newReasons.add("Playable streams available: +${availabilityScore.toInt()}")
-            }
             recItem.copy(
-                score = recItem.score + availabilityScore,
                 subtitle = media?.releaseYear?.toString(),
                 posterUrl = media?.posterUrl,
                 genres = media?.genres?.toGenreList().orEmpty(),
                 source = media?.source,
                 externalIds = media?.externalIds().orEmpty(),
-                scoreBreakdown = recItem.scoreBreakdown.copy(
-                    availabilityScore = availabilityScore,
-                    reasons = newReasons
-                )
             )
         }.sortedByDescending { it.score }.take(cleanLimit)
     }
@@ -1576,7 +1584,9 @@ class DiscoveryEngineRepository(
         if (rawResults.isEmpty()) return@withContext emptyList()
 
         // 2. Rank FTS candidates with FTS score + vector similarity score
-        SearchRanker.rankSearchResults(dao, profileId, query, rawResults, limit)
+        SearchRanker.rankSearchResults(
+            dao, profileId, query, rawResults, limit, isTelevisionFormFactor()
+        )
     }
 
     suspend fun getSemanticRecommendations(profileId: String, limit: Int = 10): List<RecommendationItem> = withContext(Dispatchers.IO) {
@@ -1801,11 +1811,14 @@ class DiscoveryEngineRepository(
 
     suspend fun rankStreams(profileId: String, mediaId: String, strategy: SortingPreference = SortingPreference.BEST_MATCH): List<MediaStream> = withContext(Dispatchers.IO) {
         val streamEntities = dao.getStreamsForMediaItem(mediaId)
+        val prefs = UserPreferencesRepository.preferences.value
         val ranked = com.example.calmsource.core.discoveryengine.ranking.StreamRanker.rank(
             dao = dao,
             profileId = profileId,
             streams = streamEntities,
             strategy = strategy,
+            prefs = prefs,
+            isTelevision = isTelevisionFormFactor(),
         )
         ranked.map { entity ->
             MediaStream(
@@ -1865,12 +1878,15 @@ class DiscoveryEngineRepository(
      * Uses 3 total queries instead of 2N+1 per item (where N = number of streams per item).
      * Chunks large ID lists to stay within SQLITE_MAX_VARIABLE_NUMBER (999).
      */
-    private fun batchMediaAvailability(
+    private suspend fun batchMediaAvailability(
         mediaIds: List<String>,
         preferredAudio: List<String>,
         preferredSub: List<String>,
     ): Map<String, MediaAvailabilityResult> {
         if (mediaIds.isEmpty()) return emptyMap()
+
+        val prefs = UserPreferencesRepository.preferences.value
+        val deviceProfile = DeviceStreamProfile.forPlayback(isTelevisionFormFactor(), prefs)
 
         val allStreams = mediaIds.chunkedFlatMap(SQLITE_MAX_VARS) { dao.getStreamsForMediaItems(it) }
         val streamsByMedia = allStreams.groupBy { it.mediaId }
@@ -1884,22 +1900,26 @@ class DiscoveryEngineRepository(
             allStreamIds.chunkedFlatMap(SQLITE_MAX_VARS) { dao.getPlaybackFailureCounts(it) }
                 .associate { it.streamId to it.count }
         } else emptyMap()
+        val healthById = StreamScoringSupport.prefetchSourceHealth(allStreamIds)
 
         return mediaIds.associateWith { mediaId ->
             val providerCacheAvailability = ProviderManager.extractFeatures(mediaId).availabilityScore
             val streams = streamsByMedia[mediaId].orEmpty()
             MediaAvailabilityScorer.scoreFromStreams(
                 streams = streams.map { it.toStreamSource() },
+                prefs = prefs,
                 preferredAudio = preferredAudio,
                 preferredSub = preferredSub,
                 streamSuccessCount = { streamId -> successCountMap[streamId] ?: 0 },
                 streamFailureCount = { streamId -> failureCountMap[streamId] ?: 0 },
+                sourceHealthById = healthById,
                 providerCacheAvailability = providerCacheAvailability,
+                deviceProfile = deviceProfile,
             )
         }
     }
 
-    private fun batchAvailabilityScores(
+    private suspend fun batchAvailabilityScores(
         mediaIds: List<String>,
         preferredAudio: List<String>,
         preferredSub: List<String>,
@@ -1908,12 +1928,18 @@ class DiscoveryEngineRepository(
             .mapValues { it.value.additiveScore }
     }
 
-    private fun getAvailabilityScore(
+    private suspend fun getAvailabilityScore(
         mediaId: String,
         preferredAudio: List<String>,
         preferredSub: List<String>,
     ): Double {
         return batchAvailabilityScores(listOf(mediaId), preferredAudio, preferredSub)[mediaId] ?: 0.0
+    }
+
+    private fun isTelevisionFormFactor(): Boolean {
+        val pm = context.packageManager ?: return false
+        return pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            pm.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
     }
 
     companion object {

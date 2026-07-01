@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import com.example.calmsource.core.ui.components.GlassSurface
 import com.example.calmsource.core.ui.theme.LumenTokens
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
+
+import androidx.compose.ui.draw.clip
 
 data class TabItem(val key: String, val label: String, val icon: ImageVector)
 
@@ -47,7 +50,13 @@ fun GlassTabBar(
                 val isSel = item.key == selected
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onSelect(item.key) }.padding(t.spacing.sm),
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(LumenTokens.Shape.sm)
+                        .clickable { onSelect(item.key) }
+                        .padding(vertical = t.spacing.sm),
                 ) {
                     Icon(item.icon, contentDescription = item.label, tint = if (isSel) t.colors.brand else t.colors.mutedForeground, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.height(2.dp))

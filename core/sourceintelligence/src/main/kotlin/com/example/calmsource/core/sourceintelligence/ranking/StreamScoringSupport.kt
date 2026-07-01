@@ -2,6 +2,7 @@ package com.example.calmsource.core.sourceintelligence.ranking
 
 import com.example.calmsource.core.model.PlaybackSource
 import com.example.calmsource.core.model.ProviderHealth
+import com.example.calmsource.core.database.SourceHealthRepository
 import com.example.calmsource.core.model.SourceHealth
 import com.example.calmsource.core.model.StreamSource
 import com.example.calmsource.core.model.WatchOption
@@ -38,6 +39,12 @@ object StreamScoringSupport {
             providerHealthScore = providerHealthScore,
             lastFailureAtMs = sourceHealth?.lastFailureTime ?: 0L,
         )
+    }
+
+    /** Batch-load persisted health for ranking hot paths (search, availability, fallback). */
+    suspend fun prefetchSourceHealth(sourceIds: List<String>): Map<String, SourceHealth?> {
+        if (sourceIds.isEmpty()) return emptyMap()
+        return SourceHealthRepository.getSourceHealths(sourceIds.distinct(), readonly = true)
     }
 
     fun healthKeyForWatchOption(option: WatchOption): String {

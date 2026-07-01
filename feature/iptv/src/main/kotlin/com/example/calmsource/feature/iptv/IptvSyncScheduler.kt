@@ -53,7 +53,7 @@ object IptvSyncScheduler {
                 .build()
             WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
                 "$XTREAM_EPG_WORK_PREFIX$providerId",
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
             android.util.Log.i("IptvSyncScheduler", "Deferred Xtream EPG sync scheduled for $providerId")

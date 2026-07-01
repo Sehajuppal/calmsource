@@ -12,6 +12,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.calmsource.core.ui.theme.LumenTheme
+import com.example.calmsource.core.ui.theme.LumenVariant
+import com.example.calmsource.core.ui.theme.UiAppearancePreferences
 import com.example.calmsource.core.ui.components.PerfMode
 import com.example.calmsource.core.ui.components.ProvidePerfMode
 import android.os.PowerManager
@@ -22,6 +24,7 @@ import androidx.compose.runtime.setValue
 private fun saveMobileScreen(screen: MobileScreen): Bundle {
     return Bundle().apply {
         when (screen) {
+            is MobileScreen.Login -> putString("type", "Login")
             is MobileScreen.Profiles -> putString("type", "Profiles")
             is MobileScreen.Home -> putString("type", "Home")
             is MobileScreen.LiveTv -> putString("type", "LiveTv")
@@ -65,6 +68,7 @@ private fun resumeDeepLinkFor(request: com.example.calmsource.core.model.Playbac
 
 private fun restoreMobileScreen(bundle: Bundle): MobileScreen? {
     return when (val type = bundle.getString("type")) {
+        "Login" -> MobileScreen.Login
         "Profiles" -> MobileScreen.Profiles
         "Home" -> MobileScreen.Home
         "LiveTv" -> MobileScreen.LiveTv
@@ -103,9 +107,12 @@ class MainActivity : ComponentActivity() {
   private var pendingDeepLink by mutableStateOf<String?>(null)
   private var restoredScreen: MobileScreen? = null
   private var currentScreen: MobileScreen = MobileScreen.Home
+  private var useOledTheme by mutableStateOf(false)
+  private var pictureInPictureHandler: (() -> Boolean)? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    useOledTheme = UiAppearancePreferences.isOledTheme(this)
     if (savedInstanceState == null) {
       pendingDeepLink = intent?.dataString
     } else {
@@ -125,13 +132,21 @@ class MainActivity : ComponentActivity() {
     val perfMode = if (powerManager.isPowerSaveMode) PerfMode.Low else PerfMode.Auto
     setContent {
       ProvidePerfMode(perfMode) {
-        LumenTheme(isTv = false) {
+        LumenTheme(
+          variant = if (useOledTheme) LumenVariant.Oled else LumenVariant.Standard,
+          isTv = false,
+        ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           MainNavigation(
             deepLinkUri = pendingDeepLink,
             onDeepLinkConsumed = { pendingDeepLink = null },
             initialScreen = restoredScreen,
-            onScreenChanged = { currentScreen = it }
+            onScreenChanged = { currentScreen = it },
+            onOledThemeChanged = { enabled ->
+              useOledTheme = enabled
+              UiAppearancePreferences.setOledTheme(this, enabled)
+            },
+            onRegisterPictureInPicture = { handler -> pictureInPictureHandler = handler },
           )
         }
         }
@@ -148,5 +163,12 @@ class MainActivity : ComponentActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
     pendingDeepLink = intent.dataString
+  }
+
+  override fun onUserLeaveHint() {
+    super.onUserLeaveHint()
+    if (currentScreen is MobileScreen.Player) {
+      pictureInPictureHandler?.invoke()
+    }
   }
 }

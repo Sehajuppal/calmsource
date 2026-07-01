@@ -29,10 +29,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.calmsource.core.ui.R as CoreUiR
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.calmsource.core.ui.components.LumenEmptyState
+import com.example.calmsource.core.data.rememberActiveProfileId
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
@@ -44,7 +49,10 @@ import kotlinx.coroutines.launch
 fun TvLibraryScreen(
     onOpenMedia: (UserMemoryReference, Long) -> Unit,
     onOpenChannel: (UserMemoryReference) -> Unit,
-    onSearch: (String) -> Unit
+    onSearch: (String) -> Unit,
+    onBrowse: () -> Unit = {},
+    onOpenLive: () -> Unit = onBrowse,
+    onOpenSidebar: () -> Unit = {},
 ) {
     val t = LocalLumenTokens.current
     val context = LocalContext.current.applicationContext
@@ -63,13 +71,14 @@ fun TvLibraryScreen(
             FallbackUserMemoryRepository()
         }
     }
+    val profileId = rememberActiveProfileId()
     val scope = rememberCoroutineScope()
-    val continueWatching by repository.observeContinueWatching().collectAsState(initial = emptyList())
-    val favorites by repository.observeFavorites().collectAsState(initial = emptyList())
-    val history by repository.observeWatchHistory().collectAsState(initial = emptyList())
-    val recentChannels by repository.observeRecentChannels().collectAsState(initial = emptyList())
-    val lastChannel by repository.observeLastWatchedChannel().collectAsState(initial = null)
-    val searches by repository.observeSearchHistory().collectAsState(initial = emptyList())
+    val continueWatching by remember(repository, profileId) { repository.observeContinueWatching(profileId) }.collectAsState(initial = emptyList())
+    val favorites by remember(repository, profileId) { repository.observeFavorites(profileId) }.collectAsState(initial = emptyList())
+    val history by remember(repository, profileId) { repository.observeWatchHistory(profileId) }.collectAsState(initial = emptyList())
+    val recentChannels by remember(repository, profileId) { repository.observeRecentChannels(profileId) }.collectAsState(initial = emptyList())
+    val lastChannel by remember(repository, profileId) { repository.observeLastWatchedChannel(profileId) }.collectAsState(initial = null)
+    val searches by remember(repository, profileId) { repository.observeSearchHistory(profileId) }.collectAsState(initial = emptyList())
     val resumePositions = remember(continueWatching) {
         continueWatching.associate { it.reference.itemKey to it.progressMs }
     }
@@ -98,9 +107,15 @@ fun TvLibraryScreen(
         verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
     ) {
         item {
-            Text("My Space", color = t.colors.foreground, fontSize = LumenType.size38, fontWeight = FontWeight.Bold)
             Text(
-                "Everything you meant to come back to.",
+                stringResource(CoreUiR.string.library_title),
+                color = t.colors.foreground,
+                style = lumenH2Style(),
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.openTvSidebarOnLeftKey(onOpenSidebar),
+            )
+            Text(
+                stringResource(CoreUiR.string.library_subtitle),
                 color = t.colors.mutedForeground,
                 fontSize = LumenType.size16,
                 modifier = Modifier.padding(bottom = LumenLegacySpace.md)
@@ -109,20 +124,27 @@ fun TvLibraryScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.md),
             ) {
-                TvLibraryStat("${continueWatching.size}", "In progress", Modifier.weight(1f))
-                TvLibraryStat("${favorites.size}", "Saved", Modifier.weight(1f))
-                TvLibraryStat("${recentChannels.size}", "Recent live", Modifier.weight(1f))
+                TvLibraryStat("${continueWatching.size}", stringResource(CoreUiR.string.library_in_progress), Modifier.weight(1f))
+                TvLibraryStat("${favorites.size}", stringResource(CoreUiR.string.library_saved), Modifier.weight(1f))
+                TvLibraryStat("${recentChannels.size}", stringResource(CoreUiR.string.library_recent_live), Modifier.weight(1f))
             }
         }
 
         item {
-            TvLibraryHeader("Continue Watching", continueWatching.isNotEmpty(), continueFocus) {
+            TvLibraryHeader(stringResource(CoreUiR.string.library_continue_watching), continueWatching.isNotEmpty(), continueFocus) {
                 continueFocus.requestFocus()
-                scope.launch { repository.clearContinueWatching() }
+                scope.launch { repository.clearContinueWatching(profileId) }
             }
         }
         if (continueWatching.isEmpty()) {
-            item { TvEmptyMemory("Start a movie or show and it will appear here.") }
+            item {
+                TvEmptyMemory(
+                    title = stringResource(CoreUiR.string.library_empty_in_progress_title),
+                    body = stringResource(CoreUiR.string.library_empty_in_progress_body),
+                    ctaText = stringResource(CoreUiR.string.cta_browse_home),
+                    onCtaClick = onBrowse,
+                )
+            }
         } else {
             items(continueWatching, key = { "continue-${it.reference.itemKey}" }) { item ->
                 TvMemoryRow(
@@ -141,13 +163,20 @@ fun TvLibraryScreen(
         }
 
         item {
-            TvLibraryHeader("Favorites", favorites.isNotEmpty(), favoritesFocus) {
+            TvLibraryHeader(stringResource(CoreUiR.string.library_favorites), favorites.isNotEmpty(), favoritesFocus) {
                 favoritesFocus.requestFocus()
-                scope.launch { repository.clearFavorites() }
+                scope.launch { repository.clearFavorites(profileId) }
             }
         }
         if (favorites.isEmpty()) {
-            item { TvEmptyMemory("Favorite a movie, show, VOD item, or channel to keep it here.") }
+            item {
+                TvEmptyMemory(
+                    title = stringResource(CoreUiR.string.library_empty_favorites_title),
+                    body = stringResource(CoreUiR.string.library_empty_favorites_body),
+                    ctaText = stringResource(CoreUiR.string.cta_browse_home),
+                    onCtaClick = onBrowse,
+                )
+            }
         } else {
             items(favorites, key = { "favorite-${it.reference.itemKey}" }) { item ->
                 TvMemoryRow(
@@ -162,25 +191,36 @@ fun TvLibraryScreen(
                     },
                     onRemove = {
                         favoritesFocus.requestFocus()
-                        scope.launch { repository.removeFavorite(item.reference.itemKey) }
+                        scope.launch { repository.removeFavorite(item.reference.itemKey, profileId) }
                     }
                 )
             }
         }
 
         item {
-            TvLibraryHeader("Watch History", history.isNotEmpty(), historyFocus) {
+            TvLibraryHeader(stringResource(CoreUiR.string.library_watch_history), history.isNotEmpty(), historyFocus) {
                 historyFocus.requestFocus()
-                scope.launch { repository.clearWatchHistory() }
+                scope.launch { repository.clearWatchHistory(profileId) }
             }
         }
         if (history.isEmpty()) {
-            item { TvEmptyMemory("Watched movies and shows will appear here.") }
+            item {
+                TvEmptyMemory(
+                    title = stringResource(CoreUiR.string.library_no_history_title),
+                    body = stringResource(CoreUiR.string.library_no_history_body),
+                    ctaText = stringResource(CoreUiR.string.cta_browse_home),
+                    onCtaClick = onBrowse,
+                )
+            }
         } else {
             items(history, key = { "history-${it.reference.itemKey}" }) { item ->
                 TvMemoryRow(
                     reference = item.reference,
-                    subtitle = "Watched ${item.watchCount} time${if (item.watchCount == 1L) "" else "s"}",
+                    subtitle = pluralStringResource(
+                        CoreUiR.plurals.library_watched_count,
+                        item.watchCount.toInt(),
+                        item.watchCount,
+                    ),
                     onOpen = {
                         onOpenMedia(
                             item.reference,
@@ -189,26 +229,33 @@ fun TvLibraryScreen(
                     },
                     onRemove = {
                         historyFocus.requestFocus()
-                        scope.launch { repository.removeWatchHistory(item.reference.itemKey) }
+                        scope.launch { repository.removeWatchHistory(item.reference.itemKey, profileId) }
                     }
                 )
             }
         }
 
         item {
-            TvLibraryHeader("Recent Channels", recentChannels.isNotEmpty(), recentFocus) {
+            TvLibraryHeader(stringResource(CoreUiR.string.library_recent_channels), recentChannels.isNotEmpty(), recentFocus) {
                 recentFocus.requestFocus()
-                scope.launch { repository.clearRecentChannels() }
+                scope.launch { repository.clearRecentChannels(profileId) }
             }
         }
         if (recentChannels.isEmpty()) {
-            item { TvEmptyMemory("Channels you watch will appear here.") }
+            item {
+                TvEmptyMemory(
+                    title = stringResource(CoreUiR.string.library_no_recent_channels_title),
+                    body = stringResource(CoreUiR.string.library_no_recent_channels_body),
+                    ctaText = stringResource(CoreUiR.string.cta_open_live_tv),
+                    onCtaClick = onOpenLive,
+                )
+            }
         } else {
             items(recentChannels, key = { "recent-${it.reference.itemKey}" }) { item ->
                 TvMemoryRow(
                     reference = item.reference,
                     subtitle = if (lastChannel?.reference?.itemKey == item.reference.itemKey) {
-                        "Last watched channel"
+                        stringResource(CoreUiR.string.library_last_watched_channel)
                     } else {
                         item.reference.subtitle
                     },
@@ -222,13 +269,20 @@ fun TvLibraryScreen(
         }
 
         item {
-            TvLibraryHeader("Search History", searches.isNotEmpty(), searchFocus) {
+            TvLibraryHeader(stringResource(CoreUiR.string.library_search_history), searches.isNotEmpty(), searchFocus) {
                 searchFocus.requestFocus()
-                scope.launch { repository.clearSearchHistory() }
+                scope.launch { repository.clearSearchHistory(profileId) }
             }
         }
         if (searches.isEmpty()) {
-            item { TvEmptyMemory("Completed searches will appear here.") }
+            item {
+                TvEmptyMemory(
+                    title = stringResource(CoreUiR.string.library_no_search_history_title),
+                    body = stringResource(CoreUiR.string.library_no_search_history_body),
+                    ctaText = stringResource(CoreUiR.string.cta_search_catalog),
+                    onCtaClick = { onSearch("") },
+                )
+            }
         } else {
             items(searches, key = { "search-${it.query.lowercase()}" }) { item ->
                 Row(
@@ -285,7 +339,7 @@ private fun TvLibraryHeader(
         if (hasItems) {
             TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClear) { focused ->
                 Text(
-                    "Clear",
+                    stringResource(CoreUiR.string.library_clear),
                     color = if (focused) t.colors.foreground else t.colors.brand,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
@@ -405,7 +459,7 @@ private fun TvRemoveAction(onClick: () -> Unit) {
     val t = LocalLumenTokens.current
     TvFocusCard(modifier = Modifier.width(LumenLayout.clearButtonWidthTv), onClick = onClick) { focused ->
         Text(
-            "Remove",
+            stringResource(CoreUiR.string.library_remove),
             color = if (focused) t.colors.foreground else t.colors.mutedForeground,
             modifier = Modifier.align(Alignment.CenterHorizontally),
             maxLines = 1
@@ -414,13 +468,24 @@ private fun TvRemoveAction(onClick: () -> Unit) {
 }
 
 @Composable
-private fun TvEmptyMemory(message: String) {
-    val t = LocalLumenTokens.current
-    Text(message, color = t.colors.mutedForeground, fontSize = LumenType.size15, modifier = Modifier.padding(bottom = LumenLegacySpace.sm2))
+private fun TvEmptyMemory(
+    title: String,
+    body: String,
+    ctaText: String? = null,
+    onCtaClick: (() -> Unit)? = null,
+) {
+    LumenEmptyState(
+        title = title,
+        body = body,
+        ctaText = ctaText,
+        onCtaClick = onCtaClick,
+        modifier = Modifier.padding(bottom = LumenLegacySpace.sm2),
+    )
 }
 
+@Composable
 private fun progressLabel(progressMs: Long, durationMs: Long): String {
-    if (durationMs <= 0L) return "Resume playback"
+    if (durationMs <= 0L) return stringResource(CoreUiR.string.library_resume_playback)
     return "${((progressMs * 100L) / durationMs).coerceIn(0L, 100L)}% watched"
 }
 

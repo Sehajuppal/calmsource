@@ -133,6 +133,10 @@ object SlowQueryLogger {
         if (lowercase.contains("password") || lowercase.contains("token") || lowercase.contains("passwd") || lowercase.contains("secret")) {
             return "[REDACTED]"
         }
+        result = result.replace(
+            Regex("(?i)(/(?:live|movie|series))/([^/]+)/([^/]+)/"),
+            "$1/[REDACTED]/[REDACTED]/",
+        )
         if (result.startsWith("http://") || result.startsWith("https://") || result.contains("://")) {
             val urlParts = result.split("?", limit = 2)
             if (urlParts.size == 2) {

@@ -10,6 +10,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.example.calmsource.core.data.sync.VaultSyncManager
@@ -20,7 +21,8 @@ import com.example.calmsource.feature.extensions.ExtensionInstallValidator
 
 @HiltAndroidApp
 class CalmSourceApp : Application() {
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val appScopeJob = SupervisorJob()
+    private val appScope = CoroutineScope(appScopeJob + Dispatchers.IO)
 
     @Inject
     lateinit var vaultSyncManager: VaultSyncManager
@@ -187,6 +189,7 @@ class CalmSourceApp : Application() {
                 ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
                     com.example.calmsource.core.playback.ImageCacheController.trimForMemoryPressure(this, clearAll = true)
                     com.example.calmsource.core.discoveryengine.providers.ProviderManager.setLowMemoryMode(true)
+                    appScopeJob.cancelChildren()
                 }
                 ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
                 ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN,

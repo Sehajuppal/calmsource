@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -24,10 +26,14 @@ import com.example.calmsource.core.model.Channel
 import com.example.calmsource.core.model.Program
 import com.example.calmsource.feature.iptv.IPTVRepository
 import com.example.calmsource.feature.iptv.LiveGuideViewModel
+import com.example.calmsource.core.data.rememberActiveProfileId
 import com.example.calmsource.core.database.DatabaseProvider
+import androidx.compose.ui.res.stringResource
+import com.example.calmsource.core.ui.R as CoreUiR
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import com.example.calmsource.core.database.repository.FallbackUserMemoryRepository
 import com.example.calmsource.core.ui.components.TvFocusable
+import com.example.calmsource.core.ui.components.LumenEmptyState
 import com.example.calmsource.core.ui.components.AdaptiveButton
 import kotlinx.coroutines.isActive
 
@@ -40,7 +46,8 @@ import kotlinx.coroutines.isActive
 @Composable
 fun TvLiveGuideScreen(
     onChannelSelect: (Channel, Program?) -> Unit,
-    onOpenSetup: () -> Unit
+    onOpenSetup: () -> Unit,
+    onOpenSidebar: () -> Unit = {},
 ) {
     val viewModel: LiveGuideViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -58,9 +65,10 @@ fun TvLiveGuideScreen(
             FallbackUserMemoryRepository()
         }
     }
-    val favorites by memoryRepository.observeFavorites().collectAsState(initial = emptyList())
+    val profileId = rememberActiveProfileId()
+    val favorites by remember(profileId) { memoryRepository.observeFavorites(profileId) }.collectAsState(initial = emptyList())
     val favoriteKeys = remember(favorites) { favorites.mapTo(hashSetOf()) { it.reference.itemKey } }
-    val recentItems by memoryRepository.observeRecentChannels().collectAsState(initial = emptyList())
+    val recentItems by remember(profileId) { memoryRepository.observeRecentChannels(profileId) }.collectAsState(initial = emptyList())
     val recentOrder = remember(recentItems) {
         recentItems.mapIndexed { index, item -> item.reference.itemKey to index }.toMap()
     }
@@ -78,7 +86,11 @@ fun TvLiveGuideScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(color = t.colors.brand)
                 Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
-                Text("Syncing Live TV...", color = t.colors.mutedForeground, fontSize = LumenType.size16)
+                Text(
+                    stringResource(CoreUiR.string.live_syncing),
+                    color = t.colors.mutedForeground,
+                    style = lumenBodyStyle(),
+                )
             }
         }
         return
@@ -89,28 +101,13 @@ fun TvLiveGuideScreen(
             modifier = Modifier.fillMaxSize().background(t.colors.background),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
-            ) {
-                Text("Sync finished with warnings", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
-                Text(
-                    text = uiState.syncWarnings.joinToString("\n"),
-                    color = t.colors.mutedForeground,
-                    fontSize = LumenType.size14
-                )
-                var isSetupButtonFocused by remember { mutableStateOf(false) }
-                TvFocusable(
-                    onClick = onOpenSetup,
-                    modifier = Modifier.onFocusChanged { isSetupButtonFocused = it.isFocused }
-                ) {
-                    AdaptiveButton(
-                        text = "Configure Providers",
-                        onClick = onOpenSetup,
-                        backdropLuminance = if (isSetupButtonFocused) 1f else 0f
-                    )
-                }
-            }
+            LumenEmptyState(
+                title = "Sync finished with warnings",
+                body = uiState.syncWarnings.joinToString("\n"),
+                icon = Icons.Default.Settings,
+                ctaText = "Retry sync",
+                onCtaClick = { viewModel.retrySync() },
+            )
         }
         return
     }
@@ -120,28 +117,13 @@ fun TvLiveGuideScreen(
             modifier = Modifier.fillMaxSize().background(t.colors.background),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg)
-            ) {
-                Text("No live channels yet.", color = t.colors.foreground, fontSize = LumenType.size16, fontWeight = FontWeight.Bold)
-                Text(
-                    text = "Connect an M3U or Xtream provider to build your Live TV guide.",
-                    color = t.colors.mutedForeground,
-                    fontSize = LumenType.size14
-                )
-                var isSetupButtonFocused by remember { mutableStateOf(false) }
-                TvFocusable(
-                    onClick = onOpenSetup,
-                    modifier = Modifier.onFocusChanged { isSetupButtonFocused = it.isFocused }
-                ) {
-                    AdaptiveButton(
-                        text = "Open IPTV setup",
-                        onClick = onOpenSetup,
-                        backdropLuminance = if (isSetupButtonFocused) 1f else 0f
-                    )
-                }
-            }
+            LumenEmptyState(
+                title = "No live channels yet",
+                body = "Connect an M3U or Xtream provider to build your Live TV guide.",
+                icon = Icons.Default.Settings,
+                ctaText = "Go to Settings",
+                onCtaClick = onOpenSetup,
+            )
         }
         return
     }
@@ -191,7 +173,9 @@ fun TvLiveGuideScreen(
             var isChannelsFocused by remember { mutableStateOf(false) }
             TvFocusable(
                 onClick = { activeSection = "channels" },
-                modifier = Modifier.onFocusChanged { isChannelsFocused = it.isFocused }
+                modifier = Modifier
+                    .onFocusChanged { isChannelsFocused = it.isFocused }
+                    .openTvSidebarOnLeftKey(onOpenSidebar),
             ) {
                 Box(
                     modifier = Modifier
@@ -249,7 +233,7 @@ fun TvLiveGuideScreen(
                         .background(if (isSetupFocused) t.colors.muted else Color.Transparent)
                         .padding(horizontal = LumenLegacySpace.lg, vertical = LumenLegacySpace.sm2)
                 ) {
-                    Text("Setup ⚙", color = t.colors.foreground, fontSize = LumenType.size14)
+                    Text("Settings", color = t.colors.foreground, fontSize = LumenType.size14)
                 }
             }
         }

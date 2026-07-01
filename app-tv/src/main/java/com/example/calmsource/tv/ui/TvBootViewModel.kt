@@ -3,6 +3,10 @@ package com.example.calmsource.tv.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calmsource.core.data.AuthPreferencesManager
+import com.example.calmsource.core.data.BootDestination
+import com.example.calmsource.core.data.BootGateResolver
+import com.example.calmsource.core.data.BootGateState
+import com.example.calmsource.core.data.CloudAuthTokenStore
 import com.example.calmsource.core.data.ProfileSessionManager
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.core.database.entity.ProfileEntity
@@ -19,7 +23,7 @@ import javax.inject.Inject
 
 /**
  * Boot navigation gate evaluated strictly in order:
- * 1. Auth — persisted [AuthCredentials] (IPTV/debrid accounts) OR skip flag
+ * 1. Auth — IPTV/debrid credentials, cloud account, or skip flag
  * 2. Profile — active profile from [ProfileSessionManager]
  * 3. Home — both gates passed
  */
@@ -27,44 +31,47 @@ enum class TvBootDestination {
     Loading,
     Onboarding,
     ProfileSelection,
-    Home
+    Home,
 }
 
-data class TvBootGateState(
-    val destination: TvBootDestination = TvBootDestination.Loading,
-    val authCredentialsExist: Boolean = false,
-    val hasSkippedAuth: Boolean = false,
-    val activeProfile: ProfileEntity? = null
-) {
-    val isAuthPassed: Boolean = authCredentialsExist || hasSkippedAuth
-}
+typealias TvBootGateState = BootGateState
 
 @HiltViewModel
 class TvBootViewModel @Inject constructor(
     authPreferencesManager: AuthPreferencesManager,
-    profileSessionManager: ProfileSessionManager
+    profileSessionManager: ProfileSessionManager,
+    tokenStore: CloudAuthTokenStore,
 ) : ViewModel() {
 
-    val gateState: StateFlow<TvBootGateState> = combine(
+    val gateState: StateFlow<BootGateState> = combine(
         DatabaseProvider.databaseReady,
         IPTVRepository.providers,
         DebridRepository.accounts,
         authPreferencesManager.hasSkippedAuth,
-        profileSessionManager.activeProfile
-    ) { dbReady, providers, debridAccounts, skippedAuth, profile ->
+        profileSessionManager.activeProfile,
+        tokenStore.tokenRevision,
+    ) { values ->
+        val dbReady = values[0] as Boolean
+        val providers = values[1] as List<com.example.calmsource.core.model.IPTVProvider>
+        val debridAccounts = values[2] as List<com.example.calmsource.core.model.DebridAccount>
+        val skippedAuth = values[3] as Boolean
+        val profile = values[4] as ProfileEntity?
         if (!dbReady) {
-            TvBootGateState(destination = TvBootDestination.Loading)
+            BootGateState(destination = BootDestination.Loading)
         } else {
             val credentialsExist = providers.isNotEmpty() || debridAccounts.isNotEmpty()
-            TvBootGateState(
-                destination = resolveDestination(
+            val cloudSignedIn = tokenStore.getToken() != null
+            BootGateState(
+                destination = BootGateResolver.resolveDestination(
                     credentialsExist = credentialsExist,
+                    cloudSignedIn = cloudSignedIn,
                     hasSkippedAuth = skippedAuth,
-                    activeProfile = profile
+                    activeProfile = profile,
                 ),
                 authCredentialsExist = credentialsExist,
+                cloudSignedIn = cloudSignedIn,
                 hasSkippedAuth = skippedAuth,
-                activeProfile = profile
+                activeProfile = profile,
             )
         }
     }
@@ -72,22 +79,22 @@ class TvBootViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = TvBootGateState()
+            initialValue = BootGateState(),
         )
 
     fun isScreenAllowed(screen: TvScreen): Boolean {
         val gate = gateState.value
         return isScreenAllowed(
-            destination = gate.destination,
+            destination = gate.destination.toTvBootDestination(),
             screen = screen,
             isAuthPassed = gate.isAuthPassed,
-            activeProfile = gate.activeProfile
+            activeProfile = gate.activeProfile,
         )
     }
 
     fun redirectScreenIfBlocked(current: TvScreen): TvScreen {
         if (isScreenAllowed(current)) return current
-        return when (gateState.value.destination) {
+        return when (gateState.value.destination.toTvBootDestination()) {
             TvBootDestination.Onboarding -> TvScreen.Onboarding
             TvBootDestination.ProfileSelection -> TvScreen.ProfileSelection
             else -> current
@@ -95,7 +102,7 @@ class TvBootViewModel @Inject constructor(
     }
 
     fun bootScreenForFirstRoute(): TvScreen? {
-        return when (gateState.value.destination) {
+        return when (gateState.value.destination.toTvBootDestination()) {
             TvBootDestination.Loading -> null
             TvBootDestination.Onboarding -> TvScreen.Onboarding
             TvBootDestination.ProfileSelection -> TvScreen.ProfileSelection
@@ -107,21 +114,22 @@ class TvBootViewModel @Inject constructor(
         internal fun resolveDestination(
             credentialsExist: Boolean,
             hasSkippedAuth: Boolean,
-            activeProfile: ProfileEntity?
+            activeProfile: ProfileEntity?,
+            cloudSignedIn: Boolean = false,
         ): TvBootDestination {
-            val authPassed = credentialsExist || hasSkippedAuth
-            return when {
-                !authPassed -> TvBootDestination.Onboarding
-                activeProfile == null -> TvBootDestination.ProfileSelection
-                else -> TvBootDestination.Home
-            }
+            return BootGateResolver.resolveDestination(
+                credentialsExist = credentialsExist,
+                cloudSignedIn = cloudSignedIn,
+                hasSkippedAuth = hasSkippedAuth,
+                activeProfile = activeProfile,
+            ).toTvBootDestination()
         }
 
         internal fun isScreenAllowed(
             destination: TvBootDestination,
             screen: TvScreen,
             isAuthPassed: Boolean,
-            activeProfile: ProfileEntity?
+            activeProfile: ProfileEntity?,
         ): Boolean {
             return when (destination) {
                 TvBootDestination.Loading -> true
@@ -136,4 +144,11 @@ class TvBootViewModel @Inject constructor(
             }
         }
     }
+}
+
+private fun BootDestination.toTvBootDestination(): TvBootDestination = when (this) {
+    BootDestination.Loading -> TvBootDestination.Loading
+    BootDestination.Login -> TvBootDestination.Onboarding
+    BootDestination.ProfileSelection -> TvBootDestination.ProfileSelection
+    BootDestination.Home -> TvBootDestination.Home
 }

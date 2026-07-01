@@ -8,6 +8,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 private const val KEY_TOKEN = "jwt_token"
 
@@ -33,6 +36,8 @@ class CloudAuthTokenStore @Inject constructor(
 
     // In-memory fallback
     private val memoryStorage = ConcurrentHashMap<String, String>()
+    private val _tokenRevision = MutableStateFlow(0)
+    val tokenRevision: StateFlow<Int> = _tokenRevision.asStateFlow()
 
     fun setToken(token: String?) {
         if (token == null) {
@@ -50,6 +55,7 @@ class CloudAuthTokenStore @Inject constructor(
         } else {
             memoryStorage[KEY_TOKEN] = token
         }
+        _tokenRevision.value += 1
     }
 
     fun getToken(): String? {
@@ -74,5 +80,6 @@ class CloudAuthTokenStore @Inject constructor(
             }
         }
         memoryStorage.remove(KEY_TOKEN)
+        _tokenRevision.value += 1
     }
 }

@@ -48,51 +48,65 @@ object SourceHealthRepository {
             private val sourceHealthMap = java.util.concurrent.ConcurrentHashMap<String, SourceHealthEntity>()
             private val providerHealthMap = java.util.concurrent.ConcurrentHashMap<String, ProviderHealthScoreEntity>()
 
-            override fun insertSourceHealth(entity: SourceHealthEntity) {
+            override fun insertSourceHealth(entity: SourceHealthEntity): Long {
                 sourceHealthMap[entity.sourceId] = entity
+                return 1L
             }
 
-            override fun insertSourceHealth(entities: List<SourceHealthEntity>) {
+            override fun insertSourceHealth(entities: List<SourceHealthEntity>): List<Long> {
                 entities.forEach { entity ->
                     sourceHealthMap[entity.sourceId] = entity
                 }
+                return entities.map { 1L }
             }
 
-            override fun insertProviderHealth(entity: ProviderHealthScoreEntity) {
+            override fun insertProviderHealth(entity: ProviderHealthScoreEntity): Long {
                 providerHealthMap[entity.providerId] = entity
+                return 1L
             }
 
             override fun getSourceHealth(sourceId: String): SourceHealthEntity? {
                 return sourceHealthMap[sourceId]
             }
 
+            override fun getSourceHealths(sourceIds: List<String>): List<SourceHealthEntity> {
+                return sourceIds.mapNotNull { sourceHealthMap[it] }
+            }
+
             override fun getProviderHealth(providerId: String): ProviderHealthScoreEntity? {
                 return providerHealthMap[providerId]
             }
 
-            override fun clearSourceHealth() {
+            override fun clearSourceHealth(): Int {
+                val size = sourceHealthMap.size
                 sourceHealthMap.clear()
+                return size
             }
 
-            override fun clearProviderHealth() {
+            override fun clearProviderHealth(): Int {
+                val size = providerHealthMap.size
                 providerHealthMap.clear()
+                return size
             }
 
-            override fun markSourceHidden(sourceId: String, hidden: Boolean) {
+            override fun markSourceHidden(sourceId: String, hidden: Boolean): Int {
                 sourceHealthMap[sourceId]?.let {
                     it.userHidden = hidden
+                    return 1
                 }
+                return 0
             }
 
             override fun getAllSourceHealth(): List<SourceHealthEntity> {
                 return sourceHealthMap.values.toList()
             }
 
-            override fun pruneStaleSourceHealth(cutoffTime: Long) {
+            override fun pruneStaleSourceHealth(cutoffTime: Long): Int {
                 val keysToRemove = sourceHealthMap.entries
                     .filter { it.value.lastSuccessTime < cutoffTime && it.value.lastFailureTime < cutoffTime }
                     .map { it.key }
                 keysToRemove.forEach { sourceHealthMap.remove(it) }
+                return keysToRemove.size
             }
         }
     }
@@ -104,6 +118,24 @@ object SourceHealthRepository {
             dao.insertSourceHealth(domain.toEntity())
         }
         domain
+    }
+
+    suspend fun getSourceHealths(
+        sourceIds: List<String>,
+        currentTime: Long = System.currentTimeMillis(),
+        readonly: Boolean = false,
+    ): Map<String, SourceHealth?> = withContext(dispatcher) {
+        if (sourceIds.isEmpty()) return@withContext emptyMap()
+        val distinctIds = sourceIds.distinct()
+        val entities = dao.getSourceHealths(distinctIds).associateBy { it.sourceId }
+        distinctIds.associateWith { sourceId ->
+            val entity = entities[sourceId] ?: return@associateWith null
+            val domain = entity.toDomain().getUpdatedHealth(currentTime)
+            if (!readonly && (domain.healthScore != entity.healthScore || domain.failureCount != entity.failureCount)) {
+                dao.insertSourceHealth(domain.toEntity())
+            }
+            domain
+        }
     }
 
     suspend fun getProviderHealth(providerId: String, currentTime: Long = System.currentTimeMillis(), readonly: Boolean = false): ProviderHealthScore? = withContext(dispatcher) {
@@ -230,6 +262,35 @@ object SourceHealthRepository {
 
     suspend fun clearSourceHealth() = withContext(dispatcher) {
         dao.clearSourceHealth()
+    }
+
+    suspend fun migrateSourceId(oldSourceId: String, newSourceId: String) = withContext(dispatcher) {
+        if (oldSourceId == newSourceId) return@withContext
+        val oldEntity = dao.getSourceHealth(oldSourceId) ?: return@withContext
+        val newEntity = dao.getSourceHealth(newSourceId)
+        val merged = (newEntity ?: SourceHealthEntity()).apply {
+            sourceId = newSourceId
+            providerId = newEntity?.providerId?.takeIf { it.isNotBlank() } ?: oldEntity.providerId
+            sourceType = newEntity?.sourceType ?: oldEntity.sourceType
+            failureCount = maxOf(oldEntity.failureCount, newEntity?.failureCount ?: 0)
+            lastSuccessTime = maxOf(oldEntity.lastSuccessTime, newEntity?.lastSuccessTime ?: 0L)
+            lastFailureTime = maxOf(oldEntity.lastFailureTime, newEntity?.lastFailureTime ?: 0L)
+            averageStartupTime = when {
+                newEntity == null -> oldEntity.averageStartupTime
+                oldEntity.averageStartupTime <= 0L -> newEntity.averageStartupTime
+                newEntity.averageStartupTime <= 0L -> oldEntity.averageStartupTime
+                else -> (oldEntity.averageStartupTime + newEntity.averageStartupTime) / 2
+            }
+            averageBufferingSeverity = maxOf(oldEntity.averageBufferingSeverity, newEntity?.averageBufferingSeverity ?: 0f)
+            lastErrorCategory = when {
+                newEntity?.lastFailureTime ?: 0L >= oldEntity.lastFailureTime -> newEntity?.lastErrorCategory.orEmpty()
+                else -> oldEntity.lastErrorCategory
+            }
+            healthScore = maxOf(oldEntity.healthScore, newEntity?.healthScore ?: 0)
+            userHidden = (oldEntity.userHidden || (newEntity?.userHidden == true))
+        }
+        dao.insertSourceHealth(merged)
+        // Legacy sourceId rows are orphaned until stale-health pruning; channels now use newSafeId.
     }
 
     suspend fun clearProviderHealth() = withContext(dispatcher) {

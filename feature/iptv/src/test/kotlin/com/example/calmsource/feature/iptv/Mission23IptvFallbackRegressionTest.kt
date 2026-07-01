@@ -116,6 +116,35 @@ class Mission23IptvFallbackRegressionTest {
         assertTrue(source.contains("rawUrl = streamUrl"))
     }
 
+    @Test
+    fun `optimization preference updates defer channel publish through dataUpdateTick`() {
+        val source = readIptvSource("IPTVRepository.kt")
+        val updateBlock = source.substringAfter("fun updateOptimizationPreferences")
+            .substringBefore("fun resetOptimizationPreferences")
+        val resetBlock = source.substringAfter("fun resetOptimizationPreferences")
+            .substringBefore("fun getLiveChannels")
+
+        assertFalse(
+            "updateOptimizationPreferences must not synchronously call getChannels on the caller thread",
+            updateBlock.contains("publishChannels(getChannels())"),
+        )
+        assertTrue(updateBlock.contains("dataUpdateTick.update"))
+        assertFalse(
+            "resetOptimizationPreferences must not synchronously call getChannels on the caller thread",
+            resetBlock.contains("publishChannels(getChannels())"),
+        )
+        assertTrue(resetBlock.contains("dataUpdateTick.update"))
+    }
+
+    @Test
+    fun `M3U import prepares chunks without runBlocking`() {
+        val source = readIptvSource("IPTVRepository.kt")
+        assertFalse(
+            "M3U import must not block the parser worker with runBlocking",
+            source.contains("runBlocking { prepareChunk(chunk) }"),
+        )
+    }
+
     private fun readIptvSource(fileName: String): String {
         val relativePath = "src/main/kotlin/com/example/calmsource/feature/iptv/$fileName"
         val candidates = listOf(

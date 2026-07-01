@@ -25,13 +25,13 @@ interface IPTVDao {
     suspend fun getProviderByIdDirect(id: String): IPTVProviderEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertProvider(provider: IPTVProviderEntity)
+    fun insertProvider(provider: IPTVProviderEntity): Long
 
     @Update
-    fun updateProvider(provider: IPTVProviderEntity)
+    fun updateProvider(provider: IPTVProviderEntity): Int
 
     @Delete
-    fun deleteProvider(provider: IPTVProviderEntity)
+    fun deleteProvider(provider: IPTVProviderEntity): Int
 
     /**
      * Returns up to 100,000 rows from the iptv_channels table. The
@@ -48,10 +48,10 @@ interface IPTVDao {
     fun getChannelsByProvider(providerId: String): Flow<List<IPTVChannelEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertChannels(channels: List<IPTVChannelEntity>)
+    fun insertChannels(channels: List<IPTVChannelEntity>): List<Long>
 
     @Query("DELETE FROM iptv_channels WHERE providerId = :providerId")
-    fun deleteChannelsByProvider(providerId: String)
+    fun deleteChannelsByProvider(providerId: String): Int
 
     @Transaction
     fun replaceChannels(providerId: String, channels: List<IPTVChannelEntity>) {
@@ -63,25 +63,25 @@ interface IPTVDao {
     fun getAllEPGSources(): Flow<List<EPGSourceEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertEPGSource(source: EPGSourceEntity)
+    fun insertEPGSource(source: EPGSourceEntity): Long
 
     @Delete
-    fun deleteEPGSource(source: EPGSourceEntity)
+    fun deleteEPGSource(source: EPGSourceEntity): Int
 
     @Query("DELETE FROM epg_sources WHERE providerId = :providerId")
-    fun deleteEPGSourcesByProvider(providerId: String)
+    fun deleteEPGSourcesByProvider(providerId: String): Int
 
     @Query("SELECT * FROM epg_programs WHERE channelId = :channelId ORDER BY startTimeMs LIMIT 500")
     fun getEPGProgramsByChannel(channelId: String): Flow<List<EPGProgramEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertEPGPrograms(programs: List<EPGProgramEntity>)
+    fun insertEPGPrograms(programs: List<EPGProgramEntity>): List<Long>
     
     @Query("DELETE FROM epg_programs WHERE channelId = :channelId")
-    fun deleteEPGProgramsByChannel(channelId: String)
+    fun deleteEPGProgramsByChannel(channelId: String): Int
 
     @Query("DELETE FROM epg_programs WHERE channelId IN (:channelIds)")
-    fun deleteEPGProgramsByChannels(channelIds: Set<String>)
+    fun deleteEPGProgramsByChannels(channelIds: Set<String>): Int
 
     @Query(
         """
@@ -101,7 +101,7 @@ interface IPTVDao {
         )
         """
     )
-    fun deleteEPGProgramsByProvider(providerId: String)
+    fun deleteEPGProgramsByProvider(providerId: String): Int
 
     @Transaction
     fun replaceEPGPrograms(channelIdsToClear: Set<String>, programs: List<EPGProgramEntity>) {
@@ -125,7 +125,7 @@ interface IPTVDao {
     suspend fun getAllEPGPrograms(): List<EPGProgramEntity>
 
     @Query("DELETE FROM epg_programs WHERE endTimeMs < :cutoffTime")
-    fun pruneOldEPGPrograms(cutoffTime: Long)
+    fun pruneOldEPGPrograms(cutoffTime: Long): Int
 
     @Query("SELECT DISTINCT channelId FROM epg_programs")
     suspend fun getUniqueEPGChannelIds(): List<String>

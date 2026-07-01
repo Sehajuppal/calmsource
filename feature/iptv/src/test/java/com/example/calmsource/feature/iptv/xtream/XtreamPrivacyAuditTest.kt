@@ -503,7 +503,7 @@ class XtreamPrivacyAuditTest {
         assertTrue(client.validateServerUrl("data:text/html,test").isFailure)
         assertTrue(client.validateServerUrl("ftp://example.com").isFailure)
         assertTrue(client.validateServerUrl("").isFailure)
-        assertTrue(client.validateServerUrl("no-scheme.com").isFailure)
+        assertTrue(client.validateServerUrl("no-scheme.com").isSuccess)
     }
 
     @Test

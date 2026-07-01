@@ -80,6 +80,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("androidx.compose.material:material-icons-core")
   implementation(libs.kotlinx.collections.immutable)
   implementation(project(":core:sourceintelligence"))
   implementation(libs.firebase.crashlytics)
@@ -149,7 +150,6 @@ dependencies {
 
   // Coil, Icons & Media3
   implementation(libs.coil.compose)
-  implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.media3.exoplayer)
   implementation(libs.media3.exoplayer.hls)
   implementation(libs.media3.exoplayer.dash)

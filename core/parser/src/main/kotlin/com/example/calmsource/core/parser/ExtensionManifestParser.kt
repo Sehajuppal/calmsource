@@ -60,8 +60,8 @@ object ExtensionManifestParser {
                 )
             }
 
-            val id = element["id"]?.jsonPrimitive?.contentOrNull
-            val name = element["name"]?.jsonPrimitive?.contentOrNull
+            val id = element["id"]?.jsonPrimitive?.takeUnless { it is kotlinx.serialization.json.JsonNull }?.contentOrNull
+            val name = element["name"]?.jsonPrimitive?.takeUnless { it is kotlinx.serialization.json.JsonNull }?.contentOrNull
 
             if (id.isNullOrEmpty()) {
                 return ExtensionInstallResult(

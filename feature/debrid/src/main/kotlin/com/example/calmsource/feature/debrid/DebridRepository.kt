@@ -69,9 +69,19 @@ object DebridRepository {
             private val mem = MutableStateFlow<List<com.example.calmsource.core.database.entity.DebridAccountEntity>>(emptyList())
             override fun getAllAccounts() = mem
             override fun getAccountById(id: String) = mem.map { list -> list.firstOrNull { it.id == id } }
-            override fun insertAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity) { mem.value = mem.value.filter { it.id != account.id } + account }
-            override fun updateAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity) { insertAccount(account) }
-            override fun deleteAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity) { mem.value = mem.value.filter { it.id != account.id } }
+            override fun insertAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity): Long {
+                mem.value = mem.value.filter { it.id != account.id } + account
+                return 1L
+            }
+            override fun updateAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity): Int {
+                insertAccount(account)
+                return 1
+            }
+            override fun deleteAccount(account: com.example.calmsource.core.database.entity.DebridAccountEntity): Int {
+                val existed = mem.value.any { it.id == account.id }
+                mem.value = mem.value.filter { it.id != account.id }
+                return if (existed) 1 else 0
+            }
         }
     }
 

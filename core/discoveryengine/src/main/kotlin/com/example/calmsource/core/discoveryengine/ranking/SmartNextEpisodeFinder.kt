@@ -92,7 +92,7 @@ object SmartNextEpisodeFinder {
         }
 
         // 2. Parse season/episode details and sort chronologically
-        val wrappers = episodes.mapNotNull { entity ->
+        val allParsedWrappers = episodes.mapNotNull { entity ->
             val parsed = if (entity.seasonNumber == null || entity.episodeNumber == null) EpisodeParser.parse(entity.title) else null
             val s = entity.seasonNumber ?: parsed?.season
             val e = entity.episodeNumber ?: parsed?.episode
@@ -101,7 +101,14 @@ object SmartNextEpisodeFinder {
             } else {
                 null
             }
-        }.sortedWith(compareBy({ it.season }, { it.episode }))
+        }
+
+        val episodeIdToSeasonEpisode = allParsedWrappers.associate { it.entity.id to (it.season to it.episode) }
+
+        // Deduplicate wrappers to keep only one per (season, episode)
+        val wrappers = allParsedWrappers
+            .distinctBy { it.season to it.episode }
+            .sortedWith(compareBy({ it.season }, { it.episode }))
 
         if (wrappers.isEmpty()) {
             return NextEpisodeResult(
@@ -117,11 +124,20 @@ object SmartNextEpisodeFinder {
 
         // 3. Query profile-isolated watch events
         val watchEvents = dao.getLatestWatchEventsForProfile(profileId)
-        val watchMap = watchEvents.associateBy { it.itemId }
+        
+        // Map watch events to (season, episode) keys using the full parsed list
+        val watchMap = watchEvents.mapNotNull { event ->
+            val pair = episodeIdToSeasonEpisode[event.itemId]
+            if (pair != null) {
+                pair to event
+            } else {
+                null
+            }
+        }.toMap()
 
-        // Find watched episodes in the series
+        // Find watched episodes in the series (matched by season/episode)
         val watchedWrappers = wrappers.mapNotNull { wrapper ->
-            val event = watchMap[wrapper.entity.id]
+            val event = watchMap[wrapper.season to wrapper.episode]
             if (event != null) wrapper to event else null
         }
 

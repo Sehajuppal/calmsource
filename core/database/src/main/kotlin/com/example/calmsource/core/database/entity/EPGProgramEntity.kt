@@ -7,8 +7,9 @@ import androidx.room.Index
 @Entity(
     tableName = "epg_programs",
     indices = [
-        Index("channelId"),
-        Index("startTimeMs", "endTimeMs")
+        Index("channelId", "startTimeMs"),
+        Index("startTimeMs", "endTimeMs"),
+        Index("endTimeMs")
     ]
 )
 class EPGProgramEntity {

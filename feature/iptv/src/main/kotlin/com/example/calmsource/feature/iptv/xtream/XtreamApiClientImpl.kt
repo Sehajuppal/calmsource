@@ -52,7 +52,7 @@ import java.net.URLEncoder
  * feature/iptv module does not apply the kotlinx.serialization compiler plugin.
  */
 class XtreamApiClientImpl(
-    private val client: HttpClient = NetworkClient.xtreamClient
+    private val client: HttpClient = NetworkClient.iptvXtreamClient
 ) : XtreamApiClient {
 
     private val json = Json {
@@ -117,8 +117,9 @@ class XtreamApiClientImpl(
      * returning a clean base (scheme://host:port) suitable for appending API paths.
      */
     private fun normalizeBaseUrl(serverUrl: String): String {
-        return XtreamServerUrlNormalizer.normalizePortalUrl(serverUrl)
-            ?: serverUrl.trim().trimEnd('/').substringBefore('?')
+        val prepared = XtreamServerUrlNormalizer.preprocessPortalInput(serverUrl)
+        return XtreamServerUrlNormalizer.normalizePortalUrl(prepared)
+            ?: prepared.trim().trimEnd('/').substringBefore('?')
     }
 
     /**
@@ -138,10 +139,11 @@ class XtreamApiClientImpl(
 
     internal fun buildAuthRequestUrls(config: XtreamProviderConfig, password: String): List<String> {
         val primaryBase = normalizeBaseUrl(config.serverUrl)
-        val candidateBases = linkedSetOf(primaryBase)
-        XtreamServerUrlNormalizer.alternateSchemeUrl(primaryBase)?.let { candidateBases.add(it) }
+        val candidateBases = XtreamServerUrlNormalizer.expandAuthBaseUrls(primaryBase)
         return candidateBases.map { buildPlayerApiUrl(it, config.username, password) }
     }
+
+    internal fun authUrlPriorityCount(): Int = 2
 
     internal fun shouldTryAlternateAuthUrl(errorMessage: String?): Boolean {
         if (errorMessage.isNullOrBlank()) return false
@@ -151,6 +153,9 @@ class XtreamApiClientImpl(
             lower.contains("not found") ||
             lower.contains("access denied") ||
             lower.contains("could not reach") ||
+            lower.contains("could not connect") ||
+            lower.contains("connection refused") ||
+            lower.contains("econnrefused") ||
             lower.contains("network error") ||
             lower.contains("513") ||
             lower.contains("temporarily unavailable")
@@ -231,8 +236,10 @@ class XtreamApiClientImpl(
                 }
                 is SafeGetOutcome.NetworkError -> {
                     lastFailure = outcome.error
-                    if (attempt < maxAttempts - 1) {
-                        continue  // Retry on transient network errors
+                    val canRetry = attempt < maxAttempts - 1 &&
+                        !isNonRetryableNetworkError(outcome.error.message.orEmpty())
+                    if (canRetry) {
+                        continue
                     }
                     return Result.failure(outcome.error)
                 }
@@ -407,8 +414,33 @@ class XtreamApiClientImpl(
             return "Network error while fetching $contentLabel: IPTV server hostname could not be reached (DNS lookup failed). Re-add the provider using your portal URL from your supplier."
         }
 
-        val suffix = if (causeCleaned != null) " Cause: $causeCleaned" else ""
+        if (isConnectionRefusedMessage(message) || isConnectionRefusedMessage(causeMessage.orEmpty())) {
+            return connectionRefusedMessage(contentLabel)
+        }
+
+        val suffix = if (causeCleaned != null && !isConnectionRefusedMessage(causeCleaned)) " Cause: $causeCleaned" else ""
         return "Network error while fetching $contentLabel: $cleaned$suffix"
+    }
+
+    internal fun isConnectionRefusedMessage(message: String): Boolean {
+        val lower = message.lowercase()
+        return lower.contains("econnrefused") || lower.contains("connection refused")
+    }
+
+    internal fun isNonRetryableNetworkError(message: String): Boolean {
+        val lower = message.lowercase()
+        return isConnectionRefusedMessage(message) ||
+            lower.contains("unable to resolve host") ||
+            lower.contains("no address associated with hostname")
+    }
+
+    private fun connectionRefusedMessage(contentLabel: String): String {
+        return when (contentLabel) {
+            "account details" ->
+                "Could not connect to the IPTV server. Use the portal URL from your supplier: http://host:port (include the port). If you used https://, try http:// instead — most Xtream panels do not listen on port 443."
+            else ->
+                "Could not connect to the IPTV server while fetching $contentLabel. Verify your portal URL (http://host:port) and try Sync again."
+        }
     }
 
     private fun isUselessCauseMessage(message: String): Boolean {
@@ -426,6 +458,9 @@ class XtreamApiClientImpl(
         }
         if (message.contains("Response too large", ignoreCase = true)) {
             return "Response too large while fetching $contentLabel"
+        }
+        if (isConnectionRefusedMessage(message)) {
+            return connectionRefusedMessage(contentLabel)
         }
         val redacted = UrlRedactor.redactErrorMessage(message)
         val withoutUrls = ERROR_URL_PATTERN.replace(redacted, "REDACTED_URL")
@@ -479,6 +514,14 @@ class XtreamApiClientImpl(
         val requestTimeoutMillis = authTimeoutMillis()
         val connectTimeoutMillis = authConnectTimeoutMillis()
 
+        if (authUrls.size > authUrlPriorityCount()) {
+            return validateAccountWithFallbacks(
+                authUrls = authUrls,
+                requestTimeoutMillis = requestTimeoutMillis,
+                connectTimeoutMillis = connectTimeoutMillis,
+            )
+        }
+
         if (authUrls.size > 1) {
             return validateAccountParallel(
                 authUrls = authUrls,
@@ -491,6 +534,37 @@ class XtreamApiClientImpl(
             authUrls = authUrls,
             requestTimeoutMillis = requestTimeoutMillis,
             connectTimeoutMillis = connectTimeoutMillis,
+        )
+    }
+
+    private suspend fun validateAccountWithFallbacks(
+        authUrls: List<String>,
+        requestTimeoutMillis: Long,
+        connectTimeoutMillis: Long,
+    ): XtreamAuthResult {
+        val priorityUrls = authUrls.take(authUrlPriorityCount())
+        val fallbackUrls = authUrls.drop(authUrlPriorityCount())
+
+        val priorityResult = if (priorityUrls.size == 1) {
+            validateAccountSequential(
+                authUrls = priorityUrls,
+                requestTimeoutMillis = requestTimeoutMillis,
+                connectTimeoutMillis = connectTimeoutMillis,
+            )
+        } else {
+            validateAccountParallel(
+                authUrls = priorityUrls,
+                requestTimeoutMillis = requestTimeoutMillis,
+                connectTimeoutMillis = connectTimeoutMillis,
+            )
+        }
+        if (priorityResult.isAuthenticated) return priorityResult
+
+        return validateAccountSequential(
+            authUrls = fallbackUrls,
+            requestTimeoutMillis = requestTimeoutMillis,
+            connectTimeoutMillis = connectTimeoutMillis,
+            initialError = priorityResult.error,
         )
     }
 
@@ -522,8 +596,9 @@ class XtreamApiClientImpl(
         authUrls: List<String>,
         requestTimeoutMillis: Long,
         connectTimeoutMillis: Long,
+        initialError: String? = null,
     ): XtreamAuthResult {
-        var lastError: String? = null
+        var lastError: String? = initialError
         for ((index, url) in authUrls.withIndex()) {
             val bodyResult = safeGet(
                 url = url,

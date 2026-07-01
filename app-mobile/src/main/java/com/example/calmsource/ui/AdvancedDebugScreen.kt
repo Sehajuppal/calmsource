@@ -58,9 +58,9 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(t.colors.background)
-            .padding(LumenLegacySpace.lg)
+            .padding(LumenTokens.Space.md)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.md)
+        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s5)
     ) {
         SubScreenHeader(title = "Advanced Debug", onBack = onBack)
         DebugSection(
@@ -107,7 +107,7 @@ fun AdvancedDebugScreen(onBack: () -> Unit) {
                     fuzzyEnabled = !fuzzyEnabled
                     DiscoverySearchFeatureFlags.enableFuzzyFallback = fuzzyEnabled
                 }
-                .padding(vertical = LumenLegacySpace.sm2),
+                .padding(vertical = LumenTokens.Space.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(

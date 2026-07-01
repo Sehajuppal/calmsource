@@ -142,6 +142,7 @@ internal class PlaybackManagerTestHarness(
         StreamRacePreferences.enableStreamRacing = savedStreamRacingPref
         VlcPlayerBackend.isAvailableOverride = savedVlcOverride
         PlaybackDiagnosticsRecorder.clearForTests()
+        com.example.calmsource.core.database.DatabaseProvider.resetForTesting()
         Dispatchers.resetMain()
     }
 

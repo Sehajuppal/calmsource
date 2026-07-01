@@ -14,7 +14,7 @@ object LumenLayout {
     val hairline: Dp = 0.5.dp
     val heroHeightMobile: Dp = 450.dp
     val heroStripHeight: Dp = 180.dp
-    val bottomNavPadding: Dp = 80.dp
+    val bottomNavPadding: Dp = 72.dp
     val posterTileWidth: Dp = 160.dp
     val posterTileHeightTv: Dp = 210.dp
     val posterHeightTv: Dp = 270.dp
@@ -87,9 +87,12 @@ data class LumenColors(
     val brandForeground: Color,
     val destructive: Color,
     val focusHalo: Color,
+    val success: Color,
+    val warning: Color,
 )
 
 val LumenColors.surface: Color get() = card
+val LumenColors.borderStrong: Color get() = LumenTokens.Color.borderStrong
 
 
 @Immutable
@@ -175,6 +178,8 @@ object LumenPalette {
         brandForeground = LumenTokens.Color.onBrand,
         destructive = LumenTokens.Color.danger,
         focusHalo = LumenTokens.Color.focusHalo,
+        success = LumenTokens.Color.success,
+        warning = LumenTokens.Color.warning,
     )
 
     val Oled = Standard.copy(

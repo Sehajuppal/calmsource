@@ -20,8 +20,14 @@ object UserPreferencesRepository {
         object : com.example.calmsource.core.database.dao.PreferencesDao {
             private val mem = MutableStateFlow<com.example.calmsource.core.database.entity.UserPreferencesEntity?>(null)
             override fun getPreferences() = mem
-            override fun insertPreferences(preferences: com.example.calmsource.core.database.entity.UserPreferencesEntity) { mem.value = preferences }
-            override fun updatePreferences(preferences: com.example.calmsource.core.database.entity.UserPreferencesEntity) { insertPreferences(preferences) }
+            override fun insertPreferences(preferences: com.example.calmsource.core.database.entity.UserPreferencesEntity): Long {
+                mem.value = preferences
+                return 1L
+            }
+            override fun updatePreferences(preferences: com.example.calmsource.core.database.entity.UserPreferencesEntity): Int {
+                insertPreferences(preferences)
+                return 1
+            }
         }
     }
 
@@ -35,9 +41,6 @@ object UserPreferencesRepository {
     }
 
     init {
-        scope.launch {
-            ensureDefaultPreferences()
-        }
         scope.launch {
             DatabaseProvider.databaseReady.collect { ready ->
                 if (ready) ensureDefaultPreferences()

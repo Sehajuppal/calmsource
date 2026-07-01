@@ -2,13 +2,11 @@ package com.example.calmsource.core.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,12 +35,6 @@ fun RowSection(
             }
         }
         Spacer(Modifier.height(t.spacing.md))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = t.spacing.xxxl),
-            horizontalArrangement = Arrangement.spacedBy(t.spacing.lg),
-        ) { /* item DSL goes here from caller — wrap callers in `LazyRow {}` instead */ }
-        // Note: keep this thin — most call sites already use LazyRow directly; this composable
-        // is mainly to standardize the header. Use `RowSectionHeader` if you want to skip the LazyRow.
         content()
         Spacer(Modifier.height(t.spacing.xxl))
     }

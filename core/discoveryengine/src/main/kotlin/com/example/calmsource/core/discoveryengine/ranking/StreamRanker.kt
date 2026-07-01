@@ -1,11 +1,11 @@
 package com.example.calmsource.core.discoveryengine.ranking
 
-import com.example.calmsource.core.database.SourceHealthRepository
 import com.example.calmsource.core.discoveryengine.database.DiscoveryEngineDao
 import com.example.calmsource.core.discoveryengine.database.MediaStreamEntity
 import com.example.calmsource.core.model.SortingPreference
 import com.example.calmsource.core.model.StreamSource
 import com.example.calmsource.core.model.UserPreferences
+import com.example.calmsource.core.sourceintelligence.ranking.DeviceStreamProfile
 import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringEngine
 import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
 import kotlinx.coroutines.withContext
@@ -22,6 +22,8 @@ object StreamRanker {
         profileId: String,
         streams: List<MediaStreamEntity>,
         strategy: SortingPreference = SortingPreference.BEST_MATCH,
+        prefs: UserPreferences = UserPreferences(),
+        isTelevision: Boolean = false,
     ): List<MediaStreamEntity> = withContext(Dispatchers.Default) {
         if (streams.isEmpty()) return@withContext emptyList()
 
@@ -42,11 +44,8 @@ object StreamRanker {
             sources.associateWith { dao.getPlaybackFailureCountForSource(it) }
         } else emptyMap()
 
-        val sourceHealthById = streamIds.associateWith { streamId ->
-            runCatching {
-                SourceHealthRepository.getSourceHealth(streamId, readonly = true)
-            }.getOrNull()
-        }
+        val sourceHealthById = StreamScoringSupport.prefetchSourceHealth(streamIds)
+        val deviceProfile = DeviceStreamProfile.forPlayback(isTelevision, prefs)
 
         rankWithSignals(
             streams = streams,
@@ -57,6 +56,8 @@ object StreamRanker {
             sourceSuccessCount = { source -> sourceSuccessCounts[source] ?: 0 },
             sourceFailureCount = { source -> sourceFailureCounts[source] ?: 0 },
             strategy = strategy,
+            prefs = prefs,
+            deviceProfile = deviceProfile,
             sourceHealthById = sourceHealthById,
         )
     }
@@ -71,6 +72,7 @@ object StreamRanker {
         sourceFailureCount: (String) -> Int = { 0 },
         strategy: SortingPreference = SortingPreference.BEST_MATCH,
         prefs: UserPreferences = UserPreferences(),
+        deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
         sourceHealthById: Map<String, com.example.calmsource.core.model.SourceHealth?> = emptyMap(),
     ): List<MediaStreamEntity> {
         if (streams.isEmpty()) return emptyList()
@@ -91,7 +93,8 @@ object StreamRanker {
                     sourceSuccessCount = entity.source?.let { sourceSuccessCount(it) } ?: 0,
                     sourceFailureCount = entity.source?.let { sourceFailureCount(it) } ?: 0,
                 )
-            }
+            },
+            deviceProfile = deviceProfile,
         )
 
         val order = rankedSources.map { it.first.id }

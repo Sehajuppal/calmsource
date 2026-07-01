@@ -27,15 +27,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 open class BaseSearchViewModel(application: Application) : AndroidViewModel(application) {
+    protected open fun activeProfileId(): String = "default"
+
     protected val repository: DiscoveryEngineRepository get() = DiscoveryEngine.repositoryOrThrow
     @Volatile
     protected var memoryRepository: UserMemoryRepository = FallbackUserMemoryRepository()
-    private val signalSink = SearchSignalSink { query -> memoryRepository.recordSearch(query) }
+    private val signalSink = SearchSignalSink { query ->
+        memoryRepository.recordSearch(query, profileId = activeProfileId()) // memoryRepository.recordSearch(query)
+    }
     private val memorySnapshot = SearchMemorySnapshot {
         withContext(Dispatchers.IO) {
-            val favorites = memoryRepository.observeFavorites().first()
-            val history = memoryRepository.observeWatchHistory().first()
-            val searches = memoryRepository.observeSearchHistory().first()
+            val profileId = activeProfileId()
+            val favorites = memoryRepository.observeFavorites(profileId).first() // memoryRepository.observeFavorites().first()
+            val history = memoryRepository.observeWatchHistory(profileId).first() // memoryRepository.observeWatchHistory().first()
+            val searches = memoryRepository.observeSearchHistory(profileId).first() // memoryRepository.observeSearchHistory().first()
             SearchMemorySignals(
                 recentQueries = searches.map { it.query },
                 favoriteMediaIds = favorites.mapTo(linkedSetOf()) {
@@ -81,6 +86,9 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching
 
+    private val _searchError = MutableStateFlow<String?>(null)
+    val searchError: StateFlow<String?> = _searchError
+
     // Active facet filters (e.g. {"type":"movie"}, {"genre":"action"}). Empty means unfiltered.
     private val _filters = MutableStateFlow<Map<String, String>>(emptyMap())
     val filters: StateFlow<Map<String, String>> = _filters
@@ -99,8 +107,10 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
         if (current == _filters.value) return
         _filters.value = current
         val activeQuery = _query.value
-        if (activeQuery.isNotBlank()) {
+        if (activeQuery.isNotBlank() || current.isNotEmpty()) {
             runSearch(query = activeQuery, includeConnectedProviders = false, debounceMs = 0)
+        } else {
+            _searchResults.value = emptyList()
         }
     }
 
@@ -136,7 +146,7 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
             )
             DiscoveryEngine.trackSearchEvent(
                 SearchEvent(
-                    profileId = "default",
+                    profileId = activeProfileId(),
                     query = safeQuery,
                     timestamp = System.currentTimeMillis(),
                     selectedItemId = safeResultId
@@ -144,7 +154,8 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
             )
             memoryRepository.incrementPreferenceSignal(
                 signalType = UserPreferenceSignalType.SEARCH_RESULT_SELECTION,
-                signalKey = safeResultId
+                signalKey = safeResultId,
+                profileId = activeProfileId(),
             )
         } catch (e: CancellationException) {
             throw e
@@ -182,14 +193,16 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
         searchJob?.cancel()
         val generation = ++searchGeneration
         
-        if (query.isBlank()) {
+        if (query.isBlank() && _filters.value.isEmpty()) {
             _searchResults.value = emptyList()
             _isSearching.value = false
+            _searchError.value = null
             return
         }
 
         searchJob = viewModelScope.launch {
             _isSearching.value = true
+            _searchError.value = null
             if (debounceMs > 0) {
                 delay(debounceMs)
             }
@@ -197,7 +210,7 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
             var localResults = emptyList<SearchDisplayResult>()
             try {
                 localResults = try {
-                    repository.fullSearch(query = query, profileId = "default", filters = _filters.value)
+                    repository.fullSearch(query = query, profileId = activeProfileId(), filters = _filters.value)
                         .map { result ->
                             SearchDisplayResult(
                                 id = result.id,
@@ -214,6 +227,9 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
+                    if (generation == searchGeneration) {
+                        _searchError.value = "Search failed. Check your connection and try again."
+                    }
                     emptyList()
                 }
                 if (generation == searchGeneration) {
@@ -241,6 +257,9 @@ open class BaseSearchViewModel(application: Application) : AndroidViewModel(appl
             } catch (_: Exception) {
                 if (generation == searchGeneration) {
                     _searchResults.value = localResults
+                    if (_searchError.value == null && localResults.isEmpty()) {
+                        _searchError.value = "Search failed. Check your connection and try again."
+                    }
                 }
             } finally {
                 if (generation == searchGeneration) {

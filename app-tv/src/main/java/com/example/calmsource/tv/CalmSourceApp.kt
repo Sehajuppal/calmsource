@@ -7,11 +7,16 @@ import dagger.hilt.android.HiltAndroidApp
 import com.example.calmsource.core.database.DatabaseProvider
 import com.example.calmsource.feature.debrid.DebridRepository
 import com.example.calmsource.feature.iptv.IPTVRepository
+import com.example.calmsource.core.data.ProfileSessionManager
 import com.example.calmsource.core.database.repository.RoomUserMemoryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.example.calmsource.core.data.sync.VaultSyncManager
@@ -22,10 +27,14 @@ import com.example.calmsource.feature.extensions.ExtensionInstallValidator
 
 @HiltAndroidApp
 class CalmSourceApp : Application() {
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val appScopeJob = SupervisorJob()
+    private val appScope = CoroutineScope(appScopeJob + Dispatchers.IO)
 
     @Inject
     lateinit var vaultSyncManager: VaultSyncManager
+
+    @Inject
+    lateinit var profileSessionManager: ProfileSessionManager
 
     /**
      * Dedicated encrypted store for extension config secrets. Created lazily on first use (off the
@@ -167,10 +176,15 @@ class CalmSourceApp : Application() {
             com.example.calmsource.feature.extensions.ExtensionRepository.initialize(this@CalmSourceApp)
             IPTVRepository.init(this@CalmSourceApp)
             com.example.calmsource.feature.iptv.IptvSyncScheduler.schedulePeriodicSync(this@CalmSourceApp)
+            @OptIn(ExperimentalCoroutinesApi::class)
             launch {
                 val memoryRepository = RoomUserMemoryRepository(DatabaseProvider.getDatabase(this@CalmSourceApp))
-                memoryRepository.observeContinueWatching()
+                profileSessionManager.activeProfile
+                    .map { profile -> profile?.id ?: "default" }
                     .distinctUntilChanged()
+                    .flatMapLatest { profileId ->
+                        memoryRepository.observeContinueWatching(profileId)
+                    }
                     .collect { items ->
                         TvWatchNextPublisher.publish(this@CalmSourceApp, items)
                     }
@@ -196,6 +210,7 @@ class CalmSourceApp : Application() {
                 ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
                     com.example.calmsource.core.playback.ImageCacheController.trimForMemoryPressure(this, clearAll = true)
                     com.example.calmsource.core.discoveryengine.providers.ProviderManager.setLowMemoryMode(true)
+                    appScopeJob.cancelChildren()
                 }
                 ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
                 ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN,

@@ -83,7 +83,7 @@ object TvWatchNextPublisher {
         item: ContinueWatchingItem
     ): ContentValues {
         val spec = buildSpec(item)
-        val posterUri = "android.resource://${context.packageName}/mipmap/ic_launcher"
+        val posterUri = "android.resource://${context.packageName}/${R.mipmap.ic_launcher}"
         return ContentValues().apply {
             put(COLUMN_TYPE, spec.type)
             put(

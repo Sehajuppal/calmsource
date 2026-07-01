@@ -1,7 +1,7 @@
 package com.example.calmsource.core.playback.session
 
 import android.content.Context
-import com.example.calmsource.core.database.SourceHealthRepository
+import android.content.pm.PackageManager
 import com.example.calmsource.core.database.repository.UserPreferencesRepository
 import com.example.calmsource.core.model.SortingPreference
 import com.example.calmsource.core.playback.Media3StreamProbe
@@ -9,6 +9,7 @@ import com.example.calmsource.core.playback.StreamRaceManager
 import com.example.calmsource.core.playback.StreamRaceRanker
 import com.example.calmsource.core.playback.StreamRaceRequest
 import com.example.calmsource.core.playback.StreamRaceResult
+import com.example.calmsource.core.sourceintelligence.ranking.DeviceStreamProfile
 import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringEngine
 import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringInput
 import com.example.calmsource.core.sourceintelligence.ranking.StreamScoringSupport
@@ -26,11 +27,14 @@ object DefaultStreamRaceFactory : StreamRaceFactory {
         } else {
             SortingPreference.BEST_MATCH
         }
-        val healthBySourceId = request.candidates.associate { candidate ->
-            candidate.safeSourceId to runCatching {
-                SourceHealthRepository.getSourceHealth(candidate.safeSourceId, readonly = true)
-            }.getOrNull()
-        }
+        val isTelevision = runCatching {
+            val pm = context.packageManager
+            pm != null && (pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) || pm.hasSystemFeature(PackageManager.FEATURE_TELEVISION))
+        }.getOrDefault(false)
+        val deviceProfile = DeviceStreamProfile.forPlayback(isTelevision, prefs)
+        val healthBySourceId = StreamScoringSupport.prefetchSourceHealth(
+            request.candidates.map { it.safeSourceId }
+        )
         val ranker = StreamRaceRanker { source ->
             StreamScoringEngine.score(
                 StreamScoringInput(
@@ -40,6 +44,7 @@ object DefaultStreamRaceFactory : StreamRaceFactory {
                     signals = StreamScoringSupport.signalsFromHealth(
                         sourceHealth = healthBySourceId[source.safeSourceId]
                     ),
+                    deviceProfile = deviceProfile,
                 )
             )
         }

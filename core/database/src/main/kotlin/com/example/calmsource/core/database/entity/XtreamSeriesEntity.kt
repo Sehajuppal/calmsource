@@ -17,7 +17,11 @@ import androidx.room.ForeignKey
     ],
     indices = [
         Index("providerId"), 
-        Index("categoryId")
+        Index("categoryId"),
+        // Speeds up search fallback. TODO: add a pre-computed normalizedName
+        // column in a future migration to eliminate the 7 nested REPLACEs in
+        // XtreamDao.searchVod / searchSeries at query time.
+        Index("name")
     ]
 )
 class XtreamSeriesEntity {

@@ -4,6 +4,8 @@ import com.example.calmsource.core.ui.theme.*
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,11 +29,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.calmsource.core.database.entity.ProfileEntity
@@ -60,71 +65,41 @@ fun ProfilesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        t.colors.background,
-                        t.colors.background.copy(alpha = 0.95f),
-                        t.colors.background
-                    )
-                )
-            )
+            .background(t.colors.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(LumenLegacySpace.xxl),
+                .padding(horizontal = LumenTokens.Space.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(LumenLegacySpace.xxxl))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xxl))
 
-            // Subtitle CalmSource
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(LumenLegacySpace.sm)
-                        .clip(CircleShape)
-                        .background(t.colors.foreground.copy(alpha = 0.7f))
-                )
+            Text(
+                text = stringResource(com.example.calmsource.core.ui.R.string.profiles_title),
+                style = LumenType.H1.toTextStyle(),
+                color = t.colors.foreground,
+                textAlign = TextAlign.Center,
+            )
+
+            if (editing) {
+                Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
                 Text(
-                    text = "CALMSOURCE",
-                    fontSize = LumenType.size11,
-                    fontWeight = FontWeight.Bold,
+                    text = stringResource(com.example.calmsource.core.ui.R.string.profiles_subtitle_editing),
+                    style = LumenType.Body.toTextStyle(),
                     color = t.colors.mutedForeground,
-                    letterSpacing = LumenType.line2
+                    textAlign = TextAlign.Center,
                 )
             }
 
-            Spacer(modifier = Modifier.height(LumenLegacySpace.lg))
-
-            Text(
-                text = "Who's watching?",
-                fontSize = LumenType.size32,
-                fontWeight = FontWeight.Bold,
-                color = t.colors.foreground,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
-
-            Text(
-                text = if (editing) "Tap a profile to edit or delete it." else "Choose a profile to continue your story.",
-                fontSize = LumenType.size14,
-                color = t.colors.mutedForeground,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(LumenLegacySpace.xxxl))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.xl))
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl),
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.xl),
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.s7),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s7),
                 modifier = Modifier.weight(1f)
             ) {
                 items(profiles) { profile ->
@@ -150,40 +125,34 @@ fun ProfilesScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(LumenLegacySpace.xxl))
+            Spacer(modifier = Modifier.height(LumenTokens.Space.md))
 
-            // Manage Profiles Button
-            Button(
+            TextButton(
                 onClick = {
                     editing = !editing
                     editingProfile = null
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = t.colors.card,
-                    contentColor = t.colors.foreground
-                ),
-                shape = LumenTokens.Shape.md,
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .border(1.dp, t.colors.border, LumenTokens.Shape.md)
+                modifier = Modifier.fillMaxWidth(0.7f),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
-                    modifier = Modifier.padding(vertical = LumenLegacySpace.xs)
-                ) {
-                    Icon(
-                        imageVector = if (editing) Icons.Default.Check else Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(LumenLegacySpace.lg)
-                    )
-                    Text(
-                        text = if (editing) "Done" else "Manage Profiles",
-                        fontSize = LumenType.size13,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = LumenType.line1
-                    )
-                }
+                Icon(
+                    imageVector = if (editing) Icons.Default.Check else Icons.Default.Edit,
+                    contentDescription = if (editing) {
+                        stringResource(com.example.calmsource.core.ui.R.string.profiles_desc_done)
+                    } else {
+                        stringResource(com.example.calmsource.core.ui.R.string.profiles_desc_manage)
+                    },
+                    modifier = Modifier.size(LumenTokens.Space.md),
+                )
+                Spacer(modifier = Modifier.width(LumenTokens.Space.sm))
+                Text(
+                    text = if (editing) {
+                        stringResource(com.example.calmsource.core.ui.R.string.profiles_btn_done)
+                    } else {
+                        stringResource(com.example.calmsource.core.ui.R.string.profiles_manage)
+                    },
+                    style = LumenType.RowTitle.toTextStyle(),
+                    color = t.colors.foreground,
+                )
             }
         }
 
@@ -223,7 +192,8 @@ fun ProfileCard(
     onSelect: () -> Unit
 ) {
     val t = LocalLumenTokens.current
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val scaleFactor by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1.0f,
         label = "press_scale"
@@ -256,8 +226,8 @@ fun ProfileCard(
                 scaleX = scaleFactor
                 scaleY = scaleFactor
             }
-            .clickable { onSelect() }
-            .padding(LumenLegacySpace.sm2)
+            .clickable(interactionSource = interactionSource, indication = null) { onSelect() }
+            .padding(LumenTokens.Space.sm)
     ) {
         Box(
             modifier = Modifier
@@ -265,7 +235,7 @@ fun ProfileCard(
                 .fillMaxWidth(0.8f)
                 .clip(LumenTokens.Shape.md)
                 .background(gradient)
-                .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md),
+                .border(LumenTokens.Space.s1, t.colors.border, LumenTokens.Shape.md),
             contentAlignment = Alignment.Center
         ) {
             if (avatarUrl != null && !avatarUrl.startsWith("gradient://")) {
@@ -278,8 +248,8 @@ fun ProfileCard(
                 Text(
                     text = initials,
                     color = LumenTokens.Color.textPrimary,
-                    fontSize = LumenType.size32,
-                    fontWeight = FontWeight.Bold
+                    style = LumenType.H1.toTextStyle(),
+                    fontWeight = FontWeight.Bold,
                 )
             }
 
@@ -292,7 +262,7 @@ fun ProfileCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile",
+                        contentDescription = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_edit_title),
                         tint = LumenTokens.Color.textPrimary,
                         modifier = Modifier.size(LumenTokens.Radius.xl)
                     )
@@ -300,16 +270,15 @@ fun ProfileCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
 
         Text(
             text = profile.name,
             color = t.colors.foreground,
-            fontSize = LumenType.size14,
-            fontWeight = FontWeight.Medium,
+            style = LumenType.Body.toTextStyle().copy(fontWeight = FontWeight.Medium),
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -319,11 +288,15 @@ fun AddProfileCard(
     onClick: () -> Unit
 ) {
     val t = LocalLumenTokens.current
+    val addProfileDesc = stringResource(com.example.calmsource.core.ui.R.string.profiles_desc_add_profile)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clickable { onClick() }
-            .padding(LumenLegacySpace.sm2)
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = addProfileDesc
+            }
+            .padding(LumenTokens.Space.sm)
     ) {
         Box(
             modifier = Modifier
@@ -331,25 +304,24 @@ fun AddProfileCard(
                 .fillMaxWidth(0.8f)
                 .clip(LumenTokens.Shape.md)
                 .background(t.colors.card.copy(alpha = 0.4f))
-                .border(LumenLegacySpace.xxs, t.colors.border, LumenTokens.Shape.md),
+                .border(LumenTokens.Space.s1, t.colors.border, LumenTokens.Shape.md),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "+",
                 color = t.colors.mutedForeground,
-                fontSize = LumenType.size36,
-                fontWeight = FontWeight.Light
+                style = LumenType.H2.toTextStyle(),
+                fontWeight = FontWeight.Light,
             )
         }
 
-        Spacer(modifier = Modifier.height(LumenLegacySpace.sm2))
+        Spacer(modifier = Modifier.height(LumenTokens.Space.sm))
 
         Text(
-            text = "Add Profile",
+            text = stringResource(com.example.calmsource.core.ui.R.string.profiles_add),
             color = t.colors.mutedForeground,
-            fontSize = LumenType.size14,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            style = LumenType.Body.toTextStyle(),
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -368,7 +340,7 @@ fun AddProfileDialog(
         containerColor = t.colors.card,
         title = {
             Text(
-                text = "Create Profile",
+                text = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_create_title),
                 color = t.colors.foreground,
                 fontWeight = FontWeight.Bold
             )
@@ -377,7 +349,7 @@ fun AddProfileDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Profile Name", color = t.colors.mutedForeground) },
+                label = { Text(stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_field_name), color = t.colors.mutedForeground) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = t.colors.brand,
@@ -393,12 +365,18 @@ fun AddProfileDialog(
                 onClick = { if (name.isNotBlank()) onCreate(name) },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create", color = if (name.isNotBlank()) t.colors.brand else t.colors.mutedForeground)
+                Text(
+                    text = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_btn_create),
+                    color = if (name.isNotBlank()) t.colors.brand else t.colors.mutedForeground
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = t.colors.mutedForeground)
+                Text(
+                    text = stringResource(com.example.calmsource.core.ui.R.string.cta_cancel),
+                    color = t.colors.mutedForeground
+                )
             }
         }
     )
@@ -430,20 +408,20 @@ fun EditProfileDialog(
         containerColor = t.colors.card,
         title = {
             Text(
-                text = "Edit Profile",
+                text = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_edit_title),
                 color = t.colors.foreground,
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(LumenLegacySpace.lg),
+                verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.md),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Profile Name", color = t.colors.mutedForeground) },
+                    label = { Text(stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_field_name), color = t.colors.mutedForeground) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = t.colors.brand,
@@ -455,36 +433,47 @@ fun EditProfileDialog(
                 )
 
                 Text(
-                    text = "Choose Portrait Color",
-                    fontSize = LumenType.size14,
+                    text = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_color_title),
+                    style = LumenType.Caption.toTextStyle(),
                     color = t.colors.mutedForeground,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2),
+                    horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     GRADIENTS.forEachIndexed { index, gradient ->
+                        val isSelected = selectedGradientIndex == index
+                        val colorLabel = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_color_select_label, index + 1)
                         Box(
                             modifier = Modifier
-                                .size(LumenLayout.offsetLg)
-                                .clip(CircleShape)
-                                .background(gradient)
-                                .clickable { selectedGradientIndex = index }
-                                .border(
-                                    LumenLegacySpace.xxs,
-                                    if (selectedGradientIndex == index) t.colors.foreground else Color.Transparent,
-                                    CircleShape
-                                )
-                        )
+                                .size(48.dp)
+                                .clickable(
+                                    onClick = { selectedGradientIndex = index },
+                                    onClickLabel = colorLabel
+                                ),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(LumenLayout.offsetLg)
+                                    .clip(CircleShape)
+                                    .background(gradient)
+                                    .border(
+                                        LumenTokens.Space.s1,
+                                        if (isSelected) t.colors.foreground else Color.Transparent,
+                                        CircleShape
+                                    )
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(LumenLegacySpace.sm2)
+                horizontalArrangement = Arrangement.spacedBy(LumenTokens.Space.sm)
             ) {
                 IconButton(
                     onClick = onDelete,
@@ -492,7 +481,7 @@ fun EditProfileDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Profile",
+                        contentDescription = stringResource(com.example.calmsource.core.ui.R.string.profiles_desc_delete),
                         tint = t.colors.destructive
                     )
                 }
@@ -505,13 +494,19 @@ fun EditProfileDialog(
                     },
                     enabled = name.isNotBlank()
                 ) {
-                    Text("Save", color = if (name.isNotBlank()) t.colors.brand else t.colors.mutedForeground)
+                    Text(
+                        text = stringResource(com.example.calmsource.core.ui.R.string.profiles_dialog_btn_save),
+                        color = if (name.isNotBlank()) t.colors.brand else t.colors.mutedForeground
+                    )
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = t.colors.mutedForeground)
+                Text(
+                    text = stringResource(com.example.calmsource.core.ui.R.string.cta_cancel),
+                    color = t.colors.mutedForeground
+                )
             }
         }
     )

@@ -203,9 +203,9 @@ private fun DiscoveryProviderRow(
 ) {
     val t = LocalLumenTokens.current
     val healthColor = when {
-        row.failureCount >= 5 -> Color(0xFFEF4444)
-        row.failureCount > 0 -> Color(0xFFF59E0B)
-        else -> Color(0xFF10B981)
+        row.failureCount >= 5 -> LumenExtendedColors.errorBright
+        row.failureCount > 0 -> LumenExtendedColors.warning
+        else -> LumenExtendedColors.statusHealthy
     }
     Card(
         modifier = Modifier.fillMaxWidth(),

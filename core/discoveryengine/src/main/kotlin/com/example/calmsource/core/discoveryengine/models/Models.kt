@@ -179,6 +179,13 @@ data class RecommendationItem(
     val scoreBreakdown: ScoreBreakdown,
     val subtitle: String? = null,
     val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+    val genres: List<String> = emptyList(),
+    val resumePositionMs: Long? = null,
+    val durationMs: Long? = null,
+    val liveNowTitle: String? = null,
+    val liveNextTitle: String? = null,
+    val liveProgress: Float? = null,
     val source: String? = null,
     val externalIds: Map<String, String> = emptyMap()
 )

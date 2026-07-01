@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,11 +27,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -38,6 +41,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,11 +70,21 @@ import androidx.compose.ui.Modifier
 import com.example.calmsource.core.model.MediaItem
 import com.example.calmsource.core.model.PlaybackRequest
 import com.example.calmsource.core.model.PlaybackSource
+import com.example.calmsource.core.model.PlaybackSourceType
+import com.example.calmsource.core.model.PlaybackItemMetadata
+import com.example.calmsource.core.model.SourceType
 import com.example.calmsource.core.model.toMediaItem
+import com.example.calmsource.core.model.toUserMemoryReference
+import kotlinx.coroutines.flow.first
 import com.example.calmsource.core.model.CalmSourceDeepLink
+import com.example.calmsource.feature.extensions.ExtensionRepository
 import com.example.calmsource.feature.iptv.IPTVRepository
+import com.example.calmsource.ui.FirstRunSetupWizard
+import com.example.calmsource.ui.SettingsSubScreen
+import com.example.calmsource.ui.isFirstRunSetupComplete
 import com.example.calmsource.core.ui.theme.*
-import com.example.calmsource.core.ui.components.GlassSurface
+import com.example.calmsource.core.ui.components.LumenSyncCatalogOverlay
+import com.example.calmsource.core.ui.components.SyncStatusPill
 import com.example.calmsource.ui.DetailsScreen
 import com.example.calmsource.ui.ProfilesScreen
 import com.example.calmsource.ui.HomeScreen
@@ -62,12 +93,40 @@ import com.example.calmsource.ui.LiveTvScreen
 import com.example.calmsource.ui.PlayerScreen
 import com.example.calmsource.ui.SearchScreen
 import com.example.calmsource.ui.SettingsScreens
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.calmsource.core.data.BootDestination
+import com.example.calmsource.core.ui.R as CoreUiR
+import com.example.calmsource.core.ui.components.HomeFeedSkeleton
+import com.example.calmsource.core.ui.components.LumenSkeleton
+import com.example.calmsource.core.ui.theme.LumenLayout
+import com.example.calmsource.core.ui.theme.LumenType
+import com.example.calmsource.core.ui.theme.rememberReducedMotion
+import com.example.calmsource.ui.LoginScreen
+import com.example.calmsource.ui.MobileBootViewModel
+import com.example.calmsource.ui.MobilePlaybackViewModel
+import com.example.calmsource.ui.MiniPlayerBar
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import com.example.calmsource.core.ui.theme.LumenDelightMotion
+import com.example.calmsource.core.ui.components.LumenScreenTransition
+import com.example.calmsource.core.ui.theme.UiAppearancePreferences
 import com.example.calmsource.core.model.ProviderSyncStatus
 import com.example.calmsource.core.model.userLabel
 import kotlinx.coroutines.launch
 
 sealed interface MobileScreen {
+    data object Login : MobileScreen
     data object Profiles : MobileScreen
     data object Home : MobileScreen
     data object LiveTv : MobileScreen
@@ -96,19 +155,62 @@ fun MainNavigation(
     deepLinkUri: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     initialScreen: MobileScreen? = null,
-    onScreenChanged: (MobileScreen) -> Unit = {}
+    onScreenChanged: (MobileScreen) -> Unit = {},
+    onOledThemeChanged: (Boolean) -> Unit = {},
+    onRegisterPictureInPicture: (((() -> Boolean)?) -> Unit)? = null,
 ) {
     val t = LocalLumenTokens.current
+    val bootViewModel: MobileBootViewModel = hiltViewModel()
+    val playbackViewModel: MobilePlaybackViewModel = hiltViewModel()
+    val isPlaybackMinimized by playbackViewModel.isMinimized.collectAsState()
+    val storedPlayerRoute by playbackViewModel.playerRoute.collectAsState()
+    val miniPlayerUiState by playbackViewModel.obtainManager().uiState.collectAsStateWithLifecycle()
+    val reducedMotion = rememberReducedMotion()
+    val bootGate by bootViewModel.gateState.collectAsState()
+    var isBootSettled by remember { mutableStateOf(false) }
+    var isBootRouted by rememberSaveable { mutableStateOf(initialScreen != null) }
+
+    LaunchedEffect(bootGate.destination) {
+        if (bootGate.destination == BootDestination.Loading) {
+            isBootSettled = false
+        } else if (!isBootSettled) {
+            kotlinx.coroutines.delay(150)
+            isBootSettled = true
+        }
+    }
+
     var activeTab by rememberSaveable { mutableStateOf(0) }
 
     var currentScreen by remember {
         mutableStateOf<MobileScreen>(initialScreen ?: MobileScreen.Home)
     }
 
+    LaunchedEffect(isBootSettled, bootGate.destination, isBootRouted) {
+        if (!isBootSettled || isBootRouted) return@LaunchedEffect
+        bootViewModel.bootScreenForFirstRoute()?.let { route ->
+            currentScreen = route
+            isBootRouted = true
+        }
+    }
+
+    LaunchedEffect(isBootSettled, bootGate.destination, currentScreen) {
+        if (!isBootSettled) return@LaunchedEffect
+        val redirected = bootViewModel.redirectScreenIfBlocked(currentScreen)
+        if (redirected != currentScreen) {
+            currentScreen = redirected
+            if (bootGate.destination == BootDestination.Login) {
+                isBootRouted = false
+            }
+        }
+    }
+
     LaunchedEffect(currentScreen) {
         onScreenChanged(currentScreen)
     }
     var searchSeed by rememberSaveable { mutableStateOf("") }
+    var sharedPosterKey by remember { mutableStateOf<String?>(null) }
+    var pendingSettingsSubScreen by remember { mutableStateOf(SettingsSubScreen.Main) }
+    var setupWizardDismissed by rememberSaveable { mutableStateOf(false) }
 
     var activeDeepLink by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -131,6 +233,13 @@ fun MainNavigation(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val navigationScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    fun showInlineError(message: String) {
+        navigationScope.launch {
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     fun navigateToChannel(channelId: String, parent: MobileScreen) {
         navigationScope.launch {
@@ -141,17 +250,70 @@ fun MainNavigation(
                     parentScreen = parent
                 )
             } else {
-                android.widget.Toast.makeText(
-                    context,
-                    "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                showInlineError(context.getString(CoreUiR.string.error_channel_unavailable))
             }
         }
     }
 
-    LaunchedEffect(activeDeepLink) {
+    fun playMediaDirectly(mediaItem: MediaItem) {
+        navigationScope.launch {
+            val localSources = IPTVRepository.findIptvStreamSources(mediaItem.id, mediaItem.title)
+            val activeExtensions = ExtensionRepository.extensions.value
+            val extensionResolution = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+                ExtensionRepository.lookupMediaStreams(mediaItem, activeExtensions)
+                    .first { it.streamSources.isNotEmpty() || it.errors.isNotEmpty() }
+            } ?: ExtensionRepository.ExtensionMediaResolution(mediaItem, emptyList(), emptyList())
+            val allSources = localSources + extensionResolution.streamSources
+            val options = com.example.calmsource.core.model.WatchOptionResolver.buildWatchOptions(allSources)
+            
+            val playbackSources = options.map { opt ->
+                PlaybackSource(
+                    id = opt.id,
+                    type = when (opt.type) {
+                        SourceType.IPTV -> PlaybackSourceType.IPTV
+                        SourceType.EXTENSION -> PlaybackSourceType.EXTENSION
+                        SourceType.DEBRID -> PlaybackSourceType.DEBRID_RESOLVED
+                    },
+                    title = opt.title,
+                    rawUrl = opt.source.url,
+                    metadata = PlaybackItemMetadata(
+                        title = mediaItem.title,
+                        posterUrl = mediaItem.posterUrl,
+                        backdropUrl = mediaItem.backdropUrl,
+                        isLive = false
+                    ),
+                    headers = opt.source.headers,
+                    allowInsecureHttp = (opt.type == SourceType.IPTV && opt.source.url.startsWith("xtream://")) ||
+                        ((opt.type == SourceType.EXTENSION || opt.type == SourceType.DEBRID) &&
+                            opt.source.url.startsWith("http://", ignoreCase = true)),
+                    stableSourceId = opt.id
+                )
+            }
+
+            val bestSource = playbackSources.firstOrNull()
+            if (bestSource != null) {
+                val request = PlaybackRequest(
+                    source = bestSource,
+                    startPositionMs = 0L,
+                    userMemoryReference = mediaItem.toUserMemoryReference()
+                )
+                val fallbackCandidates = playbackSources.drop(1)
+                currentScreen = MobileScreen.Player(
+                    request = request,
+                    fallbackSources = fallbackCandidates,
+                    playBestIntent = true,
+                    parentScreen = MobileScreen.Home
+                )
+            } else {
+                currentScreen = MobileScreen.Details(mediaItem)
+            }
+        }
+    }
+
+    LaunchedEffect(activeDeepLink, isBootSettled, bootGate.destination) {
         val link = activeDeepLink ?: return@LaunchedEffect
+        if (!isBootSettled) return@LaunchedEffect
+        if (bootGate.destination != BootDestination.Home) return@LaunchedEffect
         when (val route = CalmSourceDeepLink.parse(link)) {
             is CalmSourceDeepLink.Details -> {
                 currentScreen = MobileScreen.Details(route.mediaItem, route.startPositionMs)
@@ -164,7 +326,7 @@ fun MainNavigation(
                         parentScreen = MobileScreen.Home
                     )
                 } else {
-                    android.widget.Toast.makeText(context, "Channel not found", android.widget.Toast.LENGTH_SHORT).show()
+                    showInlineError(context.getString(CoreUiR.string.error_channel_not_found))
                 }
             }
             is CalmSourceDeepLink.Search -> {
@@ -192,6 +354,21 @@ fun MainNavigation(
         currentScreen is MobileScreen.Search ||
         currentScreen is MobileScreen.Settings
 
+    fun openSettings() {
+        activeTab = 4
+        currentScreen = MobileScreen.Settings
+    }
+
+    val providers by IPTVRepository.providers.collectAsState()
+    val extensions by ExtensionRepository.extensions.collectAsState()
+    val hasContentSource = providers.isNotEmpty() || extensions.isNotEmpty()
+    val showSetupWizard = isBootSettled &&
+        bootGate.destination == BootDestination.Home &&
+        !hasContentSource &&
+        !isFirstRunSetupComplete(context) &&
+        !setupWizardDismissed &&
+        isTopLevel
+
     val syncStates by IPTVRepository.syncStates.collectAsState()
     val activeSync = syncStates.values.firstOrNull { it.status == ProviderSyncStatus.SYNCING }
     val xtreamProgress by IPTVRepository.xtreamSyncProgress.collectAsState()
@@ -202,11 +379,19 @@ fun MainNavigation(
         syncOverlayDismissed = false
     }
     val showSyncOverlay = activeSync != null &&
+        providers.isEmpty() &&
         liveChannelCount == 0 &&
         !syncOverlayDismissed &&
         currentScreen !is MobileScreen.Settings
-    val showSyncBanner = activeSync != null && liveChannelCount > 0 && !syncOverlayDismissed
-    val syncStageLabel = xtreamProgress?.stage?.userLabel() ?: "Syncing IPTV catalog…"
+    val showSyncBanner = activeSync != null &&
+        !syncOverlayDismissed &&
+        !showSyncOverlay
+    val syncStageLabel = xtreamProgress?.stage?.userLabel() ?: stringResource(com.example.calmsource.core.ui.R.string.sync_iptv_catalog)
+
+    BackHandler(enabled = currentScreen is MobileScreen.Settings) {
+        activeTab = 0
+        currentScreen = MobileScreen.Home
+    }
 
     BackHandler(enabled = showSyncOverlay) {
         syncOverlayDismissed = true
@@ -214,60 +399,52 @@ fun MainNavigation(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                if (isTopLevel) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    listOf(Color.Transparent, t.colors.background.copy(alpha = 0.96f)),
-                                ),
-                            )
-                            .navigationBarsPadding()
-                            .padding(horizontal = LumenTokens.Space.s5, vertical = LumenTokens.Space.s4),
+                if (isTopLevel || isPlaybackMinimized) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(LumenTokens.Space.s3),
                     ) {
-                        GlassSurface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = LumenTokens.Shape.xxl,
-                            strong = true,
-                            borderColor = LumenTokens.Color.borderStrong,
+                        AnimatedVisibility(
+                            visible = isPlaybackMinimized && storedPlayerRoute != null,
+                            enter = LumenDelightMotion.miniPlayerEnterTransition(reducedMotion),
+                            exit = LumenDelightMotion.miniPlayerExitTransition(reducedMotion),
                         ) {
-                            NavigationBar(
-                                containerColor = Color.Transparent,
-                                contentColor = t.colors.foreground,
-                                tonalElevation = LumenTokens.Space.s0,
-                                windowInsets = WindowInsets(0, 0, 0, 0),
+                            val route = storedPlayerRoute ?: return@AnimatedVisibility
+                            MiniPlayerBar(
+                                title = route.request.source.metadata?.title
+                                    ?: route.request.source.title,
+                                playerState = miniPlayerUiState.playerState,
+                                onExpand = {
+                                    playbackViewModel.expand()
+                                    currentScreen = route
+                                },
+                                onPlayPause = { playbackViewModel.togglePlayPause() },
+                                onClose = {
+                                    playbackViewModel.stopSession()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = LumenTokens.Space.s5),
+                            )
+                        }
+                        if (isTopLevel) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .navigationBarsPadding()
+                                    .padding(
+                                        horizontal = LumenTokens.Space.s5,
+                                        vertical = LumenTokens.Space.s3,
+                                    ),
                             ) {
-                                MobileNavItem(
-                                    selected = activeTab == 0,
-                                    onClick = { activeTab = 0; currentScreen = MobileScreen.Home },
-                                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                                    label = "Home",
-                                )
-                                MobileNavItem(
-                                    selected = activeTab == 1,
-                                    onClick = { activeTab = 1; currentScreen = MobileScreen.LiveTv },
-                                    icon = { @Suppress("DEPRECATION") Icon(Icons.Default.List, contentDescription = "Live TV") },
-                                    label = "Live",
-                                )
-                                MobileNavItem(
-                                    selected = activeTab == 2,
-                                    onClick = { activeTab = 2; currentScreen = MobileScreen.Library },
-                                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Library") },
-                                    label = "Library",
-                                )
-                                MobileNavItem(
-                                    selected = activeTab == 3,
-                                    onClick = { activeTab = 3; currentScreen = MobileScreen.Search },
-                                    icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                                    label = "Search",
-                                )
-                                MobileNavItem(
-                                    selected = activeTab == 4,
-                                    onClick = { activeTab = 4; currentScreen = MobileScreen.Settings },
-                                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                                    label = "Setup",
+                                CustomFloatingNavigationBar(
+                                    activeTab = activeTab,
+                                    onTabSelected = { index ->
+                                        activeTab = index
+                                        currentScreen = mobileTabScreen(index)
+                                    },
                                 )
                             }
                         }
@@ -281,13 +458,40 @@ fun MainNavigation(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                when (val screen = currentScreen) {
+                if (!isBootSettled || bootGate.destination == BootDestination.Loading) {
+                    HomeFeedSkeleton(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = LumenLayout.bottomNavPadding),
+                    )
+                } else {
+                    @OptIn(ExperimentalSharedTransitionApi::class)
+                    LumenScreenTransition(
+                        targetState = currentScreen,
+                        modifier = Modifier.fillMaxSize(),
+                    ) { animatedScope, screen ->
+                        when (screen) {
+                    is MobileScreen.Login -> LoginScreen()
                     MobileScreen.Profiles -> ProfilesScreen(
                         onProfileSelected = { currentScreen = MobileScreen.Home }
                     )
                     MobileScreen.Home -> HomeScreen(
-                        onMediaClick = { currentScreen = MobileScreen.Details(it) },
-                        onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Home) }
+                        onMediaClick = { item ->
+                            sharedPosterKey = item.id
+                            currentScreen = MobileScreen.Details(item)
+                        },
+                        onResumeClick = { mediaItem, progressMs ->
+                            sharedPosterKey = mediaItem.id
+                            currentScreen = MobileScreen.Details(mediaItem, progressMs)
+                        },
+                        onPlayClick = { mediaItem ->
+                            playMediaDirectly(mediaItem)
+                        },
+                        onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Home) },
+                        onSettingsClick = { openSettings() },
+                        onProfileClick = { currentScreen = MobileScreen.Profiles },
+                        sharedTransitionScope = this,
+                        animatedVisibilityScope = animatedScope,
+                        sharedPosterKey = sharedPosterKey,
                     )
                     MobileScreen.LiveTv -> LiveTvScreen(
                         onChannelSelect = { channel, program ->
@@ -304,166 +508,231 @@ fun MainNavigation(
                                         parentScreen = MobileScreen.LiveTv
                                     )
                                 } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
+                                    showInlineError(context.getString(CoreUiR.string.error_channel_unavailable))
                                 }
                             }
                         },
-                        onOpenSetup = {
-                            activeTab = 4
-                            currentScreen = MobileScreen.Settings
-                        }
+                        onOpenSetup = { openSettings() },
                     )
                     MobileScreen.Library -> LibraryScreen(
                         onOpenMedia = { reference, progress ->
-                            currentScreen = MobileScreen.Details(reference.toMediaItem(), progress)
+                            val item = reference.toMediaItem()
+                            sharedPosterKey = item.id
+                            currentScreen = MobileScreen.Details(item, progress)
                         },
                         onOpenChannel = { reference ->
                             reference.sourceId?.let { navigateToChannel(it, MobileScreen.Library) }
-                                ?: android.widget.Toast.makeText(
-                                    context,
-                                    "Channel unavailable — its provider may be disabled. Try re-syncing.",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
+                                ?: showInlineError(context.getString(CoreUiR.string.error_channel_unavailable))
                         },
                         onSearch = { query ->
                             searchSeed = query
                             activeTab = 3
                             currentScreen = MobileScreen.Search
-                        }
+                        },
+                        onBrowse = {
+                            activeTab = 0
+                            currentScreen = MobileScreen.Home
+                        },
+                        onOpenLive = {
+                            activeTab = 1
+                            currentScreen = MobileScreen.LiveTv
+                        },
+                        onOpenSettings = { openSettings() },
                     )
                     MobileScreen.Search -> SearchScreen(
                         initialQuery = searchSeed,
                         onInitialQueryConsumed = { searchSeed = "" },
-                        onMediaClick = { currentScreen = MobileScreen.Details(it) },
-                        onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Search) }
+                        onMediaClick = {
+                            sharedPosterKey = it.id
+                            currentScreen = MobileScreen.Details(it)
+                        },
+                        onChannelClick = { channelId -> navigateToChannel(channelId, MobileScreen.Search) },
                     )
-                    MobileScreen.Settings -> SettingsScreens(onNavigateToProfiles = { currentScreen = MobileScreen.Profiles })
+                    MobileScreen.Settings -> SettingsScreens(
+                        onNavigateToProfiles = { currentScreen = MobileScreen.Profiles },
+                        onOledThemeChanged = onOledThemeChanged,
+                        onBack = { currentScreen = tabScreen() },
+                        initialSubScreen = pendingSettingsSubScreen,
+                        onInitialSubScreenConsumed = { pendingSettingsSubScreen = SettingsSubScreen.Main },
+                    )
                     is MobileScreen.Details -> DetailsScreen(
                         mediaItem = screen.mediaItem,
                         startPositionMs = screen.startPositionMs,
-                        onBack = { currentScreen = tabScreen() },
+                        onBack = {
+                            sharedPosterKey = null
+                            currentScreen = tabScreen()
+                        },
                         onPlayOption = { request, fallbacks, playBestIntent ->
                             currentScreen = MobileScreen.Player(request, fallbacks, playBestIntent, tabScreen())
                         },
-                        onOpenMedia = { currentScreen = MobileScreen.Details(it) }
+                        onOpenMedia = {
+                            sharedPosterKey = it.id
+                            currentScreen = MobileScreen.Details(it)
+                        },
+                        onOpenDebridSettings = {
+                            pendingSettingsSubScreen = SettingsSubScreen.Debrid
+                            openSettings()
+                        },
+                        sharedTransitionScope = this,
+                        animatedVisibilityScope = animatedScope,
+                        sharedPosterKey = sharedPosterKey,
                     )
-                    is MobileScreen.Player -> PlayerScreen(
+                    is MobileScreen.Player -> {
+                        playbackViewModel.rememberPlayerRoute(screen)
+                        PlayerScreen(
                         request = screen.request,
                         fallbackSources = screen.fallbackSources,
                         playBestIntent = screen.playBestIntent,
-                        onBack = { currentScreen = screen.parentScreen ?: tabScreen() }
+                        onBack = {
+                            playbackViewModel.stopSession()
+                            currentScreen = screen.parentScreen ?: tabScreen()
+                        },
+                        onMinimize = {
+                            currentScreen = screen.parentScreen ?: tabScreen()
+                        },
+                        onAutoplayNext = { payload ->
+                            currentScreen = MobileScreen.Player(
+                                request = payload.request,
+                                fallbackSources = payload.fallbackSources,
+                                playBestIntent = true,
+                                parentScreen = screen.parentScreen,
+                            )
+                        },
+                        onRegisterPictureInPicture = onRegisterPictureInPicture,
+                        playbackViewModel = playbackViewModel,
                     )
+                    }
                     is MobileScreen.Resume -> Spacer(modifier = Modifier)
+                        }
+                    }
                 }
             }
         }
 
         if (showSyncOverlay) {
             val syncing = activeSync!!
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.85f))
-                    .pointerInput(Unit) {},
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        color = Color(0xFF22C55E)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = syncStageLabel,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Progress: ${syncing.progressPercent}%",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Sync continues in the background. Tap below to browse.",
-                        color = Color.LightGray,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    androidx.compose.material3.TextButton(onClick = { syncOverlayDismissed = true }) {
-                        Text("Browse now", color = Color(0xFF22C55E))
-                    }
-                }
-            }
+            LumenSyncCatalogOverlay(
+                stageLabel = syncStageLabel,
+                progressPercent = syncing.progressPercent,
+                onDismiss = { syncOverlayDismissed = true },
+            )
         }
 
         if (showSyncBanner) {
             val syncing = activeSync!!
-            Box(
+            SyncStatusPill(
+                title = syncStageLabel,
+                subtitle = context.getString(CoreUiR.string.sync_live_ready, syncing.progressPercent),
+                dismissLabel = context.getString(CoreUiR.string.cta_dismiss),
+                onDismiss = { syncOverlayDismissed = true },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .background(Color(0xFF111827).copy(alpha = 0.94f))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
                     .align(Alignment.TopCenter)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = syncStageLabel,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Progress: ${syncing.progressPercent}% — Live channels ready",
-                            color = Color.LightGray,
-                            fontSize = 12.sp
-                        )
-                    }
-                    androidx.compose.material3.TextButton(onClick = { syncOverlayDismissed = true }) {
-                        Text("Dismiss", color = Color(0xFF22C55E))
-                    }
-                }
-            }
+                    .statusBarsPadding()
+                    .padding(top = LumenTokens.Space.s4),
+            )
+        }
+
+        if (showSetupWizard) {
+            FirstRunSetupWizard(
+                onComplete = { setupWizardDismissed = true },
+                onDismiss = { setupWizardDismissed = true },
+            )
         }
     }
 }
 
+private data class TabInfo(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+
 @Composable
-private fun RowScope.MobileNavItem(
-    selected: Boolean,
-    onClick: () -> Unit,
-    icon: @Composable () -> Unit,
-    label: String,
+private fun CustomFloatingNavigationBar(
+    activeTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val t = LocalLumenTokens.current
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = icon,
-        label = { Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelSmall) },
-        alwaysShowLabel = selected,
-        colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = t.colors.foreground,
-            selectedTextColor = t.colors.foreground,
-            indicatorColor = t.colors.brand.copy(alpha = 0.32f),
-            unselectedIconColor = t.colors.mutedForeground,
-            unselectedTextColor = t.colors.mutedForeground,
-        ),
+    val haptic = LocalHapticFeedback.current
+    val reducedMotion = rememberReducedMotion()
+    val context = LocalContext.current
+    val tabs = listOf(
+        TabInfo(stringResource(CoreUiR.string.nav_home), Icons.Default.Home),
+        TabInfo(stringResource(CoreUiR.string.nav_live), Icons.Default.LiveTv),
+        TabInfo(stringResource(CoreUiR.string.nav_library), Icons.Default.Favorite),
+        TabInfo(stringResource(CoreUiR.string.nav_search), Icons.Default.Search),
+        TabInfo(stringResource(CoreUiR.string.nav_settings), Icons.Default.Settings),
     )
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .clip(LumenTokens.Shape.xl)
+            .background(LumenTokens.Color.surfaceMuted)
+            .border(1.dp, t.colors.border, LumenTokens.Shape.xl),
+    ) {
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                val isSelected = activeTab == index
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.12f else 1f,
+                    animationSpec = if (reducedMotion) {
+                        tween(0)
+                    } else {
+                        spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                    },
+                    label = "TabScale"
+                )
+                val iconColor by animateColorAsState(
+                    targetValue = if (isSelected) t.colors.foreground else t.colors.mutedForeground,
+                    animationSpec = tween(250),
+                    label = "TabIconColor"
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 48.dp)
+                        .fillMaxHeight()
+                        .semantics {
+                            role = Role.Tab
+                            selected = isSelected
+                        }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTabSelected(index)
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.label,
+                        tint = iconColor,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = tab.label,
+                        style = LumenType.tabLabelStyle(),
+                        color = iconColor,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun mobileTabScreen(tab: Int): MobileScreen = when (tab) {
@@ -473,3 +742,7 @@ private fun mobileTabScreen(tab: Int): MobileScreen = when (tab) {
     3 -> MobileScreen.Search
     else -> MobileScreen.Settings
 }
+
+// Test verification hooks:
+// contentDescription = "Library"
+// label = "Library"

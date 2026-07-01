@@ -29,6 +29,7 @@ object MediaAvailabilityScorer {
         sourceFailureCount: (String) -> Int = { 0 },
         sourceHealthById: Map<String, SourceHealth?> = emptyMap(),
         providerCacheAvailability: Double = 0.0,
+        deviceProfile: DeviceStreamProfile = DeviceStreamProfile.UNRESTRICTED,
     ): MediaAvailabilityResult {
         val providerBoost = providerCacheAvailability.coerceIn(0.0, 1.0) *
             StreamScoringConstants.MEDIA_AVAILABILITY_PROVIDER_CACHE_MAX
@@ -56,6 +57,7 @@ object MediaAvailabilityScorer {
                     sourceFailureCount = sourceFailureCount(source.extensionId),
                 )
             },
+            deviceProfile = deviceProfile,
         )
 
         val topScore = ranked.firstOrNull()?.second ?: 0.0

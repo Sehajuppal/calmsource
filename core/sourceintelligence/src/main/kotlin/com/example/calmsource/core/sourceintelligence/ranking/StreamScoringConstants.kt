@@ -94,6 +94,11 @@ object StreamScoringConstants {
     const val LOW_BANDWIDTH_4K_PENALTY = -35
     const val LOW_BANDWIDTH_COMPACT_BONUS = 25
 
+    // --- Device playback caps ---
+    const val DEVICE_OVER_RESOLUTION_PENALTY = -45
+    const val DEVICE_HDR_PENALTY = -25
+    const val DEVICE_ATMOS_PENALTY = -15
+
     // --- Media-level availability (search + recommendations) ---
     const val MEDIA_AVAILABILITY_PROVIDER_CACHE_MAX = 20.0
     const val MEDIA_AVAILABILITY_TOP_STREAM_SCALE = 0.35

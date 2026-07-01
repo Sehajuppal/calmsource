@@ -21,17 +21,17 @@ import androidx.room.ForeignKey
         Index("groupTitle")
     ]
 )
-class IPTVChannelEntity {
+data class IPTVChannelEntity(
     @PrimaryKey
-    var id: String = ""
-    var tvgId: String? = null
-    var tvgName: String? = null
-    var tvgLogo: String? = null
-    var groupTitle: String? = null
-    var name: String = ""
-    var streamUrl: String = ""
-    var providerId: String = ""
-    var rawAttributesJson: String = ""
-    var language: String? = null
+    var id: String = "",
+    var tvgId: String? = null,
+    var tvgName: String? = null,
+    var tvgLogo: String? = null,
+    var groupTitle: String? = null,
+    var name: String = "",
+    var streamUrl: String = "",
+    var providerId: String = "",
+    var rawAttributesJson: String = "",
+    var language: String? = null,
     var country: String? = null
-}
+)

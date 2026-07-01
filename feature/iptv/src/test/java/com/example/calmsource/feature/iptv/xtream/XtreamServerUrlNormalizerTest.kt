@@ -2,6 +2,7 @@ package com.example.calmsource.feature.iptv.xtream
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class XtreamServerUrlNormalizerTest {
@@ -63,7 +64,7 @@ class XtreamServerUrlNormalizerTest {
     @Test
     fun resolveStoredPortalUrl_keeps_user_host_when_server_info_cdn_differs() {
         assertEquals(
-            "http://portal.example.com:8080/panel",
+            "http://portal.example.com:25461/panel",
             XtreamServerUrlNormalizer.resolveStoredPortalUrl(
                 normalizedUserUrl = "http://portal.example.com:25461/panel",
                 serverUrl = "iptv.example.com",
@@ -87,6 +88,46 @@ class XtreamServerUrlNormalizerTest {
         assertEquals(
             "http://example.com:8080",
             XtreamServerUrlNormalizer.preprocessPortalInput("http://user:pass@example.com:8080")
+        )
+    }
+
+    @Test
+    fun preprocessPortalInput_adds_http_for_bare_hostname() {
+        assertEquals(
+            "http://example.com",
+            XtreamServerUrlNormalizer.preprocessPortalInput("example.com")
+        )
+    }
+
+    @Test
+    fun resolveStoredPortalUrl_keeps_user_explicit_port() {
+        assertEquals(
+            "http://portal.example.com:25461/panel",
+            XtreamServerUrlNormalizer.resolveStoredPortalUrl(
+                normalizedUserUrl = "http://portal.example.com:25461/panel",
+                serverUrl = "portal.example.com",
+                port = 8080,
+                httpsPort = 443,
+                serverProtocol = "https"
+            )
+        )
+    }
+
+    @Test
+    fun expandAuthBaseUrls_includes_common_ports_when_port_implicit() {
+        val urls = XtreamServerUrlNormalizer.expandAuthBaseUrls("https://example.com")
+        assertTrue(urls.contains("https://example.com"))
+        assertTrue(urls.contains("http://example.com"))
+        assertTrue(urls.contains("http://example.com:8080"))
+        assertTrue(urls.contains("http://example.com:25461"))
+    }
+
+    @Test
+    fun expandAuthBaseUrls_keeps_only_scheme_alternate_for_explicit_port() {
+        val urls = XtreamServerUrlNormalizer.expandAuthBaseUrls("http://example.com:8080/panel")
+        assertEquals(
+            listOf("http://example.com:8080/panel", "https://example.com:8080/panel"),
+            urls
         )
     }
 

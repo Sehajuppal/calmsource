@@ -1,23 +1,23 @@
 package com.example.calmsource.core.ui.components
 
-import android.content.pm.PackageManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.calmsource.core.ui.R
+import com.example.calmsource.core.ui.theme.LocalLumenIsTv
 import com.example.calmsource.core.ui.theme.LocalLumenTokens
+import com.example.calmsource.core.ui.theme.lumenBodyStyle
+import com.example.calmsource.core.ui.theme.lumenTitleStyle
 import androidx.compose.ui.focus.onFocusChanged
 
 @Composable
@@ -30,10 +30,7 @@ fun LumenEmptyState(
     onCtaClick: (() -> Unit)? = null
 ) {
     val t = LocalLumenTokens.current
-    val context = LocalContext.current
-    val isTv = remember(context) {
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-    }
+    val isTv = LocalLumenIsTv.current
 
     Column(
         modifier = modifier
@@ -55,7 +52,7 @@ fun LumenEmptyState(
 
         Text(
             text = title,
-            fontSize = 18.sp,
+            style = lumenTitleStyle(),
             fontWeight = FontWeight.Bold,
             color = t.colors.foreground,
             textAlign = TextAlign.Center,
@@ -64,7 +61,7 @@ fun LumenEmptyState(
 
         Text(
             text = body,
-            fontSize = 14.sp,
+            style = lumenBodyStyle(),
             color = t.colors.mutedForeground,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = t.spacing.lg)

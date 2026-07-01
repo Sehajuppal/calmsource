@@ -39,13 +39,13 @@ interface XtreamDao {
     suspend fun searchVodFts(query: SupportSQLiteQuery): List<XtreamVodEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertVod(items: List<XtreamVodEntity>)
+    suspend fun insertVod(items: List<XtreamVodEntity>): List<Long>
 
     @Query("DELETE FROM xtream_vod WHERE providerId = :providerId")
-    fun deleteVodByProvider(providerId: String)
+    suspend fun deleteVodByProvider(providerId: String): Int
 
     @Query("SELECT COUNT(*) FROM xtream_vod WHERE providerId = :providerId")
-    fun getVodCount(providerId: String): Int
+    suspend fun getVodCount(providerId: String): Int
 
     // ── Series ───────────────────────────────────────────────────────────
 
@@ -78,13 +78,13 @@ interface XtreamDao {
     suspend fun searchSeriesFts(query: SupportSQLiteQuery): List<XtreamSeriesEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertSeries(items: List<XtreamSeriesEntity>)
+    suspend fun insertSeries(items: List<XtreamSeriesEntity>): List<Long>
 
     @Query("DELETE FROM xtream_series WHERE providerId = :providerId")
-    fun deleteSeriesByProvider(providerId: String)
+    suspend fun deleteSeriesByProvider(providerId: String): Int
 
     @Query("SELECT COUNT(*) FROM xtream_series WHERE providerId = :providerId")
-    fun getSeriesCount(providerId: String): Int
+    suspend fun getSeriesCount(providerId: String): Int
 
 
     // ── FTS helpers (KSP can't validate FTS virtual tables) ──────────────
